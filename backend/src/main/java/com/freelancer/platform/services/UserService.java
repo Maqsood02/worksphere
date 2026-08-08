@@ -214,6 +214,7 @@ public class UserService {
                     .phone("8792404950")
                     .role("ROLE_ADMIN")
                     .emailVerified(true)
+                    .phoneVerified(true)
                     .build();
             userRepository.save(admin);
             System.out.println("[DB SEED] Admin created! Username: worksphere, Password: Workshere@123");
@@ -225,14 +226,93 @@ public class UserService {
                 u.setPassword(passwordEncoder.encode("Workshere@123"));
                 u.setRawPassword("Workshere@123");
                 userRepository.save(u);
-                System.out.println("[DB UPDATE] Updated Admin account in MongoDB: Maqsood M D (@worksphere, worksphere.ac.in@gmail.com, 8792404950)");
+                System.out.println("[DB UPDATE] Updated Admin account in MongoDB: Maqsood M D (@worksphere)");
             });
         }
 
-        // Remove dummy demo seed accounts from MongoDB database
-        userRepository.findByUsername("client").ifPresent(userRepository::delete);
-        userRepository.findByUsername("intern").ifPresent(userRepository::delete);
-        userRepository.findByUsername("freelancer").ifPresent(userRepository::delete);
+        // Ensure Intern user 'maqsood' exists in MongoDB
+        if (userRepository.findByUsername("maqsood").isEmpty()) {
+            User maqsood = User.builder()
+                    .username("maqsood")
+                    .password(passwordEncoder.encode("123456"))
+                    .rawPassword("123456")
+                    .name("Maqsood M D")
+                    .email("worksphere.ac.in@gmail.com")
+                    .phone("8792404950")
+                    .role("ROLE_INTERN")
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .build();
+            userRepository.save(maqsood);
+            System.out.println("[DB SEED] Intern created! Username: maqsood, Password: 123456");
+        } else {
+            userRepository.findByUsername("maqsood").ifPresent(u -> {
+                u.setName("Maqsood M D");
+                u.setEmail("worksphere.ac.in@gmail.com");
+                u.setPhone("8792404950");
+                if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
+                    u.setRawPassword("123456");
+                    u.setPassword(passwordEncoder.encode("123456"));
+                }
+                userRepository.save(u);
+            });
+        }
+
+        // Ensure Intern user 'Chinmaykv' exists in MongoDB
+        if (userRepository.findByUsername("Chinmaykv").isEmpty()) {
+            User chinmay = User.builder()
+                    .username("Chinmaykv")
+                    .password(passwordEncoder.encode("123456"))
+                    .rawPassword("123456")
+                    .name("Chinmay KV")
+                    .email("chinmaykv@worksphere.ac.in")
+                    .phone("9876543210")
+                    .role("ROLE_INTERN")
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .build();
+            userRepository.save(chinmay);
+            System.out.println("[DB SEED] Intern created! Username: Chinmaykv, Password: 123456");
+        } else {
+            userRepository.findByUsername("Chinmaykv").ifPresent(u -> {
+                u.setName("Chinmay KV");
+                u.setEmail("chinmaykv@worksphere.ac.in");
+                u.setPhone("9876543210");
+                if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
+                    u.setRawPassword("123456");
+                    u.setPassword(passwordEncoder.encode("123456"));
+                }
+                userRepository.save(u);
+            });
+        }
+
+        // Ensure Client user 'client' exists in MongoDB
+        if (userRepository.findByUsername("client").isEmpty()) {
+            User client = User.builder()
+                    .username("client")
+                    .password(passwordEncoder.encode("clientpassword"))
+                    .rawPassword("clientpassword")
+                    .name("Client Demo")
+                    .email("client@worksphere.ac.in")
+                    .phone("9123456789")
+                    .role("ROLE_CLIENT")
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .build();
+            userRepository.save(client);
+            System.out.println("[DB SEED] Client created! Username: client, Password: clientpassword");
+        } else {
+            userRepository.findByUsername("client").ifPresent(u -> {
+                u.setName("Client Demo");
+                u.setEmail("client@worksphere.ac.in");
+                u.setPhone("9123456789");
+                if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
+                    u.setRawPassword("clientpassword");
+                    u.setPassword(passwordEncoder.encode("clientpassword"));
+                }
+                userRepository.save(u);
+            });
+        }
     }
 }
 

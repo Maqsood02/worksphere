@@ -12,10 +12,10 @@ function getStoredUsersList() {
     } catch (e) {}
   }
   const defaultList = [
-    { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '+91 8792404950', role: 'ROLE_ADMIN', rawPassword: 'Workshere@123', emailVerified: true, phoneVerified: true },
-    { id: 'u2', username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.ac.in', phone: '+91 8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmaykv@worksphere.ac.in', phone: '+91 9876543210', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'client', name: 'Client Demo', email: 'client@worksphere.ac.in', phone: '+91 9123456789', role: 'ROLE_CLIENT', rawPassword: 'clientpassword', emailVerified: true, phoneVerified: true }
+    { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Workshere@123', emailVerified: true, phoneVerified: true },
+    { id: 'u2', username: 'maqsood', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmaykv@worksphere.ac.in', phone: '9876543210', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u4', username: 'client', name: 'Client Demo', email: 'client@worksphere.ac.in', phone: '9123456789', role: 'ROLE_CLIENT', rawPassword: 'clientpassword', emailVerified: true, phoneVerified: true }
   ];
   localStorage.setItem('worksphere_users_list', JSON.stringify(defaultList));
   return defaultList;
@@ -50,13 +50,13 @@ function getMockFallbackResponse(url, options = {}) {
     } else if (uname.toLowerCase() === 'maqsood') {
       role = 'ROLE_INTERN';
       name = 'Maqsood M D';
-      email = 'maqsood@worksphere.ac.in';
-      phone = '+91 8792404950';
+      email = 'worksphere.ac.in@gmail.com';
+      phone = '8792404950';
     } else if (uname.toLowerCase() === 'chinmaykv' || uname.toLowerCase() === 'chinmay') {
       role = 'ROLE_INTERN';
       name = 'Chinmay KV';
       email = 'chinmaykv@worksphere.ac.in';
-      phone = '+91 9876543210';
+      phone = '9876543210';
     }
     
     const user = {
