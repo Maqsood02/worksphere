@@ -1,5 +1,7 @@
 # WorkSphere - Premium Freelancing Platform & Management System
 
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-success?style=flat&logo=vercel)](https://vercel.com)
+
 Welcome to WorkSphere! This repository contains a full-stack web application featuring a Java Spring Boot backend (with MongoDB and REST APIs) and a React (Vite) frontend for freelancing management, project request tracking, interactive user/client/admin dashboards, and AI Co-Pilot features.
 
 ---
