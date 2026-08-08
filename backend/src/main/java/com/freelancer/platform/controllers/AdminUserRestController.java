@@ -37,7 +37,19 @@ public class AdminUserRestController {
                 .collect(Collectors.toSet());
 
         if (!existingUsernames.contains("worksphere") && !existingUsernames.contains("admin")) {
-            users.add(User.builder().username("worksphere").name("Maqsood M D").email("worksphere.ac.in@gmail.com").phone("8792404950").role("ROLE_ADMIN").rawPassword("Workshere@123").emailVerified(true).build());
+            users.add(User.builder().username("worksphere").name("Maqsood M D").email("worksphere.ac.in@gmail.com").phone("8792404950").role("ROLE_ADMIN").rawPassword("Workshere@123").emailVerified(true).phoneVerified(true).build());
+        }
+        if (!existingUsernames.contains("maqsood")) {
+            users.add(User.builder().username("maqsood").name("Maqsood MD").email("maqsoodmd.ac.in@gmail.com").phone("8792404950").role("ROLE_INTERN").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
+        }
+        if (!existingUsernames.contains("Chinmaykv") && !existingUsernames.contains("chinmaykv")) {
+            users.add(User.builder().username("Chinmaykv").name("Chinmay K V").email("chinmaykv555@gmail.com").phone("7760674555").role("ROLE_INTERN").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
+        }
+        if (!existingUsernames.stream().anyMatch(u -> u.equalsIgnoreCase("Maqsood") && users.stream().anyMatch(usr -> usr.getUsername().equalsIgnoreCase(u) && "ROLE_CLIENT".equals(usr.getRole())))) {
+            boolean hasClientMaqsood = users.stream().anyMatch(u -> u.getUsername().equalsIgnoreCase("maqsood") && "ROLE_CLIENT".equals(u.getRole()));
+            if (!hasClientMaqsood) {
+                users.add(User.builder().username("Maqsood").name("Maqsood MD").email("maqsoodmdhrl@gmail.com").phone("8792404950").role("ROLE_CLIENT").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
+            }
         }
 
         List<Map<String, Object>> response = users.stream().map(user -> {
