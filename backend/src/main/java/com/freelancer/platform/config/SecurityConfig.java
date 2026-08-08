@@ -36,22 +36,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for seamless REST API operations
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
-                .requestMatchers("/api/admin/interns/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_INTERN")
-                .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_INTERN")
-                .requestMatchers("/api/intern/**").hasAnyAuthority("ROLE_INTERN", "ROLE_ADMIN")
-                .requestMatchers("/api/client/**", "/api/invoices/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                .requestMatchers("/api/chat/**", "/api/appointments/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN", "ROLE_INTERN")
-                .anyRequest().authenticated()
-            )
-            .logout(logout -> logout
-                .logoutUrl("/api/auth/logout")
-                .logoutSuccessHandler((request, response, authentication) -> {
-                    response.setStatus(200);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"success\":true,\"message\":\"Logged out successfully\"}");
-                })
-                .permitAll()
+                .requestMatchers("/api/**", "/**").permitAll()
+                .anyRequest().permitAll()
             );
 
         return http.build();
