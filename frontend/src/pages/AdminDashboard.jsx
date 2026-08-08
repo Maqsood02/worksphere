@@ -1373,7 +1373,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowSendCredModal(false)}
@@ -1381,13 +1381,23 @@ export default function AdminDashboard() {
                 >
                   Cancel
                 </button>
+                <a
+                  href={`mailto:${credUser.email || `${credUser.username}@worksphere.ac.in`}?subject=${encodeURIComponent("WorkSphere Account Login Credentials")}&body=${encodeURIComponent(`Hello ${credUser.name || credUser.username},\n\nYour WorkSphere login credentials:\nUsername: ${credUser.username}\nPassword: ${credPasswordInput}\nRole: ${credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}\n\nLog in at: https://worksphere-two.vercel.app/login\n\nRegards,\nWorkSphere Admin Team`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80"
+                  title="Open in your desktop/mobile mail app (Gmail / Outlook / Apple Mail)"
+                >
+                  <ExternalLink className="w-4 h-4 text-slate-500" />
+                  <span>Open Mail App</span>
+                </a>
                 <button
                   type="submit"
                   disabled={isSendingCreds}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Mail className="w-4 h-4" />
-                  <span>{isSendingCreds ? 'Sending Email...' : 'Send Mail Now'}</span>
+                  <span>{isSendingCreds ? 'Sending Email...' : 'Send Server Email'}</span>
                 </button>
               </div>
             </form>
