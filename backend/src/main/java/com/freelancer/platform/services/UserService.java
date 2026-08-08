@@ -236,8 +236,8 @@ public class UserService {
                     .username("maqsood")
                     .password(passwordEncoder.encode("123456"))
                     .rawPassword("123456")
-                    .name("Maqsood M D")
-                    .email("worksphere.ac.in@gmail.com")
+                    .name("Maqsood MD")
+                    .email("maqsoodmd.ac.in@gmail.com")
                     .phone("8792404950")
                     .role("ROLE_INTERN")
                     .emailVerified(true)
@@ -247,9 +247,10 @@ public class UserService {
             System.out.println("[DB SEED] Intern created! Username: maqsood, Password: 123456");
         } else {
             userRepository.findByUsername("maqsood").ifPresent(u -> {
-                u.setName("Maqsood M D");
-                u.setEmail("worksphere.ac.in@gmail.com");
+                u.setName("Maqsood MD");
+                u.setEmail("maqsoodmd.ac.in@gmail.com");
                 u.setPhone("8792404950");
+                u.setRole("ROLE_INTERN");
                 if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
                     u.setRawPassword("123456");
                     u.setPassword(passwordEncoder.encode("123456"));
@@ -264,9 +265,9 @@ public class UserService {
                     .username("Chinmaykv")
                     .password(passwordEncoder.encode("123456"))
                     .rawPassword("123456")
-                    .name("Chinmay KV")
-                    .email("chinmaykv@worksphere.ac.in")
-                    .phone("9876543210")
+                    .name("Chinmay K V")
+                    .email("chinmaykv555@gmail.com")
+                    .phone("7760674555")
                     .role("ROLE_INTERN")
                     .emailVerified(true)
                     .phoneVerified(true)
@@ -275,9 +276,10 @@ public class UserService {
             System.out.println("[DB SEED] Intern created! Username: Chinmaykv, Password: 123456");
         } else {
             userRepository.findByUsername("Chinmaykv").ifPresent(u -> {
-                u.setName("Chinmay KV");
-                u.setEmail("chinmaykv@worksphere.ac.in");
-                u.setPhone("9876543210");
+                u.setName("Chinmay K V");
+                u.setEmail("chinmaykv555@gmail.com");
+                u.setPhone("7760674555");
+                u.setRole("ROLE_INTERN");
                 if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
                     u.setRawPassword("123456");
                     u.setPassword(passwordEncoder.encode("123456"));
@@ -286,29 +288,29 @@ public class UserService {
             });
         }
 
-        // Ensure Client user 'client' exists in MongoDB
-        if (userRepository.findByUsername("client").isEmpty()) {
+        // Ensure Client user 'Maqsood' exists in MongoDB
+        if (userRepository.findByUsername("Maqsood").isEmpty()) {
             User client = User.builder()
-                    .username("client")
-                    .password(passwordEncoder.encode("clientpassword"))
-                    .rawPassword("clientpassword")
-                    .name("Client Demo")
-                    .email("client@worksphere.ac.in")
-                    .phone("9123456789")
+                    .username("Maqsood")
+                    .password(passwordEncoder.encode("123456"))
+                    .rawPassword("123456")
+                    .name("Maqsood MD")
+                    .email("maqsoodmdhrl@gmail.com")
+                    .phone("8792404950")
                     .role("ROLE_CLIENT")
                     .emailVerified(true)
                     .phoneVerified(true)
                     .build();
             userRepository.save(client);
-            System.out.println("[DB SEED] Client created! Username: client, Password: clientpassword");
+            System.out.println("[DB SEED] Client created! Username: Maqsood, Password: 123456");
         } else {
-            userRepository.findByUsername("client").ifPresent(u -> {
-                u.setName("Client Demo");
-                u.setEmail("client@worksphere.ac.in");
-                u.setPhone("9123456789");
+            userRepository.findByUsername("Maqsood").ifPresent(u -> {
+                u.setName("Maqsood MD");
+                u.setEmail("maqsoodmdhrl@gmail.com");
+                u.setPhone("8792404950");
                 if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
-                    u.setRawPassword("clientpassword");
-                    u.setPassword(passwordEncoder.encode("clientpassword"));
+                    u.setRawPassword("123456");
+                    u.setPassword(passwordEncoder.encode("123456"));
                 }
                 userRepository.save(u);
             });
