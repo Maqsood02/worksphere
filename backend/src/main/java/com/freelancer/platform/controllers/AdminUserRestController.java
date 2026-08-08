@@ -126,16 +126,22 @@ public class AdminUserRestController {
     @PostMapping("/{username}/send-credentials")
     public ResponseEntity<?> sendCredentials(@PathVariable String username, @RequestBody(required = false) Map<String, String> payload) {
         Optional<User> userOpt = userService.findByUsername(username);
-        String name = userOpt.map(User::getName).orElse(username);
-        String role = userOpt.map(User::getRole).orElse("ROLE_CLIENT");
+        String name = (payload != null && payload.get("name") != null && !payload.get("name").isBlank()) 
+            ? payload.get("name") : userOpt.map(User::getName).orElse(username);
+        String role = (payload != null && payload.get("role") != null && !payload.get("role").isBlank()) 
+            ? payload.get("role") : userOpt.map(User::getRole).orElse("ROLE_CLIENT");
 
-        String email = userOpt.map(User::getEmail).filter(e -> e != null && !e.isBlank() && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse(null);
+        String email = null;
+        if (payload != null && payload.get("email") != null && payload.get("email").contains("@")) {
+            email = payload.get("email");
+        } else {
+            email = userOpt.map(User::getEmail).filter(e -> e != null && !e.isBlank() && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse(null);
+        }
         if (email == null) {
             String lower = username.toLowerCase();
             if (lower.equals("maqsood")) email = "maqsoodmd.ac.in@gmail.com";
             else if (lower.equals("chinmaykv")) email = "chinmaykv555@gmail.com";
             else if (lower.equals("worksphere") || lower.equals("workshpere")) email = "worksphere.ac.in@gmail.com";
-            else if (payload != null && payload.containsKey("email") && payload.get("email") != null && payload.get("email").contains("@")) email = payload.get("email");
             else email = "maqsoodmd.ac.in@gmail.com";
         }
 

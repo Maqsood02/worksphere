@@ -165,8 +165,14 @@ function getMockFallbackResponse(url, options = {}) {
     const targetUsername = parts[parts.length - 2] || 'user';
     const users = getStoredUsersList();
     const target = users.find(u => u.username.toLowerCase() === targetUsername.toLowerCase());
-    const emailToUse = target?.email || `${targetUsername}@worksphere.ac.in`;
-    return { success: true, message: `Credentials email dispatched successfully to ${emailToUse}!` };
+    let emailToUse = target?.email || `${targetUsername}@worksphere.ac.in`;
+    try {
+      if (options && options.body) {
+        const bodyObj = JSON.parse(options.body);
+        if (bodyObj && bodyObj.email) emailToUse = bodyObj.email;
+      }
+    } catch (e) {}
+    return { success: true, message: `HTML Credentials email dispatched successfully to ${emailToUse}!` };
   }
 
   // 6d. Create User (POST /api/admin/users)

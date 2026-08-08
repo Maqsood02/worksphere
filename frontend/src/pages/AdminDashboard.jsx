@@ -390,7 +390,12 @@ export default function AdminDashboard() {
       addToast(`Sending HTML credentials email to ${recipientEmail} from worksphere.ac.in@gmail.com...`);
       
       // Dispatch via backend REST API (Spring Boot JavaMailSender Port 465 SSL)
-      const res = await api.sendUserCredentials(credUser.username, { password: credPasswordInput });
+      const res = await api.sendUserCredentials(credUser.username, { 
+        password: credPasswordInput,
+        email: recipientEmail,
+        name: credUser.name || credUser.username,
+        role: credUser.role || 'ROLE_CLIENT'
+      });
       
       if (res && res.success) {
         addToast(`🎉 ${res.message || `HTML credentials email sent to ${recipientEmail}!`}`);
