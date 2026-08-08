@@ -87,8 +87,13 @@ export default function AdminDashboard() {
       navigate('/login');
       return;
     }
-    if (user.role !== 'ROLE_ADMIN') {
-      navigate('/client/dashboard');
+    const r = (user.role || '').toUpperCase();
+    if (r !== 'ADMIN' && r !== 'ROLE_ADMIN') {
+      if (r === 'INTERN' || r === 'ROLE_INTERN') {
+        navigate('/intern/dashboard');
+      } else {
+        navigate('/client/dashboard');
+      }
       return;
     }
     fetchData();

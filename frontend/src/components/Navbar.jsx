@@ -90,9 +90,9 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="hidden md:flex items-center space-x-3 text-xs">
-              {user.role === 'ROLE_ADMIN' ? (
+              {(user.role === 'ADMIN' || user.role === 'ROLE_ADMIN') ? (
                 <Link to="/admin/dashboard" className="font-semibold text-primary hover:underline py-2">Admin Panel</Link>
-              ) : user.role === 'ROLE_INTERN' ? (
+              ) : (user.role === 'INTERN' || user.role === 'ROLE_INTERN') ? (
                 <Link to="/intern/dashboard" className="font-semibold text-indigo-600 hover:underline py-2">Intern Portal</Link>
               ) : (
                 <Link to="/client/dashboard" className="font-semibold text-primary hover:underline py-2">Workspace</Link>
@@ -139,9 +139,9 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="pt-2 flex flex-col space-y-2.5">
-              {user.role === 'ROLE_ADMIN' ? (
+              {(user.role === 'ADMIN' || user.role === 'ROLE_ADMIN') ? (
                 <Link to="/admin/dashboard" onClick={() => setMobileOpen(false)} className="text-center font-bold text-white bg-indigo-600 py-2.5 px-4 rounded-xl shadow-sm">Admin Panel</Link>
-              ) : user.role === 'ROLE_INTERN' ? (
+              ) : (user.role === 'INTERN' || user.role === 'ROLE_INTERN') ? (
                 <Link to="/intern/dashboard" onClick={() => setMobileOpen(false)} className="text-center font-bold text-white bg-indigo-600 py-2.5 px-4 rounded-xl shadow-sm">Intern Portal</Link>
               ) : (
                 <Link to="/client/dashboard" onClick={() => setMobileOpen(false)} className="text-center font-bold text-white bg-primary py-2.5 px-4 rounded-xl shadow-sm">Workspace</Link>

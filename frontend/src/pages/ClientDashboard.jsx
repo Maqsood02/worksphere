@@ -49,6 +49,15 @@ export default function ClientDashboard() {
       navigate('/login');
       return;
     }
+    const r = (user.role || '').toUpperCase();
+    if (r === 'ADMIN' || r === 'ROLE_ADMIN') {
+      navigate('/admin/dashboard');
+      return;
+    }
+    if (r === 'INTERN' || r === 'ROLE_INTERN') {
+      navigate('/intern/dashboard');
+      return;
+    }
     fetchData();
   }, [user]);
 
@@ -221,7 +230,7 @@ export default function ClientDashboard() {
             {user.name.charAt(0)}
           </div>
           <h3 className="font-poppins font-bold text-lg text-text-dark pt-2">{user.name}</h3>
-          <p className="text-[10px] text-text-light font-mono bg-slate-100 py-1 px-3 rounded-full border border-slate-200 inline-block">Client Account</p>
+          <p className="text-[10px] text-text-light font-mono bg-slate-100 py-1 px-3 rounded-full border border-slate-200 inline-block">{user.designation || 'Client Account'}</p>
         </div>
 
         <nav className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 text-xs font-semibold text-text-light border-b lg:border-b-0 pb-4 lg:pb-0 border-slate-200">

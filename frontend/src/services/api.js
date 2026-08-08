@@ -12,17 +12,17 @@ function getMockFallbackResponse(url, options = {}) {
   // 1. Auth - Login
   if (url.includes('/api/auth/login')) {
     const uname = (body.username || '').trim();
-    let role = 'CLIENT';
+    let role = 'ROLE_CLIENT';
     let name = uname || 'Demo User';
     
     if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin') {
-      role = 'ADMIN';
+      role = 'ROLE_ADMIN';
       name = 'WorkSphere Admin';
     } else if (uname.toLowerCase() === 'maqsood') {
-      role = 'INTERN';
+      role = 'ROLE_INTERN';
       name = 'Maqsood M D';
     } else if (uname.toLowerCase() === 'chinmaykv' || uname.toLowerCase() === 'chinmay') {
-      role = 'INTERN';
+      role = 'ROLE_INTERN';
       name = 'Chinmay KV';
     }
     
@@ -33,7 +33,7 @@ function getMockFallbackResponse(url, options = {}) {
       email: `${uname || 'demo'}@worksphere.dev`,
       role: role,
       phone: '+91 9876543210',
-      designation: role === 'INTERN' ? 'Full-Stack Engineering Intern' : (role === 'ADMIN' ? 'Platform Administrator' : 'Valued Client')
+      designation: role === 'ROLE_INTERN' ? 'Full-Stack Engineering Intern' : (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 'Valued Client')
     };
     
     localStorage.setItem('worksphere_user', JSON.stringify(user));

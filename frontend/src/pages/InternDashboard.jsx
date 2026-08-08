@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { 
@@ -9,6 +10,7 @@ import {
 
 export default function InternDashboard() {
   const { user, addToast } = useApp();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'standup', 'curriculum', 'certificates'
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,21 @@ export default function InternDashboard() {
   const [taskFilter, setTaskFilter] = useState('ALL');
 
   useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    const r = (user.role || '').toUpperCase();
+    if (r !== 'INTERN' && r !== 'ROLE_INTERN') {
+      if (r === 'ADMIN' || r === 'ROLE_ADMIN') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/client/dashboard');
+      }
+      return;
+    }
     fetchInternData();
-  }, []);
+  }, [user]);
 
   const fetchInternData = async () => {
     setLoading(true);

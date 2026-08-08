@@ -16,9 +16,10 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handleRoleRedirect = (role) => {
-    if (role === 'ROLE_ADMIN') {
+    const r = (role || '').toUpperCase();
+    if (r === 'ADMIN' || r === 'ROLE_ADMIN') {
       navigate('/admin/dashboard');
-    } else if (role === 'ROLE_INTERN') {
+    } else if (r === 'INTERN' || r === 'ROLE_INTERN') {
       navigate('/intern/dashboard');
     } else {
       navigate('/client/dashboard');
