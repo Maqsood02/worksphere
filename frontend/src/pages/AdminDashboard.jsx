@@ -625,11 +625,11 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2.5">
                             <button
                               onClick={() => openSendCredModal(u)}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-2 rounded-xl text-[11px] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                              title="Send login username & password directly to user email"
+                              className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold px-3.5 py-2 rounded-xl text-[11px] transition-all shadow-md shadow-indigo-500/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+                              title="Send login credentials email"
                             >
                               <Mail className="w-3.5 h-3.5 shrink-0" />
-                              <span className="whitespace-nowrap">Send Mail</span>
+                              <span className="whitespace-nowrap">Send Email</span>
                             </button>
 
                             <button
@@ -1313,42 +1313,60 @@ export default function AdminDashboard() {
 
       {/* MODAL: SEND CREDENTIALS EMAIL */}
       {showSendCredModal && credUser && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl border border-slate-200 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest block">Security & Credentials Dispatch</span>
-                <h3 className="text-lg font-outfit font-extrabold text-slate-900">Send Account Login Mail</h3>
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-lg p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-200/80 space-y-5 transform transition-all scale-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 border border-indigo-600/20 flex items-center justify-center text-indigo-600 shadow-inner">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">Official Email Dispatch Center</span>
+                  <h3 className="text-lg font-outfit font-extrabold text-slate-900">Send Account Login Credentials</h3>
+                </div>
               </div>
-              <button onClick={() => setShowSendCredModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+              <button 
+                onClick={() => setShowSendCredModal(false)} 
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">User Name:</span>
-                <span className="font-extrabold text-slate-900">{credUser.name || credUser.username}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Username / ID:</span>
-                <span className="font-mono font-bold text-indigo-600">@{credUser.username}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Recipient Email:</span>
-                <span className="font-semibold text-slate-800">{credUser.email || `${credUser.username}@worksphere.ac.in`}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Role:</span>
-                <span className="font-bold text-emerald-600">{credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}</span>
+            {/* Recipient Overview Badge */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-4.5 rounded-2xl shadow-lg border border-slate-700/60 relative overflow-hidden">
+              <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center font-outfit font-black text-indigo-300 text-lg shadow-sm">
+                    {(credUser.name || credUser.username || 'U')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="font-outfit font-bold text-sm text-white flex items-center gap-2">
+                      <span>{credUser.name || credUser.username}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}
+                      </span>
+                    </h4>
+                    <p className="text-xs text-indigo-200 font-mono flex items-center gap-1.5 mt-0.5">
+                      <span>@{credUser.username}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-300 font-semibold">{credUser.email || `${credUser.username}@worksphere.ac.in`}</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
+            {/* Password Input & Preview */}
             <form onSubmit={handleConfirmSendCreds} className="space-y-4 text-xs font-semibold">
               <div className="space-y-1.5">
                 <label className="text-slate-800 flex items-center justify-between">
-                  <span>Login Password (Stored in MongoDB) *</span>
-                  <span className="text-[10px] text-indigo-600 font-normal">Editable by Admin</span>
+                  <span className="font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>Database Password to Send *</span>
+                  </span>
+                  <span className="text-[10px] text-indigo-600 font-extrabold">Editable by Admin</span>
                 </label>
                 <div className="relative">
                   <input
@@ -1357,7 +1375,7 @@ export default function AdminDashboard() {
                     onChange={(e) => setCredPasswordInput(e.target.value)}
                     placeholder="Enter password to send..."
                     required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-4 pr-11 py-3 text-slate-900 font-mono font-bold text-xs outline-none focus:border-indigo-500 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-4 pr-11 py-3 text-slate-900 font-mono font-bold text-xs outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
                   />
                   <button
                     type="button"
@@ -1368,16 +1386,31 @@ export default function AdminDashboard() {
                     {showCredPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 font-normal">
-                  This password will be updated in MongoDB and dispatched directly to <strong>{credUser.email}</strong>.
+                <p className="text-[10px] text-slate-500 font-medium pt-0.5">
+                  Sending to: <strong className="text-slate-800">{credUser.email || `${credUser.username}@worksphere.ac.in`}</strong>
                 </p>
+              </div>
+
+              {/* Formatted HTML Email Card Preview */}
+              <div className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/80 space-y-2">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 border-b border-slate-200/80 pb-1.5">
+                  <span className="flex items-center gap-1 text-indigo-600 uppercase tracking-wider">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> HTML Email Template Preview
+                  </span>
+                  <span>SMTP: worksphere.ac.in@gmail.com</span>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm space-y-1.5 text-[11px] font-sans">
+                  <p className="font-bold text-slate-800">Subject: 🎓 Official Account Created: WorkSphere Access Credentials</p>
+                  <p className="text-slate-600">Dear <strong>{credUser.name || credUser.username}</strong>,</p>
+                  <p className="text-slate-500 leading-relaxed text-[10.5px]">Your WorkSphere account has been configured. Log in at <strong>https://worksphere-two.vercel.app/login</strong> with Username: <code className="bg-slate-100 text-indigo-600 px-1 py-0.5 rounded font-mono font-bold">@{credUser.username}</code> and Password: <code className="bg-rose-50 text-rose-600 px-1 py-0.5 rounded font-mono font-bold">{showCredPassword ? credPasswordInput : '••••••••'}</code>.</p>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowSendCredModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -1385,7 +1418,7 @@ export default function AdminDashboard() {
                   href={`mailto:${credUser.email || `${credUser.username}@worksphere.ac.in`}?subject=${encodeURIComponent("WorkSphere Account Login Credentials")}&body=${encodeURIComponent(`Hello ${credUser.name || credUser.username},\n\nYour WorkSphere login credentials:\nUsername: ${credUser.username}\nPassword: ${credPasswordInput}\nRole: ${credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}\n\nLog in at: https://worksphere-two.vercel.app/login\n\nRegards,\nWorkSphere Admin Team`)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 transition-all active:scale-95 shadow-sm"
                   title="Open in your desktop/mobile mail app (Gmail / Outlook / Apple Mail)"
                 >
                   <ExternalLink className="w-4 h-4 text-slate-500" />
@@ -1394,10 +1427,10 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={isSendingCreds}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                 >
                   <Mail className="w-4 h-4" />
-                  <span>{isSendingCreds ? 'Sending Email...' : 'Send Server Email'}</span>
+                  <span>{isSendingCreds ? 'Sending Email...' : 'Send Official Email'}</span>
                 </button>
               </div>
             </form>
