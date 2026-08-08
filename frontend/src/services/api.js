@@ -162,7 +162,10 @@ function getMockFallbackResponse(url, options = {}) {
   if (url.includes('/send-credentials')) {
     const parts = url.split('/');
     const targetUsername = parts[parts.length - 2] || 'user';
-    return { success: true, message: `Credentials email dispatched to @${targetUsername} successfully!` };
+    const users = getStoredUsersList();
+    const target = users.find(u => u.username.toLowerCase() === targetUsername.toLowerCase());
+    const emailToUse = target?.email || `${targetUsername}@worksphere.ac.in`;
+    return { success: true, message: `Credentials email dispatched successfully to ${emailToUse}!` };
   }
 
   // 6d. Create User (POST /api/admin/users)
