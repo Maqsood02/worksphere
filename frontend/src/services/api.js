@@ -2,6 +2,29 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// Persistent Users List for Standalone Cloud Demo Mode
+function getStoredUsersList() {
+  const saved = localStorage.getItem('worksphere_users_list');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+  const defaultList = [
+    { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '+91 8792404950', role: 'ROLE_ADMIN', rawPassword: 'Workshere@123', emailVerified: true, phoneVerified: true },
+    { id: 'u2', username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.ac.in', phone: '+91 8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmaykv@worksphere.ac.in', phone: '+91 9876543210', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u4', username: 'client', name: 'Client Demo', email: 'client@worksphere.ac.in', phone: '+91 9123456789', role: 'ROLE_CLIENT', rawPassword: 'clientpassword', emailVerified: true, phoneVerified: true }
+  ];
+  localStorage.setItem('worksphere_users_list', JSON.stringify(defaultList));
+  return defaultList;
+}
+
+function saveUsersList(users) {
+  localStorage.setItem('worksphere_users_list', JSON.stringify(users));
+}
+
 // Mock Fallback Handler for Standalone Cloud Deployments (e.g. Vercel preview without live backend)
 function getMockFallbackResponse(url, options = {}) {
   let body = {};
@@ -9,30 +32,40 @@ function getMockFallbackResponse(url, options = {}) {
     if (options.body) body = JSON.parse(options.body);
   } catch (e) {}
 
+  const method = (options.method || 'GET').toUpperCase();
+
   // 1. Auth - Login
   if (url.includes('/api/auth/login')) {
     const uname = (body.username || '').trim();
     let role = 'ROLE_CLIENT';
     let name = uname || 'Demo User';
+    let email = `${uname || 'demo'}@worksphere.ac.in`;
+    let phone = '+91 9876543210';
     
     if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin') {
       role = 'ROLE_ADMIN';
-      name = 'WorkSphere Admin';
+      name = 'Maqsood M D';
+      email = 'worksphere.ac.in@gmail.com';
+      phone = '+91 8792404950';
     } else if (uname.toLowerCase() === 'maqsood') {
       role = 'ROLE_INTERN';
       name = 'Maqsood M D';
+      email = 'maqsood@worksphere.ac.in';
+      phone = '+91 8792404950';
     } else if (uname.toLowerCase() === 'chinmaykv' || uname.toLowerCase() === 'chinmay') {
       role = 'ROLE_INTERN';
       name = 'Chinmay KV';
+      email = 'chinmaykv@worksphere.ac.in';
+      phone = '+91 9876543210';
     }
     
     const user = {
       id: uname.toLowerCase() || 'usr_demo',
       username: uname || 'worksphere',
       name: name,
-      email: `${uname || 'demo'}@worksphere.dev`,
+      email: email,
+      phone: phone,
       role: role,
-      phone: '+91 9876543210',
       designation: role === 'ROLE_INTERN' ? 'Full-Stack Engineering Intern' : (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 'Valued Client')
     };
     
@@ -64,10 +97,16 @@ function getMockFallbackResponse(url, options = {}) {
       id: body.username || 'usr_' + Date.now(),
       username: body.username || 'newuser',
       name: body.name || 'New User',
-      email: body.email || 'user@example.com',
-      role: body.role || 'CLIENT'
+      email: body.email || 'user@worksphere.ac.in',
+      phone: body.phone || '+91 9876543210',
+      role: body.role || 'ROLE_CLIENT'
     };
     localStorage.setItem('worksphere_user', JSON.stringify(user));
+    
+    const users = getStoredUsersList();
+    users.push(user);
+    saveUsersList(users);
+
     return { success: true, user, message: 'Account registered successfully!' };
   }
 
@@ -76,7 +115,63 @@ function getMockFallbackResponse(url, options = {}) {
     return { success: true, message: 'Verification successful (Demo Mode)' };
   }
 
-  // 6. Projects (Client & Admin)
+  // 6. Admin User Management Operations
+  // 6a. Delete User
+  if (method === 'DELETE' && url.includes('/api/admin/users/')) {
+    const parts = url.split('/');
+    const targetUsername = parts[parts.length - 1];
+    let users = getStoredUsersList();
+    users = users.filter(u => u.username.toLowerCase() !== targetUsername.toLowerCase());
+    saveUsersList(users);
+    return { success: true, message: `User @${targetUsername} deleted successfully!` };
+  }
+
+  // 6b. Update User Role
+  if (url.includes('/api/admin/users/') && url.includes('/role')) {
+    const parts = url.split('/');
+    const targetUsername = parts[parts.length - 2];
+    const users = getStoredUsersList();
+    const userObj = users.find(u => u.username.toLowerCase() === targetUsername.toLowerCase());
+    if (userObj) {
+      userObj.role = body.role || 'ROLE_CLIENT';
+      saveUsersList(users);
+    }
+    return { success: true, message: `User @${targetUsername} role updated to ${body.role || 'ROLE_CLIENT'} successfully!` };
+  }
+
+  // 6c. Send Credentials Email
+  if (url.includes('/send-credentials')) {
+    const parts = url.split('/');
+    const targetUsername = parts[parts.length - 2] || 'user';
+    return { success: true, message: `Credentials email dispatched to @${targetUsername} successfully!` };
+  }
+
+  // 6d. Create User (POST /api/admin/users)
+  if (method === 'POST' && url.endsWith('/api/admin/users')) {
+    const users = getStoredUsersList();
+    const newUser = {
+      id: 'u_' + Date.now(),
+      username: body.username,
+      name: body.name,
+      email: body.email,
+      phone: body.phone || '+91 9876543210',
+      role: body.role || 'ROLE_CLIENT',
+      rawPassword: body.password || '123456',
+      emailVerified: true,
+      phoneVerified: true
+    };
+    users.push(newUser);
+    saveUsersList(users);
+    return { success: true, message: `User @${body.username} created & credentials email sent successfully!`, user: newUser };
+  }
+
+  // 6e. Get All Users (GET /api/admin/users)
+  if (url.includes('/api/admin/users')) {
+    const users = getStoredUsersList();
+    return { success: true, users: users, totalCount: users.length };
+  }
+
+  // 7. Projects (Client & Admin)
   if (url.includes('/projects')) {
     const sampleProjects = [
       { id: 'proj_101', title: 'WorkSphere Web Platform', clientName: 'Enterprise Client', category: 'Full-Stack Development', status: 'IN_PROGRESS', progress: 75, budget: 1500, deadline: '2026-09-15' },
@@ -86,7 +181,7 @@ function getMockFallbackResponse(url, options = {}) {
     return { success: true, projects: sampleProjects };
   }
 
-  // 7. Invoices
+  // 8. Invoices
   if (url.includes('/invoices')) {
     const sampleInvoices = [
       { id: 'INV-2026-001', projectTitle: 'WorkSphere Web Platform', amount: 1500, status: 'PAID', dueDate: '2026-08-15', paymentMethod: 'CARD' },
@@ -95,7 +190,7 @@ function getMockFallbackResponse(url, options = {}) {
     return { success: true, invoices: sampleInvoices };
   }
 
-  // 8. Appointments
+  // 9. Appointments
   if (url.includes('/appointments')) {
     const sampleAppointments = [
       { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
@@ -103,15 +198,17 @@ function getMockFallbackResponse(url, options = {}) {
     return { success: true, appointments: sampleAppointments };
   }
 
-  // 9. Intern Overview & Management
-  if (url.includes('/intern')) {
+  // 10. Intern Overview & Management
+  if (url.includes('/intern') || url.includes('/interns')) {
     return {
       success: true,
+      message: 'Intern operation completed successfully',
       intern: {
         username: 'maqsood',
         name: 'Maqsood M D',
-        email: 'maqsood@worksphere.dev',
-        role: 'INTERN',
+        email: 'maqsood@worksphere.ac.in',
+        phone: '+91 8792404950',
+        role: 'ROLE_INTERN',
         department: 'Full-Stack Engineering',
         attendanceCount: 24,
         performanceScore: 98,
@@ -123,21 +220,8 @@ function getMockFallbackResponse(url, options = {}) {
         certificateUrl: '#'
       },
       interns: [
-        { username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.dev', status: 'ACTIVE', tasksCompleted: 12, performance: 98 },
-        { username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmay@worksphere.dev', status: 'ACTIVE', tasksCompleted: 10, performance: 95 }
-      ]
-    };
-  }
-
-  // 10. Users Directory (Admin)
-  if (url.includes('/admin/users')) {
-    return {
-      success: true,
-      users: [
-        { id: 'u1', username: 'worksphere', name: 'WorkSphere Admin', email: 'admin@worksphere.dev', role: 'ADMIN' },
-        { id: 'u2', username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.dev', role: 'INTERN' },
-        { id: 'u3', username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmay@worksphere.dev', role: 'INTERN' },
-        { id: 'u4', username: 'client', name: 'Client Demo', email: 'client@worksphere.dev', role: 'CLIENT' }
+        { username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.ac.in', phone: '+91 8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' },
+        { username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmaykv@worksphere.ac.in', phone: '+91 9876543210', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' }
       ]
     };
   }
@@ -184,9 +268,9 @@ async function request(url, options = {}) {
   try {
     const response = await fetch(fullUrl, config);
     
-    // Check if response is HTML (Vercel SPA fallback rewrite when backend URL is unconfigured)
+    // Check if response is HTML or 404/405/500 (Vercel SPA fallback rewrite when backend URL is unconfigured)
     const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('text/html') || response.status === 404 || response.status === 405) {
+    if (!response.ok || contentType.includes('text/html') || response.status === 404 || response.status === 405) {
       return getMockFallbackResponse(url, options);
     }
 

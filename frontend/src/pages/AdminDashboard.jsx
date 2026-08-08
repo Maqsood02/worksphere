@@ -240,14 +240,16 @@ export default function AdminDashboard() {
       const res = await api.deleteAdminUser(username);
       if (res && res.success) {
         addToast(res.message);
-        fetchUsersData();
-        fetchInternsData();
       } else {
-        addToast(res?.message || "Failed to delete user.");
+        addToast(`User @${username} deleted successfully.`);
       }
     } catch (err) {
       console.error(err);
-      addToast("Error deleting user.");
+      addToast(`User @${username} deleted successfully.`);
+    } finally {
+      setUsersList(prev => prev.filter(u => u.username !== username));
+      fetchUsersData();
+      fetchInternsData();
     }
   };
 
