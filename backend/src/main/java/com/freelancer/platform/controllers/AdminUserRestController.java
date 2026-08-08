@@ -144,12 +144,12 @@ public class AdminUserRestController {
         }
 
         return ResponseEntity.ok(Map.of(
-            "success": true,
-            "emailSent": emailSent,
-            "message": emailNotice,
-            "username": username,
-            "email": email,
-            "rawPassword": rawPassword
+            "success", true,
+            "emailSent", emailSent,
+            "message", emailNotice,
+            "username", username,
+            "email", email,
+            "rawPassword", rawPassword
         ));
     }
 
