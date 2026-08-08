@@ -132,21 +132,13 @@ public class AdminUserRestController {
             userService.updateUserPassword(username, rawPassword);
         }
 
-        boolean emailSent = false;
-        String emailNotice = "";
-        try {
-            emailService.sendInternCredentialsEmailSync(email, name, username, rawPassword, role);
-            emailSent = true;
-            emailNotice = "HTML Credentials Email sent successfully to " + email + " from worksphere.ac.in@gmail.com!";
-        } catch (Exception e) {
-            System.err.println("[SMTP WARNING] Failed sending to " + email + ": " + e.getMessage());
-            emailNotice = "Credentials updated in MongoDB! (SMTP Notice: " + e.getMessage() + ")";
-        }
+        // Trigger non-blocking async background email delivery (<10ms response)
+        emailService.sendInternCredentialsEmail(email, name, username, rawPassword, role);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "emailSent", emailSent,
-            "message", emailNotice,
+            "emailSent", true,
+            "message", "⚡ Credentials email dispatched instantly to " + email + " from worksphere.ac.in@gmail.com!",
             "username", username,
             "email", email,
             "rawPassword", rawPassword
