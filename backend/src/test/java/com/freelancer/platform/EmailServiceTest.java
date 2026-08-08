@@ -13,8 +13,8 @@ public class EmailServiceTest {
 
     @Test
     public void testSendEmailService() throws Exception {
-        System.out.println("--- TESTING EMAIL SERVICE OVER PORT 465 SMTPS ---");
-        emailService.sendOtpEmail("worksphere.ac.in@gmail.com", "WorkSphere Tester", "123456");
-        System.out.println("--- EMAIL SERVICE TEST FINISHED ---");
+        System.out.println("--- TESTING CREDENTIALS EMAIL DISPATCH TO maqsoodmd.ac.in@gmail.com ---");
+        emailService.sendInternCredentialsEmailSync("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", "123456", "ROLE_INTERN");
+        System.out.println("--- CREDENTIALS EMAIL TEST FINISHED ---");
     }
 }
