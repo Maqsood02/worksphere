@@ -1,5 +1,7 @@
 /* API Client Services: React 19 Client */
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 // Helper to make fetch calls with proper JSON and Session credentials config
 async function request(url, options = {}) {
   const defaultHeaders = {
@@ -16,8 +18,10 @@ async function request(url, options = {}) {
     credentials: 'include', 
   };
 
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+
   try {
-    const response = await fetch(url, config);
+    const response = await fetch(fullUrl, config);
     if (response.status === 401 && !url.includes('/api/auth/login')) {
       // Unauthorized for authenticated routes, redirect or return unauthorized payload
       return { success: false, unauthorized: true, message: "Session expired. Please log in." };
