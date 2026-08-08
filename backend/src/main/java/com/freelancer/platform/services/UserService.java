@@ -223,10 +223,34 @@ public class UserService {
                 u.setName("Maqsood M D");
                 u.setEmail("worksphere.ac.in@gmail.com");
                 u.setPhone("8792404950");
+                u.setRole("ROLE_ADMIN");
                 u.setPassword(passwordEncoder.encode("Workshere@123"));
                 u.setRawPassword("Workshere@123");
                 userRepository.save(u);
                 System.out.println("[DB UPDATE] Updated Admin account in MongoDB: Maqsood M D (@worksphere)");
+            });
+        }
+
+        // Also ensure typo alias 'workshpere' is seeded as ROLE_ADMIN
+        if (userRepository.findByUsername("workshpere").isEmpty()) {
+            User adminAlias = User.builder()
+                    .username("workshpere")
+                    .password(passwordEncoder.encode("Workshere@123"))
+                    .rawPassword("Workshere@123")
+                    .name("Maqsood M D")
+                    .email("worksphere.ac.in@gmail.com")
+                    .phone("8792404950")
+                    .role("ROLE_ADMIN")
+                    .emailVerified(true)
+                    .phoneVerified(true)
+                    .build();
+            userRepository.save(adminAlias);
+        } else {
+            userRepository.findByUsername("workshpere").ifPresent(u -> {
+                u.setRole("ROLE_ADMIN");
+                u.setPassword(passwordEncoder.encode("Workshere@123"));
+                u.setRawPassword("Workshere@123");
+                userRepository.save(u);
             });
         }
 

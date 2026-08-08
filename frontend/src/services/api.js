@@ -63,7 +63,7 @@ function getMockFallbackResponse(url, options = {}) {
     let email = `${uname || 'demo'}@worksphere.ac.in`;
     let phone = '8792404950';
     
-    if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin') {
+    if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin' || uname.toLowerCase() === 'workshpere') {
       role = 'ROLE_ADMIN';
       name = 'Maqsood M D';
       email = 'worksphere.ac.in@gmail.com';
