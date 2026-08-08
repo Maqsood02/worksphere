@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <div th:replace="~{layout/base :: head('Submit Project Proposal - WorkSphere')}"></div>
+</head>
+<body class="bg-white text-text-dark font-inter antialiased min-h-screen flex flex-col justify-between selection:bg-primary/20 selection:text-primary">
+
+    <!-- Header Navbar -->
+    <header th:replace="~{layout/base :: navbar}"></header>
+
+    <main class="flex-1 py-24 px-6 relative overflow-hidden">
+        <!-- Glow shape elements -->
+        <div class="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px] animate-blob"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] animate-blob" style="animation-delay: 2s"></div>
+
+        <div class="max-w-3xl mx-auto bg-white border border-slate-100 rounded-3xl shadow-2xl p-8 relative z-10 space-y-8 scroll-reveal">
+            
+            <!-- Dynamic Form Header -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between text-xs font-semibold text-text-light">
+                    <span id="step-indicator">Step 1 of 3</span>
+                    <span id="step-percentage">33% Completed</span>
+                </div>
+                <!-- Progress bar -->
+                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="form-progress-bar" class="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300" style="width: 33%"></div>
+                </div>
+                
+                <h2 class="text-3xl font-poppins font-extrabold text-text-dark" id="form-title">Contact Information</h2>
+                <p class="text-xs text-text-light" id="form-subtitle">Tell us about yourself so we can coordinate communications.</p>
+            </div>
+
+            <!-- Validation Error Banner -->
+            <div id="form-error" class="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-xs font-semibold flex items-center space-x-2 hidden">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span id="error-message">Please correct form entries.</span>
+            </div>
+
+            <!-- Multistep Form Body -->
+            <form id="multistep-form" onsubmit="submitForm(event)" class="space-y-6 text-xs font-semibold text-text-dark">
+                
+                <!-- STEP 1: CONTACT DETAILS -->
+                <div id="step-1" class="space-y-4">
+                    <div class="flex flex-col space-y-1.5">
+                        <label for="req-name">Full Name *</label>
+                        <!-- Th pre-fill for name -->
+                        <input type="text" id="req-name" placeholder="John Doe" th:value="${user != null ? user.name : ''}" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-email">Email Address *</label>
+                            <input type="email" id="req-email" placeholder="john@company.com" th:value="${user != null ? user.email : ''}" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                        </div>
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-phone">Phone Number</label>
+                            <input type="text" id="req-phone" placeholder="+1 234 567 890" th:value="${user != null ? user.phone : ''}" class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 2: PROJECT TYPE & DESCRIPTION -->
+                <div id="step-2" class="space-y-4 hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-type">Project Service Type *</label>
+                            <select id="req-type" class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                                <option value="Website Development">Website Development</option>
+                                <option value="Spring Boot Backend">Spring Boot Backend</option>
+                                <option value="MongoDB Design">MongoDB Design</option>
+                                <option value="AI Integrations">AI Integrations</option>
+                                <option value="Android Apps">Android Apps & Utilities</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-deadline">Desired Deadline *</label>
+                            <input type="date" id="req-deadline" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs text-text-light">
+                        </div>
+                    </div>
+                    <div class="flex flex-col space-y-1.5">
+                        <label for="req-description">Project Description *</label>
+                        <textarea id="req-description" rows="5" placeholder="Outline database requirements, layouts, and page counts..." required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- STEP 3: BUDGET & FILES -->
+                <div id="step-3" class="space-y-4 hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-budget">Target Budget (USD) *</label>
+                            <input type="number" id="req-budget" placeholder="1500" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                        </div>
+                        <div class="flex flex-col space-y-1.5">
+                            <label for="req-coupon">Promo Coupon Code (e.g. WELCOME20)</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="req-coupon" placeholder="WELCOME20" class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs w-full">
+                                <button type="button" onclick="validateFormCoupon()" class="bg-slate-100 hover:bg-slate-200 px-4 rounded-xl text-xs">Verify</button>
+                            </div>
+                            <span id="coupon-feedback" class="text-[10px] text-emerald-500 font-bold hidden">Coupon applied: 20% discount saved!</span>
+                        </div>
+                    </div>
+
+                    <!-- File Upload Simulator -->
+                    <div class="flex flex-col space-y-1.5">
+                        <label>Specification File Attachment</label>
+                        <div class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors duration-200 cursor-pointer" onclick="simulateFileUpload()">
+                            <i data-lucide="cloud-upload" class="w-8 h-8 text-text-light mx-auto mb-2" id="upload-icon"></i>
+                            <span class="block text-text-dark font-semibold text-xs" id="upload-text">Click to select files (PDF, ZIP, DOCX)</span>
+                            <span class="text-[10px] text-text-light font-normal">Max size: 10MB. Mock file simulator.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls -->
+                <div class="flex items-center justify-between pt-6 border-t border-slate-100">
+                    <button type="button" id="prev-btn" onclick="navigateStep(-1)" class="border border-slate-200 text-text-dark hover:bg-slate-50 font-semibold py-3 px-6 rounded-xl active:scale-95 transition-all duration-200 hidden">
+                        Previous Step
+                    </button>
+                    <button type="button" id="next-btn" onclick="navigateStep(1)" class="ml-auto bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-primary/10 hover:scale-105 active:scale-95 transition-all duration-300">
+                        Continue to Details
+                    </button>
+                    <button type="submit" id="submit-btn" class="ml-auto bg-gradient-to-r from-primary to-accent text-white font-medium py-3 px-8 rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300 hidden">
+                        Submit Proposal & Invoice
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer th:replace="~{layout/base :: footer}"></footer>
+
+    <script>
+        let currentStep = 1;
+        let selectedFileName = "";
+
+        // Read query parameters
+        window.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const type = urlParams.get("type");
+            const budget = urlParams.get("budget");
+            const coupon = urlParams.get("coupon");
+
+            if (type) document.getElementById("req-type").value = type;
+            if (budget) document.getElementById("req-budget").value = budget;
+            if (coupon) {
+                document.getElementById("req-coupon").value = coupon;
+                validateFormCoupon();
+            }
+        });
+
+        function navigateStep(direction) {
+            const errorDiv = document.getElementById("form-error");
+            errorDiv.classList.add("hidden");
+
+            // Perform basic validation before stepping forward
+            if (direction === 1) {
+                if (currentStep === 1) {
+                    const name = document.getElementById("req-name").value.trim();
+                    const email = document.getElementById("req-email").value.trim();
+                    if (!name || !email) {
+                        showFormError("Name and Email address are required fields.");
+                        return;
+                    }
+                } else if (currentStep === 2) {
+                    const deadline = document.getElementById("req-deadline").value;
+                    const desc = document.getElementById("req-description").value.trim();
+                    if (!deadline || !desc) {
+                        showFormError("Deadline and Project Description description are required.");
+                        return;
+                    }
+                }
+            }
+
+            // Hide old step
+            document.getElementById(`step-${currentStep}`).classList.add("hidden");
+            
+            // Increment
+            currentStep += direction;
+            
+            // Show new step
+            document.getElementById(`step-${currentStep}`).classList.remove("hidden");
+
+            // Update Progress UI
+            updateProgressUi();
+        }
+
+        function updateProgressUi() {
+            const prevBtn = document.getElementById("prev-btn");
+            const nextBtn = document.getElementById("next-btn");
+            const submitBtn = document.getElementById("submit-btn");
+            
+            const indicator = document.getElementById("step-indicator");
+            const percentageText = document.getElementById("step-percentage");
+            const progressBar = document.getElementById("form-progress-bar");
+            
+            const title = document.getElementById("form-title");
+            const subtitle = document.getElementById("form-subtitle");
+
+            if (currentStep === 1) {
+                prevBtn.classList.add("hidden");
+                nextBtn.classList.remove("hidden");
+                submitBtn.classList.add("hidden");
+                
+                indicator.innerText = "Step 1 of 3";
+                percentageText.innerText = "33% Completed";
+                progressBar.style.width = "33%";
+                
+                title.innerText = "Contact Information";
+                subtitle.innerText = "Tell us about yourself so we can coordinate communications.";
+            } else if (currentStep === 2) {
+                prevBtn.classList.remove("hidden");
+                nextBtn.classList.remove("hidden");
+                submitBtn.classList.add("hidden");
+                
+                indicator.innerText = "Step 2 of 3";
+                percentageText.innerText = "66% Completed";
+                progressBar.style.width = "66%";
+                
+                title.innerText = "Project Roadmap";
+                subtitle.innerText = "Specify technical services, scope requirements, and desired schedules.";
+            } else if (currentStep === 3) {
+                prevBtn.classList.remove("hidden");
+                nextBtn.classList.add("hidden");
+                submitBtn.classList.remove("hidden");
+                
+                indicator.innerText = "Step 3 of 3";
+                percentageText.innerText = "100% Completed";
+                progressBar.style.width = "100%";
+                
+                title.innerText = "Budget & Specifications";
+                subtitle.innerText = "Set target budgets, apply coupons, and attach relevant scope PDFs.";
+            }
+        }
+
+        function showFormError(msg) {
+            const errorDiv = document.getElementById("form-error");
+            const errorMsg = document.getElementById("error-message");
+            errorMsg.innerText = msg;
+            errorDiv.classList.remove("hidden");
+        }
+
+        function validateFormCoupon() {
+            const code = document.getElementById("req-coupon").value.trim().toUpperCase();
+            const feedback = document.getElementById("coupon-feedback");
+            if (code === "WELCOME20" || code === "FREELANCE20") {
+                feedback.classList.remove("hidden");
+                showToast("20% Coupon Code verified!");
+            } else {
+                feedback.classList.add("hidden");
+                showToast("Invalid coupon code.");
+            }
+        }
+
+        function simulateFileUpload() {
+            // Mock file picker simulation
+            const fileNames = ["SoftwareSpecs_2026.pdf", "MockWireframe.docx", "ProjectScopeDoc.zip"];
+            const randFile = fileNames[Math.floor(Math.random() * fileNames.length)];
+            selectedFileName = randFile;
+            
+            const icon = document.getElementById("upload-icon");
+            const text = document.getElementById("upload-text");
+            
+            icon.classList.remove("text-text-light");
+            icon.classList.add("text-emerald-500");
+            text.innerText = `Selected file: ${randFile}`;
+            showToast(`Simulated upload for ${randFile}!`);
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const name = document.getElementById("req-name").value;
+            const email = document.getElementById("req-email").value;
+            const phone = document.getElementById("req-phone").value;
+            const projectType = document.getElementById("req-type").value;
+            const deadline = document.getElementById("req-deadline").value;
+            const description = document.getElementById("req-description").value;
+            const budget = document.getElementById("req-budget").value;
+            const couponCode = document.getElementById("req-coupon").value;
+
+            try {
+                const response = await fetch("/api/public/project-request", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        name, email, phone, projectType, deadline, description, budget, couponCode,
+                        attachmentName: selectedFileName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showToast(data.message);
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                } else {
+                    showFormError(data.message || "An error occurred during submission.");
+                }
+            } catch (err) {
+                console.error("Submit Error:", err);
+                showFormError("Failed to connect to backend server. Ensure Java web service is running.");
+            }
+        }
+    </script>
+</body>
+</html>

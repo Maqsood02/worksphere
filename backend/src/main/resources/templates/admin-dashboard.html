@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <div th:replace="~{layout/base :: head('Admin Control Panel - WorkSphere')}"></div>
+    <!-- Chart.js CDN for interactive visual graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-text-dark font-inter antialiased min-h-screen flex flex-col selection:bg-primary/20 selection:text-primary">
+
+    <!-- Header Navbar -->
+    <header th:replace="~{layout/base :: navbar}"></header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-24">
+        <!-- Sidebar Administration Navigation -->
+        <div class="lg:col-span-3 bg-white border border-slate-200 rounded-3xl p-6 space-y-8 shadow-sm">
+            <div class="space-y-2 text-center lg:text-left">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-accent to-secondary text-white flex items-center justify-center font-poppins font-bold text-2xl shadow-lg shadow-accent/20 mx-auto lg:mx-0">
+                    A
+                </div>
+                <h3 class="font-poppins font-bold text-lg text-text-dark pt-2" th:text="${user.name}">Alex Developer</h3>
+                <p class="text-[10px] text-text-light font-mono bg-slate-100 py-1 px-3 rounded-full border border-slate-200 inline-block">Platform Administrator</p>
+            </div>
+
+            <!-- Tab selectors -->
+            <nav class="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 text-xs font-semibold text-text-light border-b lg:border-b-0 pb-4 lg:pb-0 border-slate-200">
+                <button onclick="switchAdminTab('tab-analytics', this)" class="admin-tab-btn flex-1 lg:flex-none text-left flex items-center space-x-3 p-3 rounded-xl bg-primary text-white shadow-sm transition-all duration-300">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Platform Analytics</span>
+                </button>
+                <button onclick="switchAdminTab('tab-manage-projects', this)" class="admin-tab-btn flex-1 lg:flex-none text-left flex items-center space-x-3 p-3 rounded-xl hover:bg-slate-50 hover:text-primary transition-all duration-300">
+                    <i data-lucide="folder-git" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Manage Projects</span>
+                </button>
+                <button onclick="switchAdminTab('tab-admin-chat', this)" class="admin-tab-btn flex-1 lg:flex-none text-left flex items-center space-x-3 p-3 rounded-xl hover:bg-slate-50 hover:text-primary transition-all duration-300">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Support Console</span>
+                </button>
+                <button onclick="switchAdminTab('tab-admin-meetings', this)" class="admin-tab-btn flex-1 lg:flex-none text-left flex items-center space-x-3 p-3 rounded-xl hover:bg-slate-50 hover:text-primary transition-all duration-300">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Schedules Grid</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Dashboard Content Grid -->
+        <div class="lg:col-span-9 space-y-8">
+            
+            <!-- Statistics aggregations -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+                <div class="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
+                    <div class="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-500"><i data-lucide="dollar-sign" class="w-5 h-5"></i></div>
+                    <div>
+                        <span class="text-[9px] text-text-light block uppercase font-bold">Total Revenue</span>
+                        <h4 class="text-base font-poppins font-extrabold text-text-dark" th:text="'$' + ${totalRevenue}">$4,200</h4>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
+                    <div class="p-2.5 bg-rose-500/10 rounded-2xl text-rose-500"><i data-lucide="hourglass" class="w-5 h-5"></i></div>
+                    <div>
+                        <span class="text-[9px] text-text-light block uppercase font-bold">Pending Payments</span>
+                        <h4 class="text-base font-poppins font-extrabold text-text-dark" th:text="'$' + ${pendingPayments}">$1,750</h4>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
+                    <div class="p-2.5 bg-primary/10 rounded-2xl text-primary"><i data-lucide="git-branch" class="w-5 h-5"></i></div>
+                    <div>
+                        <span class="text-[9px] text-text-light block uppercase font-bold">Active Orders</span>
+                        <h4 class="text-base font-poppins font-extrabold text-text-dark" th:text="${activeProjectsCount}">2</h4>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
+                    <div class="p-2.5 bg-secondary/10 rounded-2xl text-secondary"><i data-lucide="users" class="w-5 h-5"></i></div>
+                    <div>
+                        <span class="text-[9px] text-text-light block uppercase font-bold">Total Clients</span>
+                        <h4 class="text-base font-poppins font-extrabold text-text-dark" th:text="${clientCount}">1</h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 1: ANALYTICS GRAPHS -->
+            <div id="tab-analytics" class="admin-panel bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+                <div>
+                    <h3 class="font-poppins font-bold text-lg text-text-dark">Financial & Order Analytics</h3>
+                    <p class="text-xs text-text-light">Overview metrics of platform income conversions and active pipelines.</p>
+                </div>
+                
+                <!-- Chart canvas -->
+                <div class="h-[280px] w-full relative">
+                    <canvas id="analyticsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- PANEL 2: MANAGE PROJECTS -->
+            <div id="tab-manage-projects" class="admin-panel bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6 hidden">
+                <div>
+                    <h3 class="font-poppins font-bold text-lg text-text-dark">Active Client Projects</h3>
+                    <p class="text-xs text-text-light">Modify project pipeline stages in MongoDB immediately using inline controls.</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-text-light font-bold">
+                                <th class="pb-3">Client</th>
+                                <th class="pb-3">Project Title</th>
+                                <th class="pb-3">Budget</th>
+                                <th class="pb-3">Deadline</th>
+                                <th class="pb-3">Status Dropdown</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="project : ${projects}" class="border-b border-slate-50 last:border-b-0">
+                                <td class="py-4 font-semibold text-text-dark" th:text="${project.clientName}">John Doe</td>
+                                <td class="py-4 text-text-light font-medium" th:text="${project.title}">E-Commerce App</td>
+                                <td class="py-4 text-text-light font-bold" th:text="'$' + ${project.budget}">$3,500</td>
+                                <td class="py-4 text-text-light font-mono" th:text="${project.deadline}">2026-08-15</td>
+                                <td class="py-4">
+                                    <!-- Dynamic select action -->
+                                    <select th:onchange="updateProjectStage([[${project.id}]], this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-bold outline-none text-[10px] text-text-dark">
+                                        <option value="RECEIVED" th:selected="${'RECEIVED'.equals(project.status)}">RECEIVED (10%)</option>
+                                        <option value="PLANNING" th:selected="${'PLANNING'.equals(project.status)}">PLANNING (25%)</option>
+                                        <option value="DEVELOPMENT" th:selected="${'DEVELOPMENT'.equals(project.status)}">DEVELOPMENT (55%)</option>
+                                        <option value="TESTING" th:selected="${'TESTING'.equals(project.status)}">TESTING (75%)</option>
+                                        <option value="REVIEW" th:selected="${'REVIEW'.equals(project.status)}">REVIEW (90%)</option>
+                                        <option value="COMPLETED" th:selected="${'COMPLETED'.equals(project.status)}">COMPLETED (100%)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PANEL 3: SUPPORT CHAT WORKSPACE -->
+            <div id="tab-admin-chat" class="admin-panel bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6 hidden">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="font-poppins font-bold text-lg text-text-dark">Admin Client Support Desk</h3>
+                        <p class="text-xs text-text-light">Select a user thread from the database to synchronize dialogue.</p>
+                    </div>
+                    <!-- Select Client Dropdown -->
+                    <select id="admin-chat-client-select" onchange="loadAdminChatHistory()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 outline-none text-xs text-text-dark font-semibold">
+                        <!-- Dynamically list distinct clients from projects. For seed, default is 'client' -->
+                        <option value="client">John Doe (client)</option>
+                    </select>
+                </div>
+
+                <div id="admin-chat-viewport" class="h-[320px] overflow-y-auto bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-4 text-xs">
+                    <!-- Dynamic client message loads -->
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="admin-chat-input" placeholder="Type support response..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs text-text-dark" onkeydown="if(event.key==='Enter') sendAdminChatMessage()">
+                    <button onclick="sendAdminChatMessage()" class="bg-primary text-white p-3 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all duration-200">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PANEL 4: SCHEDULED MEETINGS -->
+            <div id="tab-admin-meetings" class="admin-panel bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6 hidden">
+                <div>
+                    <h3 class="font-poppins font-bold text-lg text-text-dark">Scheduled Client Meetings</h3>
+                    <p class="text-xs text-text-light">Review booked slots, email configurations, and cancel appointments.</p>
+                </div>
+
+                <div th:if="${appointments.isEmpty()}" class="py-12 text-center text-xs text-text-light">
+                    <span>No meetings scheduled in database.</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-text-light font-bold">
+                                <th class="pb-3">Client</th>
+                                <th class="pb-3">Meeting Purpose</th>
+                                <th class="pb-3">Date</th>
+                                <th class="pb-3">Slot Time</th>
+                                <th class="pb-3">Status</th>
+                                <th class="pb-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="app : ${appointments}" class="border-b border-slate-50 last:border-b-0">
+                                <td class="py-4 font-semibold text-text-dark" th:text="${app.clientName}">John Doe</td>
+                                <td class="py-4 text-text-light" th:text="${app.title}">Roadmap Sync</td>
+                                <td class="py-4 text-text-light font-mono" th:text="${app.date}">2026-07-22</td>
+                                <td class="py-4 text-text-light font-mono" th:text="${app.timeSlot}">10:00 AM</td>
+                                <td class="py-4">
+                                    <span th:if="${'CONFIRMED'.equalsIgnoreCase(app.status)}" class="bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded text-[9px] uppercase">Confirmed</span>
+                                    <span th:if="${'CANCELLED'.equalsIgnoreCase(app.status)}" class="bg-rose-50 text-rose-600 font-bold px-2 py-0.5 rounded text-[9px] uppercase">Cancelled</span>
+                                </td>
+                                <td class="py-4 text-right">
+                                    <button th:if="${'CONFIRMED'.equalsIgnoreCase(app.status)}" th:onclick="cancelMeeting([[${app.id}]])" class="border border-red-200 text-red-500 hover:bg-red-50 font-bold py-1 px-3 rounded-lg text-[10px]">Cancel</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer th:replace="~{layout/base :: footer}"></footer>
+    <!-- Chatbot trigger fragment -->
+    <div th:replace="~{layout/base :: chatbot}"></div>
+    <!-- Back to top button -->
+    <button th:replace="~{layout/base :: backtotop}"></button>
+    <!-- Command Palette -->
+    <div th:replace="~{layout/base :: palette}"></div>
+
+    <!-- Admin dashboard scripts -->
+    <script th:inline="javascript">
+        let activeAdminChatInterval = null;
+
+        function switchAdminTab(panelId, btn) {
+            const panels = document.querySelectorAll(".admin-panel");
+            const buttons = document.querySelectorAll(".admin-tab-btn");
+            
+            panels.forEach(p => p.classList.add("hidden"));
+            document.getElementById(panelId).classList.remove("hidden");
+
+            buttons.forEach(b => {
+                b.classList.remove("bg-primary", "text-white", "shadow-sm");
+                b.classList.add("hover:bg-slate-50", "hover:text-primary", "text-text-light");
+            });
+
+            btn.classList.add("bg-primary", "text-white", "shadow-sm");
+            btn.classList.remove("hover:bg-slate-50", "hover:text-primary", "text-text-light");
+
+            // Setup Chat sync polling
+            if(panelId === 'tab-admin-chat') {
+                loadAdminChatHistory();
+                activeAdminChatInterval = setInterval(loadAdminChatHistory, 4000);
+            } else {
+                if(activeAdminChatInterval) {
+                    clearInterval(activeAdminChatInterval);
+                    activeAdminChatInterval = null;
+                }
+            }
+        }
+
+        // Dropdown project timeline REST updates
+        async function updateProjectStage(projectId, newStatus) {
+            try {
+                const response = await fetch(`/api/admin/projects/${projectId}/status`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        status: newStatus
+                    })
+                });
+
+                if(response.ok) {
+                    showToast("Project stage updated in MongoDB!");
+                } else {
+                    showToast("Failed to modify project status.");
+                }
+            } catch(err) {
+                console.error("Status update error:", err);
+                showToast("Connection to backend timed out.");
+            }
+        }
+
+        // Support desk sync
+        async function loadAdminChatHistory() {
+            const client = document.getElementById("admin-chat-client-select").value;
+            const viewport = document.getElementById("admin-chat-viewport");
+
+            try {
+                const response = await fetch(`/api/chat/history?withUser=${client}`);
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    let htmlContent = "";
+                    data.history.forEach(msg => {
+                        const isMe = msg.senderId === "admin";
+                        const bubbleColor = isMe ? "bg-primary text-white rounded-tr-none ml-auto" : "bg-white text-text-dark rounded-tl-none border border-slate-200";
+                        const alignment = isMe ? "justify-end text-right" : "justify-start text-left";
+                        const displayName = isMe ? "You (Admin)" : msg.senderName;
+                        
+                        htmlContent += `
+                            <div class="flex flex-col ${alignment}">
+                                <span class="text-[9px] text-text-light pb-1 font-bold">${displayName}</span>
+                                <div class="p-3 rounded-2xl max-w-[80%] inline-block shadow-sm ${bubbleColor}">
+                                    ${msg.content}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    const shouldScroll = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 40;
+                    viewport.innerHTML = htmlContent;
+                    
+                    if (shouldScroll) {
+                        viewport.scrollTop = viewport.scrollHeight;
+                    }
+                }
+            } catch(err) {
+                console.error("Admin chat error:", err);
+            }
+        }
+
+        async function sendAdminChatMessage() {
+            const input = document.getElementById("admin-chat-input");
+            const content = input.value.trim();
+            const client = document.getElementById("admin-chat-client-select").value;
+
+            if(!content) return;
+            input.value = "";
+
+            try {
+                const response = await fetch("/api/chat/send", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        receiverId: client,
+                        content: content
+                    })
+                });
+
+                if(response.ok) {
+                    loadAdminChatHistory();
+                }
+            } catch(err) {
+                console.error("Admin send message error:", err);
+            }
+        }
+
+        // Cancel meetings
+        async function cancelMeeting(appId) {
+            try {
+                const response = await fetch(`/api/appointments/admin/${appId}/cancel`, {
+                    method: "POST"
+                });
+                if(response.ok) {
+                    showToast("Meeting cancelled successfully.");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast("Cancel request failed.");
+                }
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        // Draw analytics charts using Chart.js on page load
+        window.addEventListener("DOMContentLoaded", () => {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            
+            // Premium soft gradient styles
+            const primaryGlow = ctx.createLinearGradient(0, 0, 0, 300);
+            primaryGlow.addColorStop(0, 'rgba(79, 70, 229, 0.3)');
+            primaryGlow.addColorStop(1, 'rgba(79, 70, 229, 0.0)');
+
+            const secondaryGlow = ctx.createLinearGradient(0, 0, 0, 300);
+            secondaryGlow.addColorStop(0, 'rgba(6, 182, 212, 0.3)');
+            secondaryGlow.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [
+                        {
+                            label: 'Paid Revenue ($)',
+                            data: [800, 1600, 2400, 2400, 3200, 4200, 4200],
+                            borderColor: '#4F46E5',
+                            backgroundColor: primaryGlow,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Proposed Budgets ($)',
+                            data: [1500, 2500, 3800, 4200, 4200, 5950, 5950],
+                            borderColor: '#06B6D4',
+                            backgroundColor: secondaryGlow,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                font: { size: 10, family: 'Inter' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#F1F5F9' },
+                            ticks: { font: { size: 9 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 9 } }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

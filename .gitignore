@@ -1,0 +1,30 @@
+# Target directories / Maven
+target/
+**/target/
+.maven/
+**/.maven/
+*.class
+
+# Node modules / Frontend builds
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment and sensitive files
+.env
+*.env
+*.local
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

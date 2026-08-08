@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Freelance Platform</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS v4 Browser Compiler -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-primary: #4F46E5;
+            --color-secondary: #06B6D4;
+            --color-accent: #8B5CF6;
+            --color-card-bg: #F8FAFC;
+            --color-text-dark: #111827;
+            --color-text-light: #6B7280;
+            --font-poppins: 'Poppins', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+        }
+    </style>
+    <!-- Custom Glassmorphism Stylesheet -->
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <!-- Lucide Icons Library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-white text-text-dark font-inter antialiased min-h-screen flex flex-col selection:bg-primary/20 selection:text-primary">
+
+<!-- Sticky Navbar -->
+<header th:fragment="navbar" id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-transparent">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <!-- Logo -->
+        <a th:href="@{/}" class="flex items-center space-x-3 group hover:scale-105 transition-transform duration-300">
+            <img th:src="@{/images/logo.jpg}" alt="WorkSphere Emblem" class="h-11 sm:h-12 w-auto object-contain rounded-xl p-0.5 bg-white border border-slate-200/80 shadow-sm shrink-0" />
+            <div class="flex flex-col justify-center">
+                <span class="font-poppins font-extrabold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-cyan-600 via-primary to-indigo-600 bg-clip-text text-transparent leading-none">WorkSphere</span>
+                <span class="text-[9.5px] font-bold tracking-widest text-cyan-600 uppercase mt-1 hidden sm:block">CONNECT • COLLABORATE • SUCCEED</span>
+            </div>
+        </a>
+
+        <!-- Menu Navigation Links -->
+        <nav class="hidden lg:flex items-center space-x-8 text-sm font-medium">
+            <a th:href="@{/#home}" class="text-text-light hover:text-primary transition-colors duration-200">Home</a>
+            <a th:href="@{/#about}" class="text-text-light hover:text-primary transition-colors duration-200">About</a>
+            <a th:href="@{/#services}" class="text-text-light hover:text-primary transition-colors duration-200">Services</a>
+            <a th:href="@{/#portfolio}" class="text-text-light hover:text-primary transition-colors duration-200">Portfolio</a>
+            <a th:href="@{/#pricing}" class="text-text-light hover:text-primary transition-colors duration-200">Pricing</a>
+            <a th:href="@{/#blog}" class="text-text-light hover:text-primary transition-colors duration-200">Blog</a>
+            <a th:href="@{/#faq}" class="text-text-light hover:text-primary transition-colors duration-200">FAQ</a>
+            <a th:href="@{/#contact}" class="text-text-light hover:text-primary transition-colors duration-200">Contact</a>
+        </nav>
+
+        <!-- Right Side Button Actions -->
+        <div class="flex items-center space-x-4">
+            <!-- Command Palette Keyboard Prompt -->
+            <button onclick="toggleCommandPalette(true)" class="p-2 text-text-light hover:text-primary hover:bg-slate-100 rounded-full transition-all duration-300" title="Search Menu (Ctrl + K)">
+                <i data-lucide="search" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Light/Dark Indicator (Pure Light Theme with aesthetic soft settings) -->
+            <button class="p-2 text-text-light hover:text-primary hover:bg-slate-100 rounded-full transition-all duration-300" onclick="showToast('Premium Light Mode is optimized for visual luxury!')">
+                <i data-lucide="sun" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Authentication Links / Dashboard -->
+            <div sec:authorize="isAnonymous()" class="hidden md:flex items-center space-x-3">
+                <a th:href="@{/login}" class="text-sm font-medium text-text-light hover:text-primary transition-colors py-2 px-4">Login</a>
+                <a th:href="@{/register}" class="text-sm font-medium bg-slate-100 text-text-dark hover:bg-slate-200 py-2 px-4 rounded-xl transition-all duration-300">Sign Up</a>
+            </div>
+
+            <div sec:authorize="isAuthenticated()" class="flex items-center space-x-3">
+                <a sec:authorize="hasAuthority('ROLE_ADMIN')" th:href="@{/admin/dashboard}" class="text-sm font-medium text-primary hover:underline py-2 px-3">Admin Console</a>
+                <a sec:authorize="hasAuthority('ROLE_CLIENT')" th:href="@{/client/dashboard}" class="text-sm font-medium text-primary hover:underline py-2 px-3">My Workspace</a>
+                <a th:href="@{/logout}" class="text-sm font-medium text-red-500 hover:text-red-700 py-2 px-3">Logout</a>
+            </div>
+
+            <a th:href="@{/project-request}" class="bg-gradient-to-r from-primary to-accent text-white font-medium text-sm py-2.5 px-5 rounded-full hover:shadow-lg hover:shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300">
+                Hire Me
+            </a>
+
+            <!-- Mobile Menu Toggle -->
+            <button onclick="toggleMobileMenu()" class="lg:hidden p-2 text-text-light hover:text-primary rounded-xl transition-colors">
+                <i data-lucide="menu" class="w-6 h-6" id="mobile-menu-icon"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-6 py-6 space-y-4 shadow-xl">
+        <a th:href="@{/#home}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">Home</a>
+        <a th:href="@{/#about}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">About</a>
+        <a th:href="@{/#services}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">Services</a>
+        <a th:href="@{/#portfolio}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">Portfolio</a>
+        <a th:href="@{/#pricing}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">Pricing</a>
+        <a th:href="@{/#blog}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">Blog</a>
+        <a th:href="@{/#faq}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2 border-b border-slate-50">FAQ</a>
+        <a th:href="@{/#contact}" onclick="toggleMobileMenu()" class="block text-base font-medium text-text-light hover:text-primary py-2">Contact</a>
+        <div class="pt-4 flex flex-col space-y-3">
+            <a sec:authorize="isAnonymous()" th:href="@{/login}" class="text-center font-medium text-text-light py-2 px-4 rounded-xl border border-slate-200">Login</a>
+            <a sec:authorize="isAnonymous()" th:href="@{/register}" class="text-center font-medium bg-primary text-white py-2 px-4 rounded-xl">Sign Up</a>
+            <a sec:authorize="isAuthenticated()" th:href="@{/logout}" class="text-center font-medium text-red-500 py-2 px-4 rounded-xl border border-red-200">Logout</a>
+        </div>
+    </div>
+</header>
+
+<!-- Toast Notifications Manager -->
+<div th:fragment="toast" id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+<!-- Command Palette Modal -->
+<div th:fragment="palette" id="command-palette" class="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hidden" onclick="toggleCommandPalette(false)">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-300" id="palette-modal" onclick="event.stopPropagation()">
+        <!-- Search Input -->
+        <div class="flex items-center px-4 border-b border-slate-100">
+            <i data-lucide="search" class="w-5 h-5 text-text-light mr-3"></i>
+            <input type="text" id="palette-search" placeholder="Type a command or search sections... (e.g. Services, About, Chat)" class="w-full py-4 text-base bg-transparent border-0 outline-none text-text-dark placeholder-text-light" oninput="filterCommands()">
+            <button onclick="toggleCommandPalette(false)" class="text-xs text-text-light border border-slate-200 px-2 py-1 rounded-md hover:bg-slate-50">ESC</button>
+        </div>
+        
+        <!-- Command List -->
+        <div class="max-h-[360px] overflow-y-auto p-2" id="palette-results">
+            <!-- Navigation category -->
+            <div class="px-3 py-2 text-xs font-semibold text-text-light uppercase tracking-wider">Quick Commands</div>
+            
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="paletteNavigate('/')">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="home" class="w-4 h-4 text-primary"></i>
+                    <span>Go to Home Page</span>
+                </div>
+                <span class="text-xs text-text-light">Nav</span>
+            </div>
+
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="paletteNavigate('/project-request')">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-accent"></i>
+                    <span>Submit Project Proposal Form</span>
+                </div>
+                <span class="text-xs text-text-light">Action</span>
+            </div>
+
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="triggerAiAssistant()">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="bot" class="w-4 h-4 text-secondary"></i>
+                    <span>Launch AI Copilot Assistant</span>
+                </div>
+                <span class="text-xs text-text-light">Bot</span>
+            </div>
+
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="paletteNavigate('/client/dashboard')">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="layout" class="w-4 h-4 text-emerald-500"></i>
+                    <span>Open Client Workspace Dashboard</span>
+                </div>
+                <span class="text-xs text-text-light">Dash</span>
+            </div>
+
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="paletteNavigate('/#pricing')">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="credit-card" class="w-4 h-4 text-blue-500"></i>
+                    <span>Compare Pricing Packages</span>
+                </div>
+                <span class="text-xs text-text-light">Nav</span>
+            </div>
+            
+            <div class="palette-item flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 cursor-pointer text-sm" onclick="paletteNavigate('/#faq')">
+                <div class="flex items-center space-x-3 text-text-dark font-medium">
+                    <i data-lucide="help-circle" class="w-4 h-4 text-purple-500"></i>
+                    <span>Read Freelance FAQs</span>
+                </div>
+                <span class="text-xs text-text-light">Nav</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button (FAB) and AI Chatbot Drawer -->
+<div th:fragment="chatbot" class="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+    <!-- Chat Drawer -->
+    <div id="ai-chat-drawer" class="bg-white w-[360px] md:w-[380px] h-[520px] rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden mb-4 transform translate-y-8 opacity-0 scale-95 pointer-events-none transition-all duration-300">
+        <!-- Chat Header -->
+        <div class="bg-gradient-to-r from-primary to-accent p-4 text-white flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="relative">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                        <i data-lucide="bot" class="w-6 h-6 text-white animate-pulse"></i>
+                    </div>
+                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>
+                </div>
+                <div>
+                    <h3 class="font-poppins font-semibold text-sm">AI Co-Pilot</h3>
+                    <p class="text-xs text-white/80">Online • Intelligent Helper</p>
+                </div>
+            </div>
+            <button onclick="toggleAiChat(false)" class="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 text-sm">
+            <!-- Auto Seed Greeting -->
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <i data-lucide="bot" class="w-4 h-4 text-primary"></i>
+                </div>
+                <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm text-text-dark">
+                    👋 Hello! I am your AI Co-Pilot. I can answer questions about pricing, coupon codes, and technologies.
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div id="ai-chat-typing" class="hidden px-4 py-2 bg-slate-50 flex items-center space-x-2">
+            <span class="text-xs text-text-light italic">AI is drafting a reply</span>
+            <div class="flex space-x-1">
+                <span class="w-1.5 h-1.5 bg-text-light rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                <span class="w-1.5 h-1.5 bg-text-light rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                <span class="w-1.5 h-1.5 bg-text-light rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+
+        <!-- Chat Input Footer -->
+        <div class="p-3 border-t border-slate-100 bg-white flex items-center space-x-2">
+            <input type="text" id="ai-chat-input" placeholder="Ask about 'price', 'coupon', 'status'..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 outline-none focus:border-primary/50 text-sm text-text-dark" onkeydown="if(event.key==='Enter') sendAiMessage()">
+            <button onclick="sendAiMessage()" class="bg-primary text-white p-2.5 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all duration-200">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Chat Trigger Button -->
+    <button onclick="toggleAiChat()" id="chat-fab" class="bg-gradient-to-r from-primary via-accent to-secondary text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 hover:rotate-6 transition-all duration-300 relative group">
+        <i data-lucide="message-square" class="w-6 h-6 transition-transform duration-300 group-hover:scale-105" id="chat-fab-icon"></i>
+        <!-- Notification count dot -->
+        <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 border border-white rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-md animate-pulse">1</span>
+    </button>
+</div>
+
+<!-- Back To Top Button -->
+<button th:fragment="backtotop" id="back-to-top" class="fixed bottom-6 left-6 z-40 bg-white border border-slate-100 text-text-dark p-3.5 rounded-full shadow-xl opacity-0 translate-y-8 pointer-events-none hover:scale-110 hover:-translate-y-1 active:scale-95 transition-all duration-300" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+    <i data-lucide="arrow-up" class="w-5 h-5"></i>
+</button>
+
+<!-- Shared Footer -->
+<footer th:fragment="footer" id="footer" class="bg-slate-50 border-t border-slate-100 py-16 mt-auto">
+    <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+        <div class="space-y-4">
+            <div class="flex items-center space-x-3">
+                <img th:src="@{/images/logo.jpg}" alt="WorkSphere Emblem" class="h-14 w-auto object-contain rounded-xl p-0.5 bg-white border border-slate-200/80 shadow-sm shrink-0" />
+                <div class="flex flex-col justify-center">
+                    <h3 class="font-poppins font-extrabold text-2xl tracking-tight bg-gradient-to-r from-cyan-600 via-primary to-indigo-600 bg-clip-text text-transparent leading-none">WorkSphere</h3>
+                    <p class="text-[10px] font-bold tracking-widest text-cyan-600 uppercase mt-1">CONNECT • COLLABORATE • SUCCEED</p>
+                </div>
+            </div>
+            <p class="text-sm text-text-light max-w-xs leading-relaxed">Crafting high-performance web applications, beautiful UI/UX, and robust Java/MongoDB backends for companies worldwide.</p>
+            <div class="flex items-center space-x-3 pt-2">
+                <a href="#" class="text-text-light hover:text-primary transition-colors duration-200"><i data-lucide="github" class="w-5 h-5"></i></a>
+                <a href="#" class="text-text-light hover:text-primary transition-colors duration-200"><i data-lucide="linkedin" class="w-5 h-5"></i></a>
+                <a href="#" class="text-text-light hover:text-primary transition-colors duration-200"><i data-lucide="twitter" class="w-5 h-5"></i></a>
+                <a href="#" class="text-text-light hover:text-primary transition-colors duration-200"><i data-lucide="instagram" class="w-5 h-5"></i></a>
+            </div>
+        </div>
+        
+        <div>
+            <h4 class="font-poppins font-semibold text-sm text-text-dark uppercase tracking-wider mb-4">Core Services</h4>
+            <ul class="space-y-2 text-sm text-text-light">
+                <li><a href="#" class="hover:text-primary transition-colors">Spring Boot Backend</a></li>
+                <li><a href="#" class="hover:text-primary transition-colors">Enterprise Web Apps</a></li>
+                <li><a href="#" class="hover:text-primary transition-colors">MongoDB Database Design</a></li>
+                <li><a href="#" class="hover:text-primary transition-colors">Full-Stack Platforms</a></li>
+                <li><a href="#" class="hover:text-primary transition-colors">UI/UX Prototypes</a></li>
+            </ul>
+        </div>
+        
+        <div>
+            <h4 class="font-poppins font-semibold text-sm text-text-dark uppercase tracking-wider mb-4">Quick Links</h4>
+            <ul class="space-y-2 text-sm text-text-light">
+                <li><a href="#about" class="hover:text-primary transition-colors">About Story</a></li>
+                <li><a href="#portfolio" class="hover:text-primary transition-colors">Showcase Portfolio</a></li>
+                <li><a href="#pricing" class="hover:text-primary transition-colors">Simple Pricing</a></li>
+                <li><a href="#blog" class="hover:text-primary transition-colors">Tech Blog</a></li>
+                <li><a href="/project-request" class="hover:text-primary transition-colors">Hire Request</a></li>
+            </ul>
+        </div>
+
+        <div class="space-y-4">
+            <h4 class="font-poppins font-semibold text-sm text-text-dark uppercase tracking-wider mb-2">Subscribe to newsletter</h4>
+            <p class="text-xs text-text-light leading-relaxed">Receive occasional insights about Java backend security, frontend motion design, and SaaS architectures.</p>
+            <div class="flex items-center space-x-2">
+                <input type="email" placeholder="Your email address" class="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-text-dark outline-none focus:border-primary/50 w-full">
+                <button class="bg-primary text-white p-2.5 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all duration-200" onclick="showToast('Thank you for subscribing!')">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 border-t border-slate-200/50 mt-12 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-text-light">
+        <p>&copy; 2026 WorkSphere. All rights reserved. Created with Java & MongoDB.</p>
+        <div class="flex items-center space-x-4 mt-4 md:mt-0">
+            <a href="#" class="hover:underline">Privacy Policy</a>
+            <a href="#" class="hover:underline">Terms of Service</a>
+            <a href="#" class="hover:underline">Sitemap</a>
+        </div>
+    </div>
+</footer>
+
+<!-- Shared JavaScript Modules -->
+<script th:src="@{/js/animations.js}"></script>
+<script th:src="@{/js/chat.js}"></script>
+<script th:src="@{/js/palette.js}"></script>
+<script>
+    // Initialize Lucide icons on page load
+    document.addEventListener("DOMContentLoaded", function() {
+        lucide.createIcons();
+    });
+</script>
+</body>
+</html>

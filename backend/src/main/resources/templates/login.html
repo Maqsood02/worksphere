@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <div th:replace="~{layout/base :: head('Login - WorkSphere')}"></div>
+</head>
+<body class="bg-white text-text-dark font-inter antialiased min-h-screen flex flex-col justify-between selection:bg-primary/20 selection:text-primary">
+
+    <!-- Header Navbar -->
+    <header th:replace="~{layout/base :: navbar}"></header>
+
+    <main class="flex-1 flex items-center justify-center py-24 px-6 relative overflow-hidden">
+        <!-- Blur shape assets -->
+        <div class="absolute top-1/4 left-1/3 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/3 w-[300px] h-[300px] bg-accent/10 rounded-full blur-[100px] animate-pulse" style="animation-delay: 2s"></div>
+
+        <!-- Login Card -->
+        <div class="glass-card w-full max-w-md p-8 border border-white/50 rounded-3xl shadow-2xl relative z-10 space-y-6">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-poppins font-extrabold tracking-tight text-text-dark">Welcome Back</h2>
+                <p class="text-xs text-text-light">Log in to track project phases, make payments, or chat.</p>
+            </div>
+
+            <!-- Error Alerts -->
+            <div th:if="${param.error}" class="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span>Invalid credentials! Try again or use standard account values.</span>
+            </div>
+
+            <!-- Logout Success alert -->
+            <div th:if="${param.logout}" class="bg-emerald-50 border border-emerald-100 text-emerald-600 p-4 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
+                <span>Logged out successfully. See you again soon!</span>
+            </div>
+
+            <!-- Spring Security standard form -->
+            <form th:action="@{/login}" method="post" class="space-y-4 text-xs font-semibold text-text-dark">
+                <div class="flex flex-col space-y-1.5">
+                    <label for="username">Username / Client ID</label>
+                    <input type="text" id="username" name="username" placeholder="client" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                </div>
+                <div class="flex flex-col space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <label for="password">Account Password</label>
+                        <a href="#" class="text-[10px] text-primary hover:underline font-normal" onclick="showToast('Password reset simulated. Standard pass is: clientpassword')">Forgot?</a>
+                    </div>
+                    <input type="password" id="password" name="password" placeholder="clientpassword" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-lg shadow-primary/10 hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all duration-300">
+                        Sign In Securely
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center pt-2">
+                <p class="text-xs text-text-light">
+                    Don't have an account? 
+                    <a th:href="@{/register}" class="text-primary hover:underline font-bold">Sign Up Here</a>
+                </p>
+            </div>
+
+            <!-- Helper credentials notice -->
+            <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-2 text-[10px] text-text-light leading-relaxed">
+                <div class="font-bold text-text-dark flex items-center space-x-1">
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-primary"></i>
+                    <span>Default Testing Credentials (Auto-Seeded)</span>
+                </div>
+                <p>• **Client:** Username: <code class="bg-white px-1 py-0.5 rounded border">client</code>, Password: <code class="bg-white px-1 py-0.5 rounded border">clientpassword</code></p>
+                <p>• **Admin:** Username: <code class="bg-white px-1 py-0.5 rounded border">admin</code>, Password: <code class="bg-white px-1 py-0.5 rounded border">adminpassword</code></p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer th:replace="~{layout/base :: footer}"></footer>
+</body>
+</html>

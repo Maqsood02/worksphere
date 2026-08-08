@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <div th:replace="~{layout/base :: head('WorkSphere - Full Stack Freelance & Service Platform')}"></div>
+</head>
+<body class="bg-white text-text-dark font-inter antialiased selection:bg-primary/20 selection:text-primary">
+
+    <!-- Header Navbar -->
+    <header th:replace="~{layout/base :: navbar}"></header>
+
+    <!-- Main Content wrapper -->
+    <main class="overflow-x-hidden pt-20">
+
+        <!-- HERO SECTION -->
+        <section id="home" class="relative min-h-[90vh] flex items-center justify-center py-20 px-6 overflow-hidden">
+            <!-- Glow background circles -->
+            <div class="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px] animate-blob"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-primary/10 rounded-full blur-[120px] animate-blob" style="animation-delay: 2s"></div>
+            <div class="absolute top-1/2 right-1/3 w-[300px] h-[300px] bg-accent/15 rounded-full blur-[90px] animate-blob" style="animation-delay: 4s"></div>
+            
+            <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+                <!-- Left Details -->
+                <div class="lg:col-span-7 space-y-8 text-center lg:text-left scroll-reveal">
+                    <div class="inline-flex items-center space-x-2 bg-gradient-to-r from-primary/10 to-accent/10 text-primary py-2 px-4 rounded-full border border-primary/20 hover:scale-105 transition-transform duration-300">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span class="text-xs font-semibold uppercase tracking-wider font-poppins">Available for Freelance Projects</span>
+                    </div>
+
+                    <h1 class="text-4xl sm:text-5xl xl:text-6xl font-poppins font-extrabold tracking-tight leading-[1.1] text-text-dark">
+                        Transforming Ideas Into <br>
+                        <span class="bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+                            Powerful Digital Solutions
+                        </span>
+                    </h1>
+
+                    <p class="text-base sm:text-lg text-text-light max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                        I build custom, premium, and highly animated web applications. Specialized in high-performance Java Spring Boot backends, MongoDB document designs, and luxury Tailwind interfaces.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                        <a th:href="@{/project-request}" class="w-full sm:w-auto text-center bg-primary hover:bg-indigo-700 text-white font-medium py-3.5 px-8 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300">
+                            Book Free Call
+                        </a>
+                        <a href="#portfolio" class="w-full sm:w-auto text-center border border-slate-200 hover:border-primary/50 text-text-dark bg-white/50 backdrop-blur-sm font-medium py-3.5 px-8 rounded-full hover:scale-105 active:scale-95 transition-all duration-300">
+                            View Portfolio
+                        </a>
+                    </div>
+
+                    <!-- Trust Stats -->
+                    <div class="pt-6 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0 border-t border-slate-100">
+                        <div>
+                            <div class="text-2xl font-poppins font-bold text-text-dark font-counter" data-target="99">0</div>
+                            <div class="text-xs text-text-light">Success Rate %</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-poppins font-bold text-text-dark font-counter" data-target="60">0</div>
+                            <div class="text-xs text-text-light">Completed Projects</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-poppins font-bold text-text-dark font-counter" data-target="5">0</div>
+                            <div class="text-xs text-text-light">Years Experience</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Dynamic Code Graphic -->
+                <div class="lg:col-span-5 relative scroll-reveal" style="animation-delay: 0.3s">
+                    <!-- Glass Card Graphic wrapper -->
+                    <div class="glass-card p-6 border border-white/40 rounded-2xl shadow-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
+                        <div class="absolute -top-10 -right-10 w-40 h-40 bg-accent/20 rounded-full blur-2xl"></div>
+                        <!-- Mock coding interface -->
+                        <div class="flex items-center justify-between pb-4 border-b border-slate-100/60 mb-4">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="w-3 w-3 h-3 bg-red-400 rounded-full block"></span>
+                                <span class="w-3 w-3 h-3 bg-yellow-400 rounded-full block"></span>
+                                <span class="w-3 w-3 h-3 bg-emerald-400 rounded-full block"></span>
+                            </div>
+                            <div class="text-xs font-mono text-text-light bg-slate-100/80 py-1 px-3 rounded-lg">FreelanceController.java</div>
+                        </div>
+                        
+                        <!-- Dynamic Code text -->
+                        <pre class="font-mono text-xs text-left text-slate-700 leading-relaxed overflow-x-auto space-y-1 py-2">
+<span class="text-primary">@RestController</span>
+<span class="text-primary">@RequestMapping</span>(<span class="text-accent">"/api/projects"</span>)
+<span class="text-indigo-600">public class</span> <span class="text-purple-600">FreelanceController</span> {
+
+  <span class="text-emerald-600">// Build premium high-perf platforms</span>
+  <span class="text-primary">@PostMapping</span>(<span class="text-accent">"/hire"</span>)
+  <span class="text-indigo-600">public</span> ResponseEntity&lt;Project&gt; <span class="text-blue-600">hireMe</span>() {
+    Project clientProject = Project.builder()
+      .stack(<span class="text-accent">"Spring Boot + MongoDB + HTML5"</span>)
+      .animations(<span class="text-accent">"60fps Smooth Custom Motion"</span>)
+      .aesthetics(<span class="text-accent">"Elegant Soft Light Theme"</span>)
+      .build();
+      
+    <span class="text-indigo-600">return</span> ResponseEntity.ok(
+      projectService.deliver(clientProject)
+    );
+  }
+}</pre>
+                    </div>
+
+                    <!-- Small overlapping Glass badge -->
+                    <div class="absolute -bottom-6 -left-6 glass-card p-4 rounded-xl shadow-xl border border-white/50 flex items-center space-x-3 animate-float">
+                        <div class="p-2.5 bg-emerald-500/10 rounded-lg text-emerald-500">
+                            <i data-lucide="shield-check" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-text-dark">SECURE CONTRACT</div>
+                            <div class="text-[10px] text-text-light">Spring Security Guaranteed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TECHNOLOGY LOGOS -->
+        <section class="py-12 bg-slate-50/50 border-y border-slate-100/50 overflow-hidden">
+            <div class="max-w-7xl mx-auto px-6 text-center">
+                <p class="text-xs font-semibold text-text-light uppercase tracking-widest mb-6">Expertise in Trusted Enterprise Technologies</p>
+                <div class="flex flex-wrap items-center justify-center gap-10 md:gap-16 opacity-60">
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="coffee" class="w-5 h-5 text-amber-600"></i><span>Java / JDK 26</span></div>
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="server" class="w-5 h-5 text-emerald-600"></i><span>Spring Boot 3</span></div>
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="database" class="w-5 h-5 text-green-500"></i><span>MongoDB</span></div>
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="palette" class="w-5 h-5 text-indigo-500"></i><span>Tailwind CSS</span></div>
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="layout-template" class="w-5 h-5 text-rose-500"></i><span>Thymeleaf templates</span></div>
+                    <div class="flex items-center space-x-2 text-sm font-semibold text-text-dark"><i data-lucide="terminal" class="w-5 h-5 text-blue-500"></i><span>Spring Security</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABOUT SECTION -->
+        <section id="about" class="py-24 px-6 max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+                
+                <!-- Left Details -->
+                <div class="lg:col-span-5 space-y-6 scroll-reveal">
+                    <!-- Image mockup wrapper -->
+                    <div class="relative rounded-2xl overflow-hidden border border-slate-200 shadow-2xl group">
+                        <!-- Simulated developer mockup -->
+                        <div class="h-96 w-full bg-gradient-to-tr from-primary/10 via-accent/5 to-secondary/15 flex items-center justify-center p-8">
+                            <div class="text-center space-y-4">
+                                <div class="w-24 h-24 rounded-full bg-gradient-to-r from-primary to-accent mx-auto flex items-center justify-center text-white text-3xl font-bold font-poppins shadow-xl shadow-primary/20">
+                                    AD
+                                </div>
+                                <h3 class="font-poppins font-bold text-xl text-text-dark">Alex Developer</h3>
+                                <p class="text-xs text-text-light font-mono bg-white/70 py-1 px-3 rounded-full border border-slate-100">Senior Full-Stack Engineer</p>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
+                            <p class="text-xs text-white">"Designing elegant visual architectures for developers & clients."</p>
+                        </div>
+                    </div>
+
+                    <!-- Download Resume block -->
+                    <div class="p-5 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2.5 bg-rose-500/10 rounded-xl text-rose-500"><i data-lucide="file-text" class="w-6 h-6"></i></div>
+                            <div>
+                                <h4 class="font-semibold text-sm text-text-dark">Alex_Resume.pdf</h4>
+                                <p class="text-xs text-text-light">Last updated July 2026</p>
+                            </div>
+                        </div>
+                        <a href="#" class="text-xs font-bold text-primary hover:underline flex items-center space-x-1" onclick="showToast('Resume download simulated successfully!')">
+                            <span>Download CV</span>
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right Education / Experience Roadmap -->
+                <div class="lg:col-span-7 space-y-8 scroll-reveal" style="animation-delay: 0.2s">
+                    <div class="space-y-2">
+                        <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">My Background</span>
+                        <h2 class="text-3xl font-poppins font-extrabold text-text-dark">Educational Roadmap & Experience</h2>
+                    </div>
+
+                    <!-- Tabs switcher -->
+                    <div class="flex space-x-2 border-b border-slate-200">
+                        <button onclick="switchTab('experience-timeline', 'education-timeline')" class="about-tab-btn border-b-2 border-primary text-primary px-4 py-2 text-sm font-medium transition-all" id="btn-exp">Experience</button>
+                        <button onclick="switchTab('education-timeline', 'experience-timeline')" class="about-tab-btn border-b-2 border-transparent text-text-light px-4 py-2 text-sm font-medium transition-all" id="btn-edu">Education</button>
+                    </div>
+
+                    <!-- Timeline Content -->
+                    <div class="relative pl-6 border-l border-slate-200 space-y-8" id="experience-timeline">
+                        <div class="relative">
+                            <span class="absolute -left-[31px] top-1.5 w-4 h-4 bg-primary border-4 border-white rounded-full"></span>
+                            <h4 class="text-sm font-bold text-text-dark">Lead Freelance Software Engineer</h4>
+                            <p class="text-xs text-text-light font-semibold">2024 - Present • Self-Employed</p>
+                            <p class="text-xs text-text-light mt-2 leading-relaxed">Deliver high-quality Java Spring Boot backends and client dashboards with MongoDB connections. Direct payment integrations and interactive chatbots.</p>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute -left-[31px] top-1.5 w-4 h-4 bg-accent border-4 border-white rounded-full"></span>
+                            <h4 class="text-sm font-bold text-text-dark">Senior Java Backend Developer</h4>
+                            <p class="text-xs text-text-light font-semibold">2021 - 2024 • Stripe-inspired SaaS Corp</p>
+                            <p class="text-xs text-text-light mt-2 leading-relaxed">Engineered robust payment APIs and microservices. Improved database transaction times by 40% using MongoDB indexing.</p>
+                        </div>
+                    </div>
+
+                    <div class="relative pl-6 border-l border-slate-200 space-y-8 hidden" id="education-timeline">
+                        <div class="relative">
+                            <span class="absolute -left-[31px] top-1.5 w-4 h-4 bg-primary border-4 border-white rounded-full"></span>
+                            <h4 class="text-sm font-bold text-text-dark">M.S. in Software Engineering</h4>
+                            <p class="text-xs text-text-light font-semibold">2019 - 2021 • Stanford Tech Institute</p>
+                            <p class="text-xs text-text-light mt-2 leading-relaxed">Specialized in Distributed Web Systems, Java Core programming, and Database clustering paradigms.</p>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute -left-[31px] top-1.5 w-4 h-4 bg-accent border-4 border-white rounded-full"></span>
+                            <h4 class="text-sm font-bold text-text-dark">B.S. in Computer Science</h4>
+                            <p class="text-xs text-text-light font-semibold">2015 - 2019 • State CS College</p>
+                            <p class="text-xs text-text-light mt-2 leading-relaxed">Foundational algorithms, object-oriented software patterns, and web application paradigms.</p>
+                        </div>
+                    </div>
+
+                    <!-- Skills Proficiency Bars -->
+                    <div class="space-y-4 pt-4">
+                        <h4 class="font-poppins font-semibold text-sm text-text-dark">Skill Proficiencies</h4>
+                        <div class="space-y-3 text-xs font-semibold">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span>Java Spring Boot Core</span>
+                                    <span>95%</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: 95%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span>MongoDB Database Modeling</span>
+                                    <span>90%</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-accent rounded-full transition-all duration-1000" style="width: 90%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span>Tailwind CSS & Thymeleaf</span>
+                                    <span>88%</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-secondary rounded-full transition-all duration-1000" style="width: 88%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SERVICES SECTION -->
+        <section id="services" class="bg-slate-50/50 py-24 px-6 border-y border-slate-100/50">
+            <div class="max-w-7xl mx-auto space-y-16">
+                
+                <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                    <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Premium Packages</span>
+                    <h2 class="text-3xl md:text-4xl font-poppins font-extrabold text-text-dark">Professional Freelance Services</h2>
+                    <p class="text-sm text-text-light">Select from high-quality standard layouts, secure microservices, AI plugins, and graphic creations built tailored to your business needs.</p>
+                </div>
+
+                <!-- Services Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 scroll-reveal">
+                    
+                    <!-- Web Dev -->
+                    <div class="glass-card p-6 border border-white/50 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between group">
+                        <div class="space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <i data-lucide="globe" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-poppins font-bold text-base text-text-dark">Website Development</h3>
+                            <p class="text-xs text-text-light leading-relaxed">High-conversion, stunning responsive landing pages styled with Tailwind CSS.</p>
+                            <ul class="text-xs text-text-light space-y-1.5">
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-primary mr-1"></i> SEO Friendly</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-primary mr-1"></i> 60fps Animations</li>
+                            </ul>
+                        </div>
+                        <div class="pt-6 border-t border-slate-100 mt-6 flex items-center justify-between text-xs">
+                            <div>
+                                <span class="text-text-light">Starts at</span>
+                                <span class="block font-bold text-sm text-text-dark">$800</span>
+                            </div>
+                            <a th:href="@{/project-request(type='Website Development')}" class="bg-slate-100 hover:bg-primary hover:text-white py-2 px-4 rounded-xl font-medium transition-all duration-300">Hire</a>
+                        </div>
+                    </div>
+
+                    <!-- Spring Web App -->
+                    <div class="glass-card p-6 border border-white/50 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between group">
+                        <div class="space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <i data-lucide="server" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-poppins font-bold text-base text-text-dark">Spring Boot MVC</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Secure, transactional Java backend modules supporting multi-role authentication.</p>
+                            <ul class="text-xs text-text-light space-y-1.5">
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-accent mr-1"></i> Spring Security</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-accent mr-1"></i> REST APIs</li>
+                            </ul>
+                        </div>
+                        <div class="pt-6 border-t border-slate-100 mt-6 flex items-center justify-between text-xs">
+                            <div>
+                                <span class="text-text-light">Starts at</span>
+                                <span class="block font-bold text-sm text-text-dark">$1,500</span>
+                            </div>
+                            <a th:href="@{/project-request(type='Spring Boot Backend')}" class="bg-slate-100 hover:bg-primary hover:text-white py-2 px-4 rounded-xl font-medium transition-all duration-300">Hire</a>
+                        </div>
+                    </div>
+
+                    <!-- MongoDB Integration -->
+                    <div class="glass-card p-6 border border-white/50 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between group">
+                        <div class="space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <i data-lucide="database" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-poppins font-bold text-base text-text-dark">MongoDB Clustering</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Highly responsive database schemas, indexing setup, and data migration.</p>
+                            <ul class="text-xs text-text-light space-y-1.5">
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500 mr-1"></i> Optimized Indices</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500 mr-1"></i> Query Tuning</li>
+                            </ul>
+                        </div>
+                        <div class="pt-6 border-t border-slate-100 mt-6 flex items-center justify-between text-xs">
+                            <div>
+                                <span class="text-text-light">Starts at</span>
+                                <span class="block font-bold text-sm text-text-dark">$1,000</span>
+                            </div>
+                            <a th:href="@{/project-request(type='MongoDB Design')}" class="bg-slate-100 hover:bg-primary hover:text-white py-2 px-4 rounded-xl font-medium transition-all duration-300">Hire</a>
+                        </div>
+                    </div>
+
+                    <!-- AI Assistant Integration -->
+                    <div class="glass-card p-6 border border-white/50 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between group">
+                        <div class="space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <i data-lucide="bot" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-poppins font-bold text-base text-text-dark">AI Chatbot Solutions</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Integrate smart language models to automate sales prompts and lead filters.</p>
+                            <ul class="text-xs text-text-light space-y-1.5">
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-secondary mr-1"></i> OpenAI Integration</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 text-secondary mr-1"></i> Real-time Prompts</li>
+                            </ul>
+                        </div>
+                        <div class="pt-6 border-t border-slate-100 mt-6 flex items-center justify-between text-xs">
+                            <div>
+                                <span class="text-text-light">Starts at</span>
+                                <span class="block font-bold text-sm text-text-dark">$1,200</span>
+                            </div>
+                            <a th:href="@{/project-request(type='AI Integrations')}" class="bg-slate-100 hover:bg-primary hover:text-white py-2 px-4 rounded-xl font-medium transition-all duration-300">Hire</a>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- DYNAMIC BONUS FEATURE: AI PRICE ESTIMATOR -->
+                <div class="glass-card max-w-3xl mx-auto p-8 border border-white/60 rounded-3xl shadow-xl space-y-6 relative overflow-hidden scroll-reveal">
+                    <div class="absolute -top-12 -left-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+                    
+                    <div class="flex items-center space-x-3 relative z-10">
+                        <div class="p-2 bg-gradient-to-br from-primary to-accent rounded-xl text-white">
+                            <i data-lucide="calculator" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-poppins font-bold text-lg text-text-dark">AI Proposal Price Estimator</h3>
+                            <p class="text-xs text-text-light">Slide parameters below to compute an automated estimate proposal budget.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 relative z-10 text-xs">
+                        <div class="space-y-4">
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold text-text-dark">Service Category</label>
+                                <select id="est-service" onchange="calculateProposalPrice()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none text-text-dark text-xs">
+                                    <option value="800">Website Development ($800 base)</option>
+                                    <option value="1500">Spring Boot Backend ($1,500 base)</option>
+                                    <option value="1000">MongoDB Database Design ($1,000 base)</option>
+                                    <option value="1200">AI Chatbot integrations ($1,200 base)</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold text-text-dark">Scale / Complexity: <span id="est-scale-val" class="font-bold text-primary">Medium (1.0x)</span></label>
+                                <input type="range" id="est-scale" min="0.5" max="2.0" step="0.25" value="1.0" oninput="calculateProposalPrice()" class="w-full accent-primary">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold text-text-dark">Delivery Schedule Priority</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <label class="border border-slate-200 rounded-xl p-3 text-center cursor-pointer hover:border-primary/50 block relative">
+                                        <input type="radio" name="est-priority" value="0.9" onchange="calculateProposalPrice()" class="absolute opacity-0">
+                                        <span class="block font-bold">Standard</span>
+                                        <span class="text-[10px] text-text-light">Normal time</span>
+                                    </label>
+                                    <label class="border border-primary rounded-xl p-3 text-center cursor-pointer block relative bg-primary/5">
+                                        <input type="radio" name="est-priority" value="1.2" checked onchange="calculateProposalPrice()" class="absolute opacity-0">
+                                        <span class="block font-bold text-primary">Fast (+20%)</span>
+                                        <span class="text-[10px] text-text-light">Accelerated</span>
+                                    </label>
+                                    <label class="border border-slate-200 rounded-xl p-3 text-center cursor-pointer hover:border-primary/50 block relative">
+                                        <input type="radio" name="est-priority" value="1.5" onchange="calculateProposalPrice()" class="absolute opacity-0">
+                                        <span class="block font-bold">Express (+50%)</span>
+                                        <span class="text-[10px] text-text-light">Urgent 24/7</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold text-text-dark">Promo Coupon Discount</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="est-coupon" placeholder="Enter coupon (e.g. WELCOME20)" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-text-dark w-full outline-none">
+                                    <button onclick="applyEstCoupon()" class="bg-slate-100 hover:bg-slate-200 font-bold px-4 py-2 rounded-xl text-text-dark">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Calculation readout -->
+                    <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between relative z-10">
+                        <div class="text-center sm:text-left mb-4 sm:mb-0">
+                            <span class="text-xs text-text-light font-semibold uppercase">Estimated Quote</span>
+                            <div class="text-3xl font-poppins font-bold text-text-dark">$<span id="est-final-price">1152</span></div>
+                            <span id="est-coupon-msg" class="text-emerald-500 font-bold text-[10px] block mt-1 hidden">Coupon WELCOME20 applied! (20% off)</span>
+                        </div>
+                        <button onclick="bookEstimatedProject()" class="w-full sm:w-auto bg-gradient-to-r from-primary to-accent text-white font-medium py-3 px-8 rounded-full shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300">
+                            Book Project Custom Invoice
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- PORTFOLIO SECTION -->
+        <section id="portfolio" class="py-24 px-6 max-w-7xl mx-auto space-y-16">
+            <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Showcase Projects</span>
+                <h2 class="text-3xl md:text-4xl font-poppins font-extrabold text-text-dark">My Latest Showcase Works</h2>
+                <p class="text-sm text-text-light">Browse actual systems compiled using Java Spring Boot, MongoDB document storage, and modern Tailwind visuals.</p>
+            </div>
+
+            <!-- Categories filter -->
+            <div class="flex flex-wrap justify-center gap-2 max-w-md mx-auto scroll-reveal">
+                <button onclick="filterPortfolio('all')" class="port-filter-btn bg-primary text-white py-2 px-5 rounded-full text-xs font-medium transition-all duration-300 shadow-sm shadow-primary/10">All Works</button>
+                <button onclick="filterPortfolio('web')" class="port-filter-btn bg-slate-100 hover:bg-slate-200 text-text-dark py-2 px-5 rounded-full text-xs font-medium transition-all duration-300">Web MVC</button>
+                <button onclick="filterPortfolio('ai')" class="port-filter-btn bg-slate-100 hover:bg-slate-200 text-text-dark py-2 px-5 rounded-full text-xs font-medium transition-all duration-300">AI Integrations</button>
+                <button onclick="filterPortfolio('db')" class="port-filter-btn bg-slate-100 hover:bg-slate-200 text-text-dark py-2 px-5 rounded-full text-xs font-medium transition-all duration-300">Database Models</button>
+            </div>
+
+            <!-- Portfolio Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 scroll-reveal" id="portfolio-grid">
+                
+                <!-- Project 1 -->
+                <div class="portfolio-item bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group" data-category="web">
+                    <div class="h-48 bg-gradient-to-tr from-primary/10 to-accent/20 relative flex items-center justify-center p-6">
+                        <i data-lucide="shopping-cart" class="w-16 h-16 text-primary/45 group-hover:scale-110 transition-transform duration-500"></i>
+                        <span class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold py-1 px-3 rounded-full uppercase">Spring Boot + MVC</span>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <h3 class="font-poppins font-bold text-lg text-text-dark">Enterprise E-Commerce SaaS</h3>
+                        <p class="text-xs text-text-light leading-relaxed">Integrated inventory grids, cart logs, invoices, and dynamic checkout timelines.</p>
+                        <div class="flex flex-wrap gap-1.5 pt-2">
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">Spring Boot</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">MongoDB</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">Stripe API</span>
+                        </div>
+                        <div class="pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold">
+                            <a href="#" onclick="openPreviewModal('Enterprise E-Commerce SaaS', 'Complete Spring Boot and MongoDB web application. Features multi-role login, product catalog database indices, shopping carts, and dynamic invoice generation.', 'Web MVC', '$3,500')" class="text-primary hover:underline flex items-center space-x-1">
+                                <span>Preview Modal</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </a>
+                            <a href="#" class="text-text-light hover:text-text-dark"><i data-lucide="github" class="w-5 h-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 2 -->
+                <div class="portfolio-item bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group" data-category="ai">
+                    <div class="h-48 bg-gradient-to-tr from-accent/10 to-secondary/20 relative flex items-center justify-center p-6">
+                        <i data-lucide="bot" class="w-16 h-16 text-accent/45 group-hover:scale-110 transition-transform duration-500"></i>
+                        <span class="absolute top-4 left-4 bg-accent text-white text-[10px] font-bold py-1 px-3 rounded-full uppercase">AI Co-Pilot</span>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <h3 class="font-poppins font-bold text-lg text-text-dark">OpenAI Knowledge Chatbot</h3>
+                        <p class="text-xs text-text-light leading-relaxed">Integrated custom prompt instructions, price estimators, and status trackers.</p>
+                        <div class="flex flex-wrap gap-1.5 pt-2">
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">LangChain</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">MongoDB Log</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">Spring Rest</span>
+                        </div>
+                        <div class="pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold">
+                            <a href="#" onclick="openPreviewModal('OpenAI Knowledge Chatbot', 'Real-time assistant bot executing pricing estimation, FAQ lookup, and checking status database timelines for clients automatically.', 'AI Integrations', '$1,200')" class="text-primary hover:underline flex items-center space-x-1">
+                                <span>Preview Modal</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </a>
+                            <a href="#" class="text-text-light hover:text-text-dark"><i data-lucide="github" class="w-5 h-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 3 -->
+                <div class="portfolio-item bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group" data-category="db">
+                    <div class="h-48 bg-gradient-to-tr from-emerald-500/10 to-primary/20 relative flex items-center justify-center p-6">
+                        <i data-lucide="database" class="w-16 h-16 text-emerald-500/45 group-hover:scale-110 transition-transform duration-500"></i>
+                        <span class="absolute top-4 left-4 bg-emerald-500 text-white text-[10px] font-bold py-1 px-3 rounded-full uppercase">MongoDB Tuning</span>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <h3 class="font-poppins font-bold text-lg text-text-dark">High-Volume Database Logs</h3>
+                        <p class="text-xs text-text-light leading-relaxed">Architected indexing logic and aggregate metrics pipelines for analytical reports.</p>
+                        <div class="flex flex-wrap gap-1.5 pt-2">
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">MongoDB</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">Aggregation</span>
+                            <span class="bg-slate-100 text-text-dark font-mono text-[9px] py-1 px-2.5 rounded-md">Java Spring</span>
+                        </div>
+                        <div class="pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold">
+                            <a href="#" onclick="openPreviewModal('High-Volume Database Logs', 'Re-architected collections, added indexing compounds, and crafted dashboard aggregate controllers querying millions of logs.', 'Database Models', '$1,800')" class="text-primary hover:underline flex items-center space-x-1">
+                                <span>Preview Modal</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </a>
+                            <a href="#" class="text-text-light hover:text-text-dark"><i data-lucide="github" class="w-5 h-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- PORTFOLIO PREVIEW MODAL -->
+        <div id="portfolio-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 hidden" onclick="closePreviewModal()">
+            <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-300" id="port-modal-content" onclick="event.stopPropagation()">
+                <div class="p-6 space-y-4 text-left">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span id="modal-category" class="bg-primary/10 text-primary text-[10px] font-bold py-1 px-3 rounded-full uppercase">Category</span>
+                            <h3 id="modal-title" class="font-poppins font-extrabold text-2xl text-text-dark mt-2">Project Title</h3>
+                        </div>
+                        <button onclick="closePreviewModal()" class="text-text-light hover:text-text-dark hover:bg-slate-100 p-1.5 rounded-lg transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    
+                    <p id="modal-desc" class="text-sm text-text-light leading-relaxed">Detailed description content goes here.</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 py-4 border-y border-slate-100 text-xs">
+                        <div>
+                            <span class="text-text-light block">Est. Cost</span>
+                            <span id="modal-cost" class="font-bold text-sm text-text-dark">$1,500</span>
+                        </div>
+                        <div>
+                            <span class="text-text-light block">Tech Stack</span>
+                            <span class="font-semibold text-text-dark">Java Spring Boot, MongoDB</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex space-x-3">
+                        <a href="#" class="flex-1 text-center bg-primary hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-xl text-xs active:scale-95 transition-all" onclick="showToast('Simulated deployment live preview!')">Live Demo</a>
+                        <a href="#" class="flex-1 text-center border border-slate-200 text-text-dark hover:bg-slate-50 font-medium py-2.5 px-4 rounded-xl text-xs active:scale-95 transition-all">GitHub Repo</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRICING SECTION -->
+        <section id="pricing" class="bg-slate-50/50 py-24 px-6 border-y border-slate-100/50">
+            <div class="max-w-7xl mx-auto space-y-16">
+                
+                <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                    <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Aesthetic Quotes</span>
+                    <h2 class="text-3xl md:text-4xl font-poppins font-extrabold text-text-dark">Simple, Upfront Pricing Plans</h2>
+                    <p class="text-sm text-text-light">Select standard pricing packages or use the AI Estimator widget above to request personalized project budgets.</p>
+                </div>
+
+                <!-- Pricing Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto scroll-reveal">
+                    
+                    <!-- Basic -->
+                    <div class="bg-white border border-slate-100 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                        <div class="space-y-6">
+                            <span class="text-xs font-bold text-text-light uppercase tracking-wider">Basic Tier</span>
+                            <div class="space-y-2">
+                                <div class="text-4xl font-poppins font-extrabold text-text-dark">$800</div>
+                                <p class="text-xs text-text-light">Ideal for custom high-speed landing pages and visual portfolios.</p>
+                            </div>
+                            <ul class="text-xs text-text-light space-y-3 pt-6 border-t border-slate-100">
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Custom HTML/CSS/JS Layout</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Tailwind CSS Styles</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Responsive Layout (Mobile/Desktop)</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> 3 revisions, 5 days delivery</li>
+                            </ul>
+                        </div>
+                        <a th:href="@{/project-request(type='Website Development', budget=800)}" class="w-full text-center bg-slate-100 hover:bg-primary hover:text-white py-3 rounded-xl text-xs font-semibold mt-8 block transition-all duration-300">Hire Basic Package</a>
+                    </div>
+
+                    <!-- Premium Standard (Highlighted) -->
+                    <div class="bg-white border-2 border-primary p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold px-4 py-1.5 uppercase rounded-bl-xl tracking-widest font-poppins animate-pulse">RECOMMENDED</div>
+                        
+                        <div class="space-y-6">
+                            <span class="text-xs font-bold text-primary uppercase tracking-wider">Premium Stack</span>
+                            <div class="space-y-2">
+                                <div class="text-4xl font-poppins font-extrabold text-text-dark">$1,800</div>
+                                <p class="text-xs text-text-light">Perfect for startup SaaS applications, multi-page portals, and DB persistence.</p>
+                            </div>
+                            <ul class="text-xs text-text-light space-y-3 pt-6 border-t border-slate-100">
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Java Spring Boot Backend Engine</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> MongoDB database structure</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Role-based Spring Security login</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Automated Invoices & Chat</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> 5 revisions, 12 days delivery</li>
+                            </ul>
+                        </div>
+                        <a th:href="@{/project-request(type='Spring Boot Backend', budget=1800)}" class="w-full text-center bg-primary text-white hover:bg-indigo-700 py-3 rounded-xl text-xs font-semibold mt-8 block shadow-md shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300">Hire Recommended Plan</a>
+                    </div>
+
+                    <!-- Enterprise Advanced -->
+                    <div class="bg-white border border-slate-100 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                        <div class="space-y-6">
+                            <span class="text-xs font-bold text-text-light uppercase tracking-wider">Enterprise Pro</span>
+                            <div class="space-y-2">
+                                <div class="text-4xl font-poppins font-extrabold text-text-dark">$3,500</div>
+                                <p class="text-xs text-text-light">Advanced automation integration, custom chatbot engines, and payment flows.</p>
+                            </div>
+                            <ul class="text-xs text-text-light space-y-3 pt-6 border-t border-slate-100">
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Custom OpenAI API Chatbot module</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Stripe / PayPal active payment integration</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Calendar booking system & Email sync</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Full source code & Deployment support</li>
+                                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-primary mr-2"></i> Unlimited Revisions, 20 days delivery</li>
+                            </ul>
+                        </div>
+                        <a th:href="@{/project-request(type='Full-Stack Enterprise', budget=3500)}" class="w-full text-center bg-slate-100 hover:bg-primary hover:text-white py-3 rounded-xl text-xs font-semibold mt-8 block transition-all duration-300">Hire Enterprise Plan</a>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- REVIEWS / TESTIMONIALS -->
+        <section class="py-24 px-6 max-w-7xl mx-auto space-y-16">
+            <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Verified Feedback</span>
+                <h2 class="text-3xl font-poppins font-extrabold text-text-dark">Testimonials from Happy Clients</h2>
+            </div>
+
+            <!-- Testimonial slider / cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 scroll-reveal" id="testimonials-container">
+                
+                <div class="testimonial-card bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-4 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-sm text-text-dark">EM</div>
+                            <div>
+                                <h4 class="font-semibold text-sm text-text-dark">Elon Musketeer</h4>
+                                <p class="text-[10px] text-text-light font-mono">CEO, Tesla-Inspired Corp</p>
+                            </div>
+                        </div>
+                        <div class="flex text-amber-400">
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-light leading-relaxed">"Alex delivered our Spring Boot application on schedule. The code compiles clean, the MongoDB indices speed up our dashboard logs immensely, and security matches corporate audits."</p>
+                </div>
+
+                <div class="testimonial-card bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-4 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-sm text-text-dark">SZ</div>
+                            <div>
+                                <h4 class="font-semibold text-sm text-text-dark">Sarah Zuck</h4>
+                                <p class="text-[10px] text-text-light font-mono">Founder, SocialBook</p>
+                            </div>
+                        </div>
+                        <div class="flex text-amber-400">
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-light leading-relaxed">"The landing pages layout looks stunning! High-speed loading, glassmorphism card lifting, and smooth scrolling animations have doubled our visitor retention rate."</p>
+                </div>
+
+                <div class="testimonial-card bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-4 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-sm text-text-dark">JB</div>
+                            <div>
+                                <h4 class="font-semibold text-sm text-text-dark">Jeff Bez</h4>
+                                <p class="text-[10px] text-text-light font-mono">Manager, CloudRetail</p>
+                            </div>
+                        </div>
+                        <div class="flex text-amber-400">
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                            <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-light leading-relaxed">"Our billing invoices generate instantly now. The local database seeding was incredibly thoughtful, letting us test the client portal inside Spring Boot without manual script loads."</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TECH BLOG -->
+        <section id="blog" class="bg-slate-50/50 py-24 px-6 border-y border-slate-100/50">
+            <div class="max-w-7xl mx-auto space-y-16">
+                <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                    <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Tech Blog</span>
+                    <h2 class="text-3xl font-poppins font-extrabold text-text-dark">My Latest Technical Articles</h2>
+                </div>
+
+                <!-- Blog Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto scroll-reveal">
+                    
+                    <div class="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+                        <div class="p-6 space-y-4">
+                            <span class="bg-primary/10 text-primary text-[10px] font-bold py-1 px-3 rounded-full uppercase">Java Spring Boot</span>
+                            <h3 class="font-poppins font-bold text-base text-text-dark hover:text-primary transition-colors cursor-pointer" onclick="openBlogModal('Securing REST APIs with Custom Spring Security Filters', 'Spring Security filters allow you to secure endpoints with custom JWT parsing, roles, or header injections. In this post, we explain how to construct security chains, bypass static resources safely, and configure custom AuthenticationSuccessHandlers.')">Securing REST APIs with Custom Spring Security Filters</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Learn how to build secure Spring Security filter chains that bypass public resources while protecting database endpoints.</p>
+                            <span class="text-[10px] text-text-light block font-semibold pt-4">July 10, 2026 • 5 min read</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+                        <div class="p-6 space-y-4">
+                            <span class="bg-accent/10 text-accent text-[10px] font-bold py-1 px-3 rounded-full uppercase">MongoDB</span>
+                            <h3 class="font-poppins font-bold text-base text-text-dark hover:text-primary transition-colors cursor-pointer" onclick="openBlogModal('MongoDB Database Indexing for High-Performance Dashboards', 'MongoDB provides indexing to speed up queries. We review how compound indices on user and date fields speed up page load queries for client invoices and chat history databases.')">MongoDB Database Indexing for High-Performance Dashboards</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Optimize your database read times. Review the best compound indexing methods for high-frequency user collections.</p>
+                            <span class="text-[10px] text-text-light block font-semibold pt-4">June 28, 2026 • 8 min read</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+                        <div class="p-6 space-y-4">
+                            <span class="bg-secondary/10 text-secondary text-[10px] font-bold py-1 px-3 rounded-full uppercase">Frontend Motion</span>
+                            <h3 class="font-poppins font-bold text-base text-text-dark hover:text-primary transition-colors cursor-pointer" onclick="openBlogModal('Building 60fps CSS Web Animations Without NPM Build Tools', 'Visual excellence in modern portals is critical. We review how to configure Tailwind CSS variables, build floating motion effects, and apply vanilla script listeners matching framer performance without complex node tools.')">Building 60fps CSS Web Animations Without NPM Build Tools</h3>
+                            <p class="text-xs text-text-light leading-relaxed">Implement glow cursor details, floating keyframe shapes, and animated statistics counters in Thymeleaf templates.</p>
+                            <span class="text-[10px] text-text-light block font-semibold pt-4">May 14, 2026 • 6 min read</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- BLOG MODAL -->
+        <div id="blog-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 hidden" onclick="closeBlogModal()">
+            <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-300" id="blog-modal-content" onclick="event.stopPropagation()">
+                <div class="p-6 space-y-4 text-left">
+                    <div class="flex justify-between items-start">
+                        <h3 id="blog-modal-title" class="font-poppins font-extrabold text-xl text-text-dark">Article Title</h3>
+                        <button onclick="closeBlogModal()" class="text-text-light hover:text-text-dark hover:bg-slate-100 p-1.5 rounded-lg transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <div id="blog-modal-body" class="text-sm text-text-light leading-relaxed space-y-3 pt-2">
+                        <!-- Full article body -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ SECTION -->
+        <section id="faq" class="py-24 px-6 max-w-4xl mx-auto space-y-16">
+            <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Help Guide</span>
+                <h2 class="text-3xl font-poppins font-extrabold text-text-dark">Frequently Asked Questions</h2>
+            </div>
+
+            <!-- Accordion container -->
+            <div class="space-y-4 scroll-reveal">
+                
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    <button class="w-full flex items-center justify-between p-5 text-left font-semibold text-sm text-text-dark outline-none" onclick="toggleFaq(this)">
+                        <span>How does the local database run out-of-the-box?</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-text-light transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="p-5 text-xs text-text-light leading-relaxed">The Spring Boot application automatically checks if a MongoDB instance is running. It seeds default credentials for an Admin (admin/adminpassword) and Client (client/clientpassword) so you can test logins and dashboard charts immediately.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    <button class="w-full flex items-center justify-between p-5 text-left font-semibold text-sm text-text-dark outline-none" onclick="toggleFaq(this)">
+                        <span>Can I adjust project budgets and timelines?</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-text-light transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="p-5 text-xs text-text-light leading-relaxed">Yes! You can fill out the Project Request form or slide parameters in the AI Price Estimator. It applies discount codes (e.g. WELCOME20), saves proposal documents to MongoDB, and registers a client account dynamically.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    <button class="w-full flex items-center justify-between p-5 text-left font-semibold text-sm text-text-dark outline-none" onclick="toggleFaq(this)">
+                        <span>How are dynamic stats and chats updated?</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-text-light transition-transform duration-300"></i>
+                    </button>
+                    <div class="faq-content max-h-0 overflow-hidden transition-all duration-300 bg-slate-50/50">
+                        <p class="p-5 text-xs text-text-light leading-relaxed">The frontend JS polls REST APIs dynamically to fetch new messaging records and timeline status. If you change a project stage in the Admin Dashboard, the Client Dashboard updates immediately on reload/polling.</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- CONTACT SECTION -->
+        <section id="contact" class="bg-slate-50/50 py-24 px-6 border-t border-slate-100/50">
+            <div class="max-w-7xl mx-auto space-y-16">
+                
+                <div class="text-center space-y-4 max-w-3xl mx-auto scroll-reveal">
+                    <span class="text-xs font-bold text-primary tracking-widest uppercase font-poppins">Get In Touch</span>
+                    <h2 class="text-3xl font-poppins font-extrabold text-text-dark">Let's Discuss Your Project Roadmap</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 max-w-6xl mx-auto items-start">
+                    
+                    <!-- Contact Cards info -->
+                    <div class="lg:col-span-5 space-y-6 scroll-reveal">
+                        
+                        <div class="bg-white border border-slate-100 p-5 rounded-2xl flex items-center space-x-4 shadow-sm">
+                            <div class="p-3 bg-primary/10 rounded-xl text-primary"><i data-lucide="mail" class="w-5 h-5"></i></div>
+                            <div>
+                                <span class="text-[10px] text-text-light block uppercase font-bold">Email Address</span>
+                                <a href="mailto:alex@developer.com" class="text-sm font-semibold text-text-dark hover:underline">alex@developer.com</a>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-100 p-5 rounded-2xl flex items-center space-x-4 shadow-sm">
+                            <div class="p-3 bg-accent/10 rounded-xl text-accent"><i data-lucide="phone" class="w-5 h-5"></i></div>
+                            <div>
+                                <span class="text-[10px] text-text-light block uppercase font-bold">Direct Phone / WhatsApp</span>
+                                <a href="https://wa.me/1234567890" class="text-sm font-semibold text-text-dark hover:underline">+1 234 567 890 (Direct)</a>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-100 p-5 rounded-2xl flex items-center space-x-4 shadow-sm">
+                            <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-500"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                            <div>
+                                <span class="text-[10px] text-text-light block uppercase font-bold">Location</span>
+                                <span class="text-sm font-semibold text-text-dark">Silicon Valley, CA</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Verified Contact Form -->
+                    <div class="lg:col-span-7 bg-white border border-slate-100 p-8 rounded-3xl shadow-lg scroll-reveal" style="animation-delay: 0.2s">
+                        <form id="contact-form" onsubmit="submitContactForm(event)" class="space-y-5 text-xs text-text-dark">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div class="flex flex-col space-y-1.5">
+                                    <label class="font-semibold">Full Name *</label>
+                                    <input type="text" id="contact-name" placeholder="John Doe" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                                </div>
+                                <div class="flex flex-col space-y-1.5">
+                                    <label class="font-semibold">Email Address *</label>
+                                    <input type="email" id="contact-email" placeholder="john@company.com" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold">Message Subject</label>
+                                <input type="text" id="contact-subject" placeholder="Spring Boot Backend Integration" class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                            </div>
+                            <div class="flex flex-col space-y-1.5">
+                                <label class="font-semibold">Message Content *</label>
+                                <textarea id="contact-message" rows="5" placeholder="Let's build a secure payment portal..." required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs resize-none"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-lg shadow-primary/10 hover:shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300">
+                                Send Verified Message
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer base layout fragment -->
+    <footer th:replace="~{layout/base :: footer}"></footer>
+    <!-- Chatbot trigger fragment -->
+    <div th:replace="~{layout/base :: chatbot}"></div>
+    <!-- Back to top button -->
+    <button th:replace="~{layout/base :: backtotop}"></button>
+    <!-- Command Palette -->
+    <div th:replace="~{layout/base :: palette}"></div>
+
+    <!-- Page Specific Script actions -->
+    <script>
+        // AI Estimate pricing calculator
+        function calculateProposalPrice() {
+            const basePrice = parseFloat(document.getElementById("est-service").value);
+            const scale = parseFloat(document.getElementById("est-scale").value);
+            
+            // Format scale label
+            let scaleLabel = "Medium (1.0x)";
+            if(scale <= 0.75) scaleLabel = "Simple (" + scale + "x)";
+            else if(scale >= 1.5) scaleLabel = "Complex (" + scale + "x)";
+            document.getElementById("est-scale-val").innerText = scaleLabel;
+
+            // Get selected priority percentage multiplier
+            let priority = 1.0;
+            const priorities = document.getElementsByName("est-priority");
+            for(let p of priorities) {
+                if(p.checked) {
+                    priority = parseFloat(p.value);
+                    break;
+                }
+            }
+
+            let price = basePrice * scale * priority;
+
+            // Check if coupon WELCOME20 applied
+            const couponText = document.getElementById("est-coupon").value.trim().toUpperCase();
+            if(couponText === "WELCOME20" || couponText === "FREELANCE20") {
+                price = price * 0.8;
+                document.getElementById("est-coupon-msg").classList.remove("hidden");
+            } else {
+                document.getElementById("est-coupon-msg").classList.add("hidden");
+            }
+
+            document.getElementById("est-final-price").innerText = Math.round(price);
+        }
+
+        function applyEstCoupon() {
+            calculateProposalPrice();
+            const couponText = document.getElementById("est-coupon").value.trim().toUpperCase();
+            if(couponText === "WELCOME20" || couponText === "FREELANCE20") {
+                showToast("20% Coupon Code applied successfully!");
+            } else {
+                showToast("Invalid promo coupon code.");
+            }
+        }
+
+        function bookEstimatedProject() {
+            const serviceNameSelect = document.getElementById("est-service");
+            const serviceType = serviceNameSelect.options[serviceNameSelect.selectedIndex].text.split(" (")[0];
+            const budget = document.getElementById("est-final-price").innerText;
+            const coupon = document.getElementById("est-coupon").value.trim();
+            
+            // Redirect to request form with params
+            window.location.href = `/project-request?type=${encodeURIComponent(serviceType)}&budget=${budget}&coupon=${encodeURIComponent(coupon)}`;
+        }
+
+        // Switch About roadmap tabs
+        function switchTab(showId, hideId) {
+            document.getElementById(showId).classList.remove("hidden");
+            document.getElementById(hideId).classList.add("hidden");
+            
+            if(showId === 'experience-timeline') {
+                document.getElementById("btn-exp").classList.add("border-primary", "text-primary");
+                document.getElementById("btn-exp").classList.remove("border-transparent", "text-text-light");
+                document.getElementById("btn-edu").classList.remove("border-primary", "text-primary");
+                document.getElementById("btn-edu").classList.add("border-transparent", "text-text-light");
+            } else {
+                document.getElementById("btn-edu").classList.add("border-primary", "text-primary");
+                document.getElementById("btn-edu").classList.remove("border-transparent", "text-text-light");
+                document.getElementById("btn-exp").classList.remove("border-primary", "text-primary");
+                document.getElementById("btn-exp").classList.add("border-transparent", "text-text-light");
+            }
+        }
+
+        // Filter Portfolio categories
+        function filterPortfolio(category) {
+            const items = document.querySelectorAll(".portfolio-item");
+            const buttons = document.querySelectorAll(".port-filter-btn");
+            
+            // Set active buttons styles
+            buttons.forEach(btn => {
+                btn.classList.remove("bg-primary", "text-white");
+                btn.classList.add("bg-slate-100", "text-text-dark");
+            });
+
+            event.target.classList.remove("bg-slate-100", "text-text-dark");
+            event.target.classList.add("bg-primary", "text-white");
+
+            items.forEach(item => {
+                if(category === 'all' || item.getAttribute("data-category") === category) {
+                    item.style.display = "block";
+                    // Trigger fade in animation
+                    item.classList.add("animate-fade-in");
+                } else {
+                    item.style.display = "none";
+                }
+            });
+        }
+
+        // Portfolio modal zoom
+        function openPreviewModal(title, desc, cat, cost) {
+            document.getElementById("modal-title").innerText = title;
+            document.getElementById("modal-desc").innerText = desc;
+            document.getElementById("modal-category").innerText = cat;
+            document.getElementById("modal-cost").innerText = cost;
+
+            const modal = document.getElementById("portfolio-modal");
+            const modalContent = document.getElementById("port-modal-content");
+            modal.classList.remove("hidden");
+            setTimeout(() => {
+                modalContent.classList.remove("scale-95", "opacity-0");
+            }, 50);
+        }
+
+        function closePreviewModal() {
+            const modal = document.getElementById("portfolio-modal");
+            const modalContent = document.getElementById("port-modal-content");
+            modalContent.classList.add("scale-95", "opacity-0");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+            }, 300);
+        }
+
+        // Blog modal reading
+        function openBlogModal(title, content) {
+            document.getElementById("blog-modal-title").innerText = title;
+            document.getElementById("blog-modal-body").innerHTML = `<p>${content}</p><p class='mt-3'>In Spring Boot and Java setups, compiling views inside controllers using Thymeleaf is highly performant. You can access security context dynamically, apply user login scopes, and render data arrays from MongoDB using standard Thymeleaf iterations.</p>`;
+            
+            const modal = document.getElementById("blog-modal");
+            const contentDiv = document.getElementById("blog-modal-content");
+            modal.classList.remove("hidden");
+            setTimeout(() => {
+                contentDiv.classList.remove("scale-95", "opacity-0");
+            }, 50);
+        }
+
+        function closeBlogModal() {
+            const modal = document.getElementById("blog-modal");
+            const contentDiv = document.getElementById("blog-modal-content");
+            contentDiv.classList.add("scale-95", "opacity-0");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+            }, 300);
+        }
+
+        // FAQ accordion toggle
+        function toggleFaq(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector("i");
+            
+            if(content.style.maxHeight) {
+                content.style.maxHeight = null;
+                icon.style.transform = "rotate(0deg)";
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.style.transform = "rotate(180deg)";
+            }
+        }
+
+        // Submit validated contact form
+        function submitContactForm(e) {
+            e.preventDefault();
+            const name = document.getElementById("contact-name").value;
+            const email = document.getElementById("contact-email").value;
+            showToast(`Thank you, ${name}! Your inquiry was received. We will email you at ${email} shortly.`);
+            document.getElementById("contact-form").reset();
+        }
+
+        // Initial estimator setup
+        window.addEventListener("DOMContentLoaded", () => {
+            calculateProposalPrice();
+        });
+    </script>
+</body>
+</html>

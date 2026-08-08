@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <div th:replace="~{layout/base :: head('Sign Up - WorkSphere')}"></div>
+</head>
+<body class="bg-white text-text-dark font-inter antialiased min-h-screen flex flex-col justify-between selection:bg-primary/20 selection:text-primary">
+
+    <!-- Header Navbar -->
+    <header th:replace="~{layout/base :: navbar}"></header>
+
+    <main class="flex-1 flex items-center justify-center py-24 px-6 relative overflow-hidden">
+        <!-- Background glows -->
+        <div class="absolute top-1/4 left-1/3 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/3 w-[300px] h-[300px] bg-accent/10 rounded-full blur-[100px] animate-pulse" style="animation-delay: 2s"></div>
+
+        <!-- Registration Card -->
+        <div class="glass-card w-full max-w-md p-8 border border-white/50 rounded-3xl shadow-2xl relative z-10 space-y-6">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-poppins font-extrabold tracking-tight text-text-dark">Create Account</h2>
+                <p class="text-xs text-text-light">Register as a client to unlock workspace dashboard utilities.</p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="register-error" class="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-xs font-semibold flex items-center space-x-2 hidden">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span id="error-message">Registration failed.</span>
+            </div>
+
+            <form onsubmit="submitRegistration(event)" class="space-y-4 text-xs font-semibold text-text-dark">
+                <div class="flex flex-col space-y-1.5">
+                    <label for="reg-name">Full Name *</label>
+                    <input type="text" id="reg-name" placeholder="John Doe" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="flex flex-col space-y-1.5">
+                        <label for="reg-email">Email Address *</label>
+                        <input type="email" id="reg-email" placeholder="john@company.com" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                    </div>
+                    <div class="flex flex-col space-y-1.5">
+                        <label for="reg-phone">Phone Number</label>
+                        <input type="text" id="reg-phone" placeholder="+1 234 567 890" class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                    </div>
+                </div>
+                <div class="flex flex-col space-y-1.5">
+                    <label for="reg-username">Choose Username *</label>
+                    <input type="text" id="reg-username" placeholder="johndoe" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                </div>
+                <div class="flex flex-col space-y-1.5">
+                    <label for="reg-password">Password *</label>
+                    <input type="password" id="reg-password" placeholder="••••••••" required class="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-primary/50 text-xs">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-lg shadow-primary/10 hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all duration-300">
+                        Create Account & Start
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center pt-2">
+                <p class="text-xs text-text-light">
+                    Already have an account? 
+                    <a th:href="@{/login}" class="text-primary hover:underline font-bold">Log In Instead</a>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer th:replace="~{layout/base :: footer}"></footer>
+
+    <script>
+        async function submitRegistration(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById("reg-name").value;
+            const email = document.getElementById("reg-email").value;
+            const phone = document.getElementById("reg-phone").value;
+            const username = document.getElementById("reg-username").value;
+            const password = document.getElementById("reg-password").value;
+            
+            const errorDiv = document.getElementById("register-error");
+            const errorMsg = document.getElementById("error-message");
+            
+            errorDiv.classList.add("hidden");
+
+            try {
+                const response = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        name, email, phone, username, password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showToast("Account created successfully! Redirecting...");
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1000);
+                } else {
+                    errorMsg.innerText = data.message || "Registration failed.";
+                    errorDiv.classList.remove("hidden");
+                }
+            } catch (err) {
+                console.error("Reg Error:", err);
+                errorMsg.innerText = "Connection lost. Please try again.";
+                errorDiv.classList.remove("hidden");
+            }
+        }
+    </script>
+</body>
+</html>
