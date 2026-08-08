@@ -4,19 +4,40 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Persistent Users List for Standalone Cloud Demo Mode
 function getStoredUsersList() {
-  const saved = localStorage.getItem('worksphere_users_list');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {}
-  }
   const defaultList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Workshere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
     { id: 'u3', username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
     { id: 'u4', username: 'Maqsood', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
+
+  const saved = localStorage.getItem('worksphere_users_list');
+  if (saved) {
+    try {
+      let parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed = parsed.map(u => {
+          const uname = (u.username || '').toLowerCase();
+          if (uname === 'maqsood' && (u.role === 'ROLE_INTERN' || u.role === 'INTERN')) {
+            return { ...u, name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950' };
+          }
+          if (uname === 'chinmaykv' || uname === 'chinmay') {
+            return { ...u, name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555' };
+          }
+          if (uname === 'worksphere' || uname === 'admin') {
+            return { ...u, name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950' };
+          }
+          if (uname === 'maqsood' && (u.role === 'ROLE_CLIENT' || u.role === 'CLIENT')) {
+            return { ...u, name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950' };
+          }
+          return u;
+        });
+        localStorage.setItem('worksphere_users_list', JSON.stringify(parsed));
+        return parsed;
+      }
+    } catch (e) {}
+  }
+
   localStorage.setItem('worksphere_users_list', JSON.stringify(defaultList));
   return defaultList;
 }
@@ -72,8 +93,6 @@ function getMockFallbackResponse(url, options = {}) {
     localStorage.setItem('worksphere_user', JSON.stringify(user));
     return { success: true, user, message: 'Logged in successfully (Demo Mode)' };
   }
-
-  // 2. Auth - Me
   if (url.includes('/api/auth/me')) {
     const saved = localStorage.getItem('worksphere_user');
     if (saved) {
@@ -220,8 +239,8 @@ function getMockFallbackResponse(url, options = {}) {
         certificateUrl: '#'
       },
       interns: [
-        { username: 'maqsood', name: 'Maqsood M D', email: 'maqsood@worksphere.ac.in', phone: '+91 8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' },
-        { username: 'Chinmaykv', name: 'Chinmay KV', email: 'chinmaykv@worksphere.ac.in', phone: '+91 9876543210', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' }
+        { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' },
+        { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' }
       ]
     };
   }
