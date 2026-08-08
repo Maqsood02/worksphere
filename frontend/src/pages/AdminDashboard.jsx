@@ -1406,31 +1406,46 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowSendCredModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer transition-colors"
+                  className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
+
+                {/* Direct Gmail Web Compose */}
+                <a
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(credUser.email || `${credUser.username}@worksphere.ac.in`)}&su=${encodeURIComponent("🎓 WorkSphere Account Login Credentials: " + (credUser.name || credUser.username))}&body=${encodeURIComponent(`Hello ${credUser.name || credUser.username},\n\nYour official WorkSphere account login credentials:\n\n• Portal URL: https://worksphere-two.vercel.app/login\n• Account Role: ${credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}\n• Username: ${credUser.username}\n• Password: ${credPasswordInput}\n\nPlease log in and update your password.\n\nRegards,\nWorkSphere Admin Team`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-extrabold flex items-center justify-center gap-1.5 cursor-pointer border border-red-200 transition-all active:scale-95 shadow-sm"
+                  title="Open directly in Gmail Web in a new tab (100% guaranteed delivery)"
+                >
+                  <Mail className="w-4 h-4 text-red-600" />
+                  <span>Compose in Gmail</span>
+                </a>
+
+                {/* Native Email Client */}
                 <a
                   href={`mailto:${credUser.email || `${credUser.username}@worksphere.ac.in`}?subject=${encodeURIComponent("WorkSphere Account Login Credentials")}&body=${encodeURIComponent(`Hello ${credUser.name || credUser.username},\n\nYour WorkSphere login credentials:\nUsername: ${credUser.username}\nPassword: ${credPasswordInput}\nRole: ${credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}\n\nLog in at: https://worksphere-two.vercel.app/login\n\nRegards,\nWorkSphere Admin Team`)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 transition-all active:scale-95 shadow-sm"
-                  title="Open in your desktop/mobile mail app (Gmail / Outlook / Apple Mail)"
+                  className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 transition-all active:scale-95 shadow-sm"
+                  title="Open in your desktop/mobile mail app (Outlook / Apple Mail)"
                 >
                   <ExternalLink className="w-4 h-4 text-slate-500" />
-                  <span>Open Mail App</span>
+                  <span>Mail App</span>
                 </a>
+
+                {/* Server SMTP Dispatch */}
                 <button
                   type="submit"
                   disabled={isSendingCreds}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                 >
-                  <Mail className="w-4 h-4" />
-                  <span>{isSendingCreds ? 'Sending Email...' : 'Send Official Email'}</span>
+                  <span>{isSendingCreds ? 'Sending...' : 'Send Official Email'}</span>
                 </button>
               </div>
             </form>
