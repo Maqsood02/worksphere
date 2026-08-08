@@ -40,6 +40,26 @@ public class ProjectRestController {
         this.emailService = emailService;
     }
 
+    // Submit Homepage Contact Inquiry
+    @PostMapping("/api/public/contact")
+    public ResponseEntity<?> submitContactInquiry(@RequestBody Map<String, String> payload) {
+        String name = payload.get("name");
+        String email = payload.get("email");
+        String subject = payload.get("subject");
+        String message = payload.get("message");
+
+        if (name == null || email == null || message == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Name, email, and message are required."));
+        }
+
+        emailService.sendContactInquiryEmail(name, email, subject, message);
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Thank you, " + name + "! Your inquiry has been dispatched to our team via email."
+        ));
+    }
+
     // Submit Project Request
     @PostMapping("/api/public/project-request")
     public ResponseEntity<?> submitProjectRequest(@RequestBody Map<String, String> payload, Principal principal, HttpServletRequest request) {

@@ -1,6 +1,7 @@
 /* API Client Services: React 19 Client with Live Backend & Cloud Demo Fallback */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://worksphere-k6h8.onrender.com';
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8080' : 'https://worksphere-k6h8.onrender.com');
 
 // Persistent Users List for Standalone Cloud Demo Mode
 function getStoredUsersList() {
@@ -440,6 +441,12 @@ export const api = {
     }),
 
   // Actions
+  submitContactInquiry: (payload) =>
+    request('/api/public/contact', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+
   submitProjectRequest: (payload) => 
     request('/api/public/project-request', {
       method: 'POST',

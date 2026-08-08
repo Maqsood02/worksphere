@@ -10,6 +10,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailService {
 
+    static {
+        System.setProperty("java.net.preferIPv4Stack", "true");
+        System.clearProperty("socksProxyHost");
+        System.clearProperty("socksProxyPort");
+    }
+
     private final JavaMailSender mailSender;
 
     @org.springframework.beans.factory.annotation.Value("${spring.mail.username:worksphere.ac.in@gmail.com}")
@@ -24,6 +30,9 @@ public class EmailService {
      */
     @Async
     public void sendOtpEmail(String toEmail, String name, String otp) {
+        System.out.println("=================================================");
+        System.out.println("⚡ [EMAIL OTP DISPATCH] To: " + toEmail + " | Name: " + name + " | OTP CODE: " + otp);
+        System.out.println("=================================================");
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -80,6 +89,7 @@ public class EmailService {
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
+            System.out.println("[EMAIL SUCCESS] OTP Email sent successfully to: " + toEmail);
         } catch (MessagingException e) {
             System.err.println("Failed to send OTP Email: " + e.getMessage());
         } catch (Exception e) {
@@ -563,5 +573,54 @@ public class EmailService {
         mailSender.send(message);
         System.out.println("[EMAIL SUCCESS] Credentials email sent directly to: " + toEmail);
         return true;
+    }
+
+    /**
+     * Send Homepage Contact Form Inquiry Email to Admin Inbox
+     */
+    @Async
+    public void sendContactInquiryEmail(String visitorName, String visitorEmail, String subject, String messageText) {
+        System.out.println("=================================================");
+        System.out.println("⚡ [CONTACT INQUIRY DISPATCH] From: " + visitorName + " <" + visitorEmail + "> | Subject: " + subject);
+        System.out.println("=================================================");
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(senderEmail, "WorkSphere Inquiry Form");
+            helper.setTo(senderEmail); // Admin inbox: worksphere.ac.in@gmail.com
+            if (visitorEmail != null && visitorEmail.contains("@")) {
+                helper.setReplyTo(visitorEmail);
+            }
+            helper.setSubject("📩 [Website Inquiry] " + (subject != null && !subject.isBlank() ? subject : "New Inquiry"));
+
+            String htmlContent = """
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 30px;">
+                    <div style="max-width: 600px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 16px; border: 1px solid #334155;">
+                        <h2 style="color: #38bdf8; margin-top: 0;">New Website Inquiry Received</h2>
+                        <p><strong>From:</strong> %s (&lt;%s&gt;)</p>
+                        <p><strong>Subject:</strong> %s</p>
+                        <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;"/>
+                        <p style="white-space: pre-wrap; line-height: 1.6; color: #cbd5e1;">%s</p>
+                        <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;"/>
+                        <p style="font-size: 11px; color: #64748b;">Reply directly to this email to respond to %s.</p>
+                    </div>
+                </body>
+                </html>
+                """.formatted(
+                    visitorName != null ? visitorName : "Visitor", 
+                    visitorEmail != null ? visitorEmail : "N/A", 
+                    subject != null ? subject : "General Inquiry", 
+                    messageText != null ? messageText : "", 
+                    visitorEmail != null ? visitorEmail : "the sender"
+                );
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            System.out.println("[EMAIL SUCCESS] Contact inquiry forwarded to admin inbox: " + senderEmail);
+        } catch (Exception e) {
+            System.err.println("[EMAIL ERROR] Failed to deliver contact inquiry email: " + e.getMessage());
+        }
     }
 }

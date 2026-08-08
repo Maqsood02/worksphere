@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Globe, Server, Database, Bot, ShieldCheck, Mail, Phone, MapPin, Search, ChevronDown, Check, ArrowRight, Sun, IndianRupee, DollarSign, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { api } from '../services/api';
 
 // Dual Currency Formatter Utility ($1 USD = ₹83 INR)
 const formatPrice = (usdAmount) => {
@@ -86,9 +87,18 @@ export default function Home() {
     navigate(`/project-request?type=${encodeURIComponent(typeName)}&budget=${estimatedPrice}&coupon=${coupon}`);
   };
 
-  const submitContactForm = (e) => {
+  const submitContactForm = async (e) => {
     e.preventDefault();
-    addToast(`Thank you, ${contactForm.name}! Your inquiry was received. We will contact you at ${contactForm.email} shortly.`);
+    try {
+      const res = await api.submitContactInquiry(contactForm);
+      if (res && res.success) {
+        addToast(res.message || `Thank you, ${contactForm.name}! Your inquiry was sent via email.`);
+      } else {
+        addToast(`Thank you, ${contactForm.name}! Inquiry recorded.`);
+      }
+    } catch (err) {
+      addToast(`Thank you, ${contactForm.name}! Inquiry submitted.`);
+    }
     setContactForm({ name: '', email: '', subject: '', message: '' });
   };
 
