@@ -136,50 +136,7 @@ export default function Login() {
           </div>
         </form>
 
-        {/* Quick Demo Autofill Pills */}
-        <div className="space-y-2 pt-2 border-t border-slate-200/80">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-            <span>⚡ Quick Demo Credentials</span>
-            <Sparkles className="w-3 h-3 text-amber-500" />
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => autofillCredentials('worksphere', 'Workshere@123')}
-              className="px-3 py-2 rounded-xl bg-white hover:bg-amber-50/80 border border-slate-200 hover:border-amber-300 text-left transition-all group cursor-pointer shadow-sm"
-            >
-              <div className="font-extrabold text-amber-600 flex items-center justify-between">
-                <span>@worksphere</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">ADMIN</span>
-              </div>
-              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Workshere@123</div>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => autofillCredentials('maqsood', '123456')}
-              className="px-3 py-2 rounded-xl bg-white hover:bg-indigo-50/80 border border-slate-200 hover:border-indigo-300 text-left transition-all group cursor-pointer shadow-sm"
-            >
-              <div className="font-extrabold text-indigo-600 flex items-center justify-between">
-                <span>@maqsood</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">INTERN</span>
-              </div>
-              <div className="text-[10px] text-slate-500 font-mono mt-0.5">123456</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => autofillCredentials('Chinmaykv', '123456')}
-              className="px-3 py-2 rounded-xl bg-white hover:bg-cyan-50/80 border border-slate-200 hover:border-cyan-300 text-left transition-all group cursor-pointer shadow-sm"
-            >
-              <div className="font-extrabold text-cyan-600 flex items-center justify-between">
-                <span>@Chinmaykv</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700">INTERN</span>
-              </div>
-              <div className="text-[10px] text-slate-500 font-mono mt-0.5">123456</div>
-            </button>
-          </div>
-        </div>
 
         <div className="text-center pt-2 border-t border-slate-200/80">
           <p className="text-xs text-slate-500">
