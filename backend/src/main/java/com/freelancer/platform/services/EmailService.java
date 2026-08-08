@@ -365,7 +365,7 @@ public class EmailService {
                                                         <table width="100%%" cellpadding="0" cellspacing="0" border="0">
                                                             <tr>
                                                                 <td align="left" style="font-size: 13px; color: #94a3b8; font-weight: 600;">Portal URL:</td>
-                                                                <td align="right" style="font-size: 13px; font-family: monospace; font-weight: 700; color: #cbd5e1;">http://localhost:5173/login</td>
+                                                                <td align="right" style="font-size: 13px; font-family: monospace; font-weight: 700; color: #38bdf8;">https://worksphere-two.vercel.app/login</td>
                                                             </tr>
                                                         </table>
                                                     </td>
@@ -406,7 +406,7 @@ public class EmailService {
                                             <table width="100%%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 20px 0;">
                                                 <tr>
                                                     <td align="center">
-                                                        <a href="http://localhost:5173/login" target="_blank" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 36px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);">
+                                                        <a href="https://worksphere-two.vercel.app/login" target="_blank" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 36px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);">
                                                             Log In to WorkSphere Portal &rarr;
                                                         </a>
                                                     </td>
