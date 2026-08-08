@@ -354,20 +354,15 @@ export default function AdminDashboard() {
     setIsSendingCreds(true);
     try {
       const recipientEmail = credUser.email || `${credUser.username}@worksphere.ac.in`;
-      addToast(`Dispatching credentials email to ${recipientEmail}...`);
+      addToast(`Sending HTML credentials email to ${recipientEmail} from worksphere.ac.in@gmail.com...`);
       
-      // 1. Dispatch backend API
+      // Dispatch via backend REST API (Spring Boot JavaMailSender Port 465 SSL)
       const res = await api.sendUserCredentials(credUser.username, { password: credPasswordInput });
       
-      // 2. Auto-launch Gmail Web Compose in a new browser tab for 100% guaranteed delivery
-      const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipientEmail)}&su=${encodeURIComponent("🎓 WorkSphere Account Login Credentials")}&body=${encodeURIComponent(`Hello ${credUser.name || credUser.username},\n\nWelcome to WorkSphere! Your official login credentials have been configured:\n\nPortal Login URL: https://worksphere-two.vercel.app/login\nAccount Role: ${credUser.role ? credUser.role.replace('ROLE_', '') : 'CLIENT'}\nUsername: ${credUser.username}\nPassword: ${credPasswordInput}\n\nPlease log in and update your password.\n\nBest regards,\nWorkSphere Admin Team\nworksphere.ac.in@gmail.com`)}`;
-      
-      window.open(gmailComposeUrl, '_blank');
-
       if (res && res.success) {
-        addToast(res.message);
+        addToast(`🎉 ${res.message || `HTML credentials email sent to ${recipientEmail}!`}`);
       } else {
-        addToast(`Gmail Compose window opened for ${recipientEmail}!`);
+        addToast(res?.message || `Dispatched HTML credentials email to ${recipientEmail}!`);
       }
 
       setShowSendCredModal(false);

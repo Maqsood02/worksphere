@@ -1,6 +1,6 @@
 /* API Client Services: React 19 Client with Live Backend & Cloud Demo Fallback */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://worksphere-k6h8.onrender.com';
 
 // Persistent Users List for Standalone Cloud Demo Mode
 function getStoredUsersList() {
