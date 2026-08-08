@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
-    private final String senderEmail = "worksphere.ac.in@gmail.com";
+
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:worksphere.ac.in@gmail.com}")
+    private String senderEmail;
 
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
@@ -441,7 +443,8 @@ public class EmailService {
             mailSender.send(message);
             System.out.println("Intern credentials email dispatched successfully to: " + toEmail);
         } catch (Exception e) {
-            System.err.println("Failed to send Intern Credentials Email: " + e.getMessage());
+            System.err.println("[EMAIL ERROR] Failed to send credentials email to " + toEmail + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
