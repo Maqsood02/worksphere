@@ -132,15 +132,24 @@ public class AdminUserRestController {
             userService.updateUserPassword(username, rawPassword);
         }
 
-        emailService.sendInternCredentialsEmail(email, name, username, rawPassword, role);
-
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Credentials email sent for @" + username + " (" + email + ") with password stored in DB!",
-            "username", username,
-            "email", email,
-            "rawPassword", rawPassword
-        ));
+        try {
+            emailService.sendInternCredentialsEmailSync(email, name, username, rawPassword, role);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Credentials email sent successfully to " + email + " from worksphere.ac.in@gmail.com!",
+                "username", username,
+                "email", email,
+                "rawPassword", rawPassword
+            ));
+        } catch (Exception e) {
+            System.err.println("[SMTP ERROR] Failed sending to " + email + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "SMTP Delivery Error: " + e.getMessage() + ". Please check Gmail App Password or use 'Open Mail App'.",
+                "email", email
+            ));
+        }
     }
 
     @PostMapping("/{username}/role")

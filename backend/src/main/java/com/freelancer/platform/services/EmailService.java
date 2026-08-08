@@ -441,10 +441,124 @@ public class EmailService {
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-            System.out.println("Intern credentials email dispatched successfully to: " + toEmail);
+            System.out.println("[EMAIL SUCCESS] Credentials email dispatched successfully to: " + toEmail);
         } catch (Exception e) {
             System.err.println("[EMAIL ERROR] Failed to send credentials email to " + toEmail + ": " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public boolean sendInternCredentialsEmailSync(String toEmail, String name, String username, String password, String role) throws Exception {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setFrom(senderEmail, "WorkSphere HR & Onboarding");
+        helper.setTo(toEmail);
+        helper.setSubject("🎓 Welcome to WorkSphere Internship! Your Account Credentials inside");
+
+        String displayRole = role != null ? role.replace("ROLE_", "") : "INTERN";
+
+        String htmlContent = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: Arial, Helvetica, sans-serif;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f172a; padding: 30px 10px;">
+                    <tr>
+                        <td align="center">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden;">
+                                <tr>
+                                    <td align="center" style="padding: 32px 24px 20px 24px; border-bottom: 1px solid #334155; background-color: #0f172a;">
+                                        <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #38bdf8; letter-spacing: -0.5px;">WorkSphere</h1>
+                                        <div style="font-size: 10px; font-weight: 700; color: #06b6d4; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">CONNECT • COLLABORATE • SUCCEED</div>
+                                        <div style="display: inline-block; background-color: #312e81; border: 1px solid #6366f1; color: #a5b4fc; padding: 6px 16px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-top: 14px; text-transform: uppercase;">
+                                            🎓 OFFICIAL ACCOUNT CREATED
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 32px 28px; color: #f8fafc;">
+                                        <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #ffffff;">Welcome aboard, %s!</h2>
+                                        <p style="margin: 0 0 24px 0; font-size: 14px; color: #94a3b8; line-height: 1.6;">
+                                            Your WorkSphere account has been successfully configured in our database. You can now access your workspace, manage projects, and log in securely using your official login credentials below:
+                                        </p>
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f172a; border: 1px dashed #6366f1; border-radius: 14px; margin: 20px 0;">
+                                            <tr>
+                                                <td style="padding: 18px 20px 8px 20px; font-size: 11px; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px;">
+                                                    Your Verified Login Credentials
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 20px; border-bottom: 1px solid #1e293b;">
+                                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                        <tr>
+                                                            <td align="left" style="font-size: 13px; color: #94a3b8; font-weight: 600;">Portal URL:</td>
+                                                            <td align="right" style="font-size: 13px; font-family: monospace; font-weight: 700; color: #cbd5e1;">https://worksphere-two.vercel.app/login</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 20px; border-bottom: 1px solid #1e293b;">
+                                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                        <tr>
+                                                            <td align="left" style="font-size: 13px; color: #94a3b8; font-weight: 600;">Account Role:</td>
+                                                            <td align="right" style="font-size: 13px; font-weight: 700; color: #34d399;">%s</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 20px; border-bottom: 1px solid #1e293b;">
+                                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                        <tr>
+                                                            <td align="left" style="font-size: 13px; color: #94a3b8; font-weight: 600;">Username / ID:</td>
+                                                            <td align="right" style="font-size: 14px; font-family: monospace; font-weight: 800; color: #38bdf8;">%s</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 20px 16px 20px;">
+                                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                        <tr>
+                                                            <td align="left" style="font-size: 13px; color: #94a3b8; font-weight: 600;">Password:</td>
+                                                            <td align="right" style="font-size: 15px; font-family: monospace; font-weight: 900; color: #f43f5e; background-color: #1e293b; padding: 4px 12px; border-radius: 6px; border: 1px solid #334155;">%s</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 20px 0;">
+                                            <tr>
+                                                <td align="center">
+                                                    <a href="https://worksphere-two.vercel.app/login" target="_blank" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 36px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);">
+                                                        Log In to WorkSphere Portal &rarr;
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding: 24px; border-top: 1px solid #334155; font-size: 11px; color: #64748b; background-color: #0f172a;">
+                                        &copy; 2026 WorkSphere Platform. All rights reserved. <br/>
+                                        Support: worksphere.ac.in@gmail.com
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """.formatted(name != null ? name : "User", displayRole, username, password);
+
+        helper.setText(htmlContent, true);
+        mailSender.send(message);
+        System.out.println("[EMAIL SUCCESS] Credentials email sent directly to: " + toEmail);
+        return true;
     }
 }
