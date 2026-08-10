@@ -121,18 +121,18 @@ export default function AdminDashboard() {
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Workshere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
     { id: 'u3', username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'Maqsood', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
+    { id: 'u4', username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
   const defaultProjects = [
-    { id: 'proj_101', title: 'WorkSphere Web Platform', clientName: 'Maqsood MD', category: 'Full-Stack Development', status: 'IN_PROGRESS', progress: 75, budget: 1500, deadline: '2026-09-15' },
-    { id: 'proj_102', title: 'AI Co-Pilot Assistant', clientName: 'Tech Corp', category: 'AI & Automation', status: 'COMPLETED', progress: 100, budget: 2200, deadline: '2026-08-01' },
-    { id: 'proj_103', title: 'Mobile Client Workspace App', clientName: 'Innovate LLC', category: 'Frontend', status: 'PLANNING', progress: 25, budget: 1800, deadline: '2026-10-30' }
+    { id: 'proj_101', title: 'WorkSphere Web Platform', clientName: 'Maqsood MD', category: 'Full-Stack Development', status: 'IN_PROGRESS', progress: 75, budget: 125000, deadline: '2026-09-15' },
+    { id: 'proj_102', title: 'AI Co-Pilot Assistant', clientName: 'Tech Corp', category: 'AI & Automation', status: 'COMPLETED', progress: 100, budget: 180000, deadline: '2026-08-01' },
+    { id: 'proj_103', title: 'Mobile Client Workspace App', clientName: 'Innovate LLC', category: 'Frontend', status: 'PLANNING', progress: 25, budget: 150000, deadline: '2026-10-30' }
   ];
 
   const defaultInvoices = [
-    { id: 'INV-2026-001', projectTitle: 'WorkSphere Web Platform', amount: 1500, status: 'PAID', dueDate: '2026-08-15', paymentMethod: 'CARD' },
-    { id: 'INV-2026-002', projectTitle: 'AI Co-Pilot Assistant', amount: 2200, status: 'PENDING', dueDate: '2026-08-25', paymentMethod: null }
+    { id: 'INV-2026-001', projectTitle: 'WorkSphere Web Platform', amount: 125000, status: 'PAID', dueDate: '2026-08-15', paymentMethod: 'CARD' },
+    { id: 'INV-2026-002', projectTitle: 'AI Co-Pilot Assistant', amount: 180000, status: 'PENDING', dueDate: '2026-08-25', paymentMethod: null }
   ];
 
   const defaultAppointments = [
@@ -140,8 +140,8 @@ export default function AdminDashboard() {
   ];
 
   const defaultInterns = [
-    { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' },
-    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' }
+    { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' },
+    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' }
   ];
 
   const fetchData = async () => {
@@ -165,8 +165,9 @@ export default function AdminDashboard() {
       setProjects(projList);
       setProjectsCount(projList.length);
 
-      const clients = Array.from(new Set(projList.map(p => p.clientName || p.clientUsername).filter(Boolean)));
-      setClientList(clients.length > 0 ? clients : ['Maqsood', 'Tech Corp']);
+      // Clients for Chat
+      const clients = Array.from(new Set(projList.map(p => p.clientName).filter(Boolean)));
+      setClientList(clients.length > 0 ? clients : ['Maqsood']);
       if (!selectedClient) {
         setSelectedClient(clients[0] || 'Maqsood');
       }
@@ -184,17 +185,17 @@ export default function AdminDashboard() {
       setInvoices(invs);
       const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (i.amount || 0), 0);
       const calculatedRevenue = totalPaid > 0 ? totalPaid : invs.reduce((sum, i) => sum + (i.amount || 0), 0);
-      const finalRevenue = calculatedRevenue > 0 ? calculatedRevenue : 3700;
+      const finalRevenue = calculatedRevenue > 0 ? calculatedRevenue : 125000;
       setRevenue(finalRevenue);
 
       setEarningsData([
-        { name: 'May', revenue: 1500 },
-        { name: 'Jun', revenue: 2200 },
-        { name: 'Jul', revenue: 3100 },
+        { name: 'May', revenue: 45000 },
+        { name: 'Jun', revenue: 85000 },
+        { name: 'Jul', revenue: 110000 },
         { name: 'Aug', revenue: finalRevenue },
       ]);
 
-      // Normalize Appointments
+      // Appointments
       let apps = [];
       if (Array.isArray(appData)) {
         apps = appData;
@@ -211,7 +212,7 @@ export default function AdminDashboard() {
       setProjects(defaultProjects);
       setProjectsCount(defaultProjects.length);
       setInvoices(defaultInvoices);
-      setRevenue(3700);
+      setRevenue(125000);
       setAppointments(defaultAppointments);
       setAppointmentsCount(defaultAppointments.length);
     }
@@ -220,15 +221,29 @@ export default function AdminDashboard() {
   const fetchUsersData = async () => {
     try {
       const res = await api.getAdminUsers();
-      let users = [];
+      let rawUsers = [];
       if (Array.isArray(res)) {
-        users = res;
+        rawUsers = res;
       } else if (res && res.success && Array.isArray(res.users)) {
-        users = res.users;
+        rawUsers = res.users;
       } else if (res && Array.isArray(res.users)) {
-        users = res.users;
+        rawUsers = res.users;
       }
-      setUsersList(users && users.length > 0 ? users : defaultUsersList);
+      if (!rawUsers || rawUsers.length === 0) {
+        rawUsers = defaultUsersList;
+      }
+
+      // Deduplicate users strictly by lowercase username
+      const seenUsernames = new Set();
+      const uniqueUsers = [];
+      for (const u of rawUsers) {
+        const uKey = (u.username || '').trim().toLowerCase();
+        if (uKey && !seenUsernames.has(uKey)) {
+          seenUsernames.add(uKey);
+          uniqueUsers.push(u);
+        }
+      }
+      setUsersList(uniqueUsers.length > 0 ? uniqueUsers : defaultUsersList);
     } catch (err) {
       console.error("Fetch users error:", err);
       setUsersList(defaultUsersList);
@@ -611,10 +626,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><DollarSign className="w-5 h-5" /></div>
+            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-lg">₹</div>
             <div>
               <span className="text-[10px] text-text-light block uppercase font-bold">Total Revenue</span>
-              <span className="font-poppins font-extrabold text-xl text-text-dark">${revenue.toLocaleString()}</span>
+              <span className="font-poppins font-extrabold text-xl text-text-dark">₹{revenue.toLocaleString('en-IN')}</span>
             </div>
           </div>
           <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">

@@ -46,13 +46,28 @@ public class AdminUserRestController {
         if (!existingUsernames.contains("chinmaykv")) {
             users.add(User.builder().username("Chinmaykv").name("Chinmay K V").email("chinmaykv555@gmail.com").phone("7760674555").role("ROLE_INTERN").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
         }
-        boolean hasClientMaqsood = users.stream()
-                .anyMatch(u -> u.getUsername() != null && "maqsood".equalsIgnoreCase(u.getUsername()) && u.getRole() != null && u.getRole().toUpperCase().contains("CLIENT"));
-        if (!hasClientMaqsood) {
-            users.add(User.builder().username("Maqsood").name("Maqsood MD").email("maqsoodmdhrl@gmail.com").phone("8792404950").role("ROLE_CLIENT").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
+        boolean hasClient = existingUsernames.contains("client");
+        if (!hasClient) {
+            users.add(User.builder().username("client").name("Maqsood MD").email("maqsoodmdhrl@gmail.com").phone("8792404950").role("ROLE_CLIENT").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
         }
 
-        List<Map<String, Object>> response = users.stream().map(user -> {
+        // Deduplicate users strictly by lowercase username AND email
+        Map<String, User> uniqueUserMap = new LinkedHashMap<>();
+        for (User u : users) {
+            if (u.getUsername() != null && !u.getUsername().isBlank()) {
+                String uKey = u.getUsername().trim().toLowerCase();
+                String emailKey = u.getEmail() != null ? u.getEmail().trim().toLowerCase() : "";
+                if ("workshpere".equals(uKey)) continue; // Filter out typo variant
+                boolean isDuplicateEmail = !emailKey.isEmpty() && uniqueUserMap.values().stream()
+                        .anyMatch(x -> emailKey.equalsIgnoreCase(x.getEmail()) && u.getRole() != null && u.getRole().equals(x.getRole()));
+                if (!uniqueUserMap.containsKey(uKey) && !isDuplicateEmail) {
+                    uniqueUserMap.put(uKey, u);
+                }
+            }
+        }
+        List<User> deduplicatedUsers = new ArrayList<>(uniqueUserMap.values());
+
+        List<Map<String, Object>> response = deduplicatedUsers.stream().map(user -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", user.getId() != null ? user.getId() : user.getUsername());
             map.put("username", user.getUsername());
