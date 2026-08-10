@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { AlertCircle, UserCheck, GraduationCap, Sparkles, User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
+import { AlertCircle, UserCheck, GraduationCap, Sparkles, User, Mail, Phone, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import OtpVerificationModal from '../components/OtpVerificationModal';
 
 export default function Register() {
@@ -12,6 +12,8 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState('ROLE_CLIENT'); // ROLE_CLIENT, ROLE_INTERN, ROLE_FREELANCER
   const [error, setError] = useState(null);
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -199,29 +201,49 @@ export default function Register() {
               <label htmlFor="reg-password" className="text-slate-800 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-rose-500" /> Password *
               </label>
-              <input
-                type="password"
-                id="reg-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-slate-900 placeholder-slate-400 text-xs font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="reg-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-4 pr-11 py-3 text-slate-900 placeholder-slate-400 text-xs font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors p-1 cursor-pointer"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="reg-confirm-password" className="text-slate-800 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-rose-500" /> Confirm Password *
               </label>
-              <input
-                type="password"
-                id="reg-confirm-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-slate-900 placeholder-slate-400 text-xs font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="reg-confirm-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-4 pr-11 py-3 text-slate-900 placeholder-slate-400 text-xs font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors p-1 cursor-pointer"
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
