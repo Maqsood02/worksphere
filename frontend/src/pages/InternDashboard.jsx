@@ -74,27 +74,11 @@ export default function InternDashboard() {
     setLoading(true);
     try {
       const res = await api.getInternOverview();
-      let overviewData = (res && res.success) ? res : defaultInternData;
-
-      // Merge Admin configured profile overrides from localStorage if present
-      if (user && user.username) {
-        const uKey = user.username.toLowerCase();
-        const storedAdminProfile = localStorage.getItem(`worksphere_profile_${uKey}`);
-        if (storedAdminProfile) {
-          try {
-            const adminSettings = JSON.parse(storedAdminProfile);
-            overviewData = {
-              ...overviewData,
-              profile: {
-                ...(overviewData.profile || {}),
-                ...adminSettings
-              }
-            };
-          } catch (e) {}
-        }
+      if (res && res.success && res.intern) {
+        setData(res);
+      } else {
+        setData(defaultInternData);
       }
-
-      setData(overviewData);
     } catch (err) {
       console.error(err);
       setData(defaultInternData);
@@ -195,7 +179,8 @@ export default function InternDashboard() {
 
   const rawStipendAmount = profile?.stipendAmount || stats?.stipendAmount || 'Pending Admin Setup';
   const displayStipend = isPaid ? rawStipendAmount : 'Unpaid (Academic Credit)';
-  const isRupeeCurrency = (profile?.stipendCurrency === 'INR') || rawStipendAmount.includes('₹') || (!profile?.stipendCurrency && !rawStipendAmount.includes('$'));
+  const isUsdCurrency = rawStipendAmount.includes('$') || profile?.stipendCurrency === 'USD';
+  const isRupeeCurrency = !isUsdCurrency; // Default is ALWAYS INR (₹ Rupees)!
   const isStipendSetByAdmin = isPaid && rawStipendAmount !== 'Pending Admin Setup';
 
   const filteredTasks = tasks.filter(t => {

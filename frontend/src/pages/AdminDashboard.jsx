@@ -374,7 +374,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!targetIntern) return;
     try {
-      const payload = {
+      const res = await api.updateAdminIntern(targetIntern.username, {
         stipendType: editStipendType,
         stipendCurrency: editStipendCurrency,
         stipendAmount: editStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : editStipendAmount,
@@ -384,14 +384,7 @@ export default function AdminDashboard() {
         startDate: editStartDate,
         endDate: editEndDate,
         performanceRating: editPerformanceRating
-      };
-
-      if (targetIntern && targetIntern.username) {
-        const uKey = targetIntern.username.toLowerCase();
-        localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(payload));
-      }
-
-      const res = await api.updateAdminIntern(targetIntern.username, payload);
+      });
       if (res && res.success) {
         addToast(res.message);
         setShowEditStipendModal(false);

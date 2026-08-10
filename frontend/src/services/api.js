@@ -299,12 +299,14 @@ function isValidEmailFormat(email) {
       intern: {
         username: 'maqsood',
         name: 'Maqsood M D',
-        email: 'maqsood@worksphere.ac.in',
-        phone: '+91 8792404950',
+        email: 'maqsoodmd.ac.in@gmail.com',
+        phone: '8792404950',
         role: 'ROLE_INTERN',
         department: 'Full-Stack Engineering',
         attendanceCount: 24,
         performanceScore: 98,
+        stipendCurrency: 'INR',
+        stipendAmount: '₹15,000 / mo',
         tasks: [
           { id: 't1', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', dueDate: '2026-08-08' },
           { id: 't2', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', dueDate: '2026-08-15' }
@@ -313,8 +315,8 @@ function isValidEmailFormat(email) {
         certificateUrl: '#'
       },
       interns: [
-        { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' },
-        { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '$1,500/mo', certificateStatus: 'ISSUED' }
+        { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendCurrency: 'INR', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' },
+        { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendCurrency: 'INR', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' }
       ]
     };
   }

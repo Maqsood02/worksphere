@@ -144,33 +144,28 @@ public class InternRestController {
     }
 
     private synchronized Map<String, Object> getOrCreateProfile(String username) {
-        if (username == null || username.isBlank()) username = "intern";
-        String key = username.trim().toLowerCase();
-        if (!internProfiles.containsKey(key)) {
+        if (!internProfiles.containsKey(username)) {
             Optional<User> userOpt = userService.findByUsername(username);
-            if (userOpt.isEmpty()) {
-                userOpt = userService.findByUsername(key);
-            }
             String name = userOpt.map(User::getName).orElse("Intern " + username);
-            String email = userOpt.map(User::getEmail).orElse(key + "@worksphere.ac.in");
+            String email = userOpt.map(User::getEmail).orElse(username + "@worksphere.ac.in");
 
             Map<String, Object> newProfile = new HashMap<>();
-            newProfile.put("username", key);
+            newProfile.put("username", username);
             newProfile.put("name", name);
             newProfile.put("email", email);
             newProfile.put("track", "Full-Stack Software Engineering");
-            newProfile.put("mentorName", "maqsood".equalsIgnoreCase(key) || "chinmaykv".equalsIgnoreCase(key) ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
+            newProfile.put("mentorName", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
             newProfile.put("mentorEmail", "s.jenkins@worksphere.ac.in");
             newProfile.put("startDate", LocalDate.now().toString());
             newProfile.put("endDate", LocalDate.now().plusMonths(3).toString());
             newProfile.put("stipendType", "PAID");
             newProfile.put("stipendCurrency", "INR");
-            newProfile.put("stipendAmount", "maqsood".equalsIgnoreCase(key) || "chinmaykv".equalsIgnoreCase(key) ? "₹15,000 / mo" : "Pending Admin Setup");
-            newProfile.put("performanceRating", "maqsood".equalsIgnoreCase(key) || "chinmaykv".equalsIgnoreCase(key) ? "4.9 / 5.0" : "New Intern");
+            newProfile.put("stipendAmount", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "₹15,000 / mo" : "Pending Admin Setup");
+            newProfile.put("performanceRating", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "4.9 / 5.0" : "New Intern");
             newProfile.put("certificateStatus", "NOT_ISSUED");
-            internProfiles.put(key, newProfile);
+            internProfiles.put(username, newProfile);
         }
-        return internProfiles.get(key);
+        return internProfiles.get(username);
     }
 
     // -------------------------------------------------------------
@@ -181,20 +176,17 @@ public class InternRestController {
     public ResponseEntity<?> getOverview(Principal principal) {
         String username = principal != null ? principal.getName() : "intern";
         Map<String, Object> profile = getOrCreateProfile(username);
-        String key = username.trim().toLowerCase();
 
         List<Map<String, Object>> myTasks = new ArrayList<>();
         for (Map<String, Object> t : tasksList) {
-            String assigned = (String) t.get("assignedTo");
-            if (assigned != null && (key.equalsIgnoreCase(assigned) || username.equalsIgnoreCase(assigned))) {
+            if (username.equals(t.get("assignedTo"))) {
                 myTasks.add(t);
             }
         }
 
         List<Map<String, Object>> myAttendance = new ArrayList<>();
         for (Map<String, Object> a : attendanceLogs) {
-            String userLog = (String) a.get("username");
-            if (userLog != null && (key.equalsIgnoreCase(userLog) || username.equalsIgnoreCase(userLog))) {
+            if (username.equals(a.get("username"))) {
                 myAttendance.add(a);
             }
         }
@@ -345,7 +337,6 @@ public class InternRestController {
 
     @PostMapping("/api/admin/interns/{username}/update")
     public synchronized ResponseEntity<?> updateInternProfile(@PathVariable String username, @RequestBody Map<String, Object> payload) {
-        String key = username != null ? username.trim().toLowerCase() : "intern";
         Map<String, Object> profile = getOrCreateProfile(username);
 
         if (payload.containsKey("stipendType")) {
@@ -375,9 +366,6 @@ public class InternRestController {
         if (payload.containsKey("performanceRating")) {
             profile.put("performanceRating", payload.get("performanceRating"));
         }
-
-        internProfiles.put(key, profile);
-        internProfiles.put(username, profile);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
