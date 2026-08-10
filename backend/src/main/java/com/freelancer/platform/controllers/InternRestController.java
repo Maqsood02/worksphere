@@ -159,7 +159,8 @@ public class InternRestController {
             newProfile.put("startDate", "2026-06-01");
             newProfile.put("endDate", "2026-08-31");
             newProfile.put("stipendType", "PAID");
-            newProfile.put("stipendAmount", "$1,500 / month");
+            newProfile.put("stipendCurrency", "INR");
+            newProfile.put("stipendAmount", "₹15,000 / month");
             newProfile.put("performanceRating", "4.9 / 5.0");
             newProfile.put("certificateStatus", "NOT_ISSUED");
             internProfiles.put(username, newProfile);
@@ -343,6 +344,9 @@ public class InternRestController {
         }
         if (payload.containsKey("stipendAmount")) {
             profile.put("stipendAmount", payload.get("stipendAmount"));
+        }
+        if (payload.containsKey("stipendCurrency")) {
+            profile.put("stipendCurrency", payload.get("stipendCurrency"));
         }
         if (payload.containsKey("mentorName")) {
             profile.put("mentorName", payload.get("mentorName"));

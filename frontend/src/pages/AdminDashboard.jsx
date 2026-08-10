@@ -52,7 +52,8 @@ export default function AdminDashboard() {
   const [showEditStipendModal, setShowEditStipendModal] = useState(false);
   const [targetIntern, setTargetIntern] = useState(null);
   const [editStipendType, setEditStipendType] = useState('PAID');
-  const [editStipendAmount, setEditStipendAmount] = useState('$1,500 / month');
+  const [editStipendCurrency, setEditStipendCurrency] = useState('INR');
+  const [editStipendAmount, setEditStipendAmount] = useState('₹15,000 / mo');
   const [editMentorName, setEditMentorName] = useState('Dr. Sarah Jenkins');
   const [editMentorEmail, setEditMentorEmail] = useState('s.jenkins@worksphere.ac.in');
   const [editTrack, setEditTrack] = useState('Full-Stack Software Engineering');
@@ -360,6 +361,7 @@ export default function AdminDashboard() {
     try {
       const res = await api.updateAdminIntern(targetIntern.username, {
         stipendType: editStipendType,
+        stipendCurrency: editStipendCurrency,
         stipendAmount: editStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : editStipendAmount,
         mentorName: editMentorName,
         mentorEmail: editMentorEmail,
@@ -1369,29 +1371,76 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <label>Stipend Mode *</label>
-                <select
-                  value={editStipendType}
-                  onChange={(e) => setEditStipendType(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-medium"
-                >
-                  <option value="PAID">PAID STIPEND</option>
-                  <option value="UNPAID">UNPAID (Academic Credit)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col space-y-1">
+                  <label>Stipend Mode *</label>
+                  <select
+                    value={editStipendType}
+                    onChange={(e) => setEditStipendType(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-medium"
+                  >
+                    <option value="PAID">PAID STIPEND</option>
+                    <option value="UNPAID">UNPAID (Academic Credit)</option>
+                  </select>
+                </div>
+
+                {editStipendType === 'PAID' && (
+                  <div className="flex flex-col space-y-1">
+                    <label>Currency Option *</label>
+                    <select
+                      value={editStipendCurrency}
+                      onChange={(e) => {
+                        const newCurr = e.target.value;
+                        setEditStipendCurrency(newCurr);
+                        if (newCurr === 'INR' && editStipendAmount.includes('$')) {
+                          setEditStipendAmount('₹15,000 / mo');
+                        } else if (newCurr === 'USD' && editStipendAmount.includes('₹')) {
+                          setEditStipendAmount('$1,500 / mo');
+                        }
+                      }}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-bold text-emerald-700"
+                    >
+                      <option value="INR">INR (₹ Rupees)</option>
+                      <option value="USD">USD ($ Dollars)</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {editStipendType === 'PAID' && (
                 <div className="flex flex-col space-y-1">
-                  <label>Monthly Stipend Amount *</label>
+                  <label className="flex justify-between items-center">
+                    <span>Monthly Stipend Amount *</span>
+                    <span className="text-[10px] text-emerald-600 font-extrabold uppercase">
+                      {editStipendCurrency === 'INR' ? 'Indian Rupee (₹)' : 'US Dollar ($)'}
+                    </span>
+                  </label>
                   <input
                     type="text"
                     value={editStipendAmount}
                     onChange={(e) => setEditStipendAmount(e.target.value)}
-                    placeholder="e.g. $1,500 / month or $500 / mo"
+                    placeholder={editStipendCurrency === 'INR' ? "e.g. ₹15,000 / mo" : "e.g. $1,500 / mo"}
                     required
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary"
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-bold text-slate-900"
                   />
+                  {/* Preset Amount Shortcut Buttons */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {editStipendCurrency === 'INR' ? (
+                      <>
+                        <button type="button" onClick={() => setEditStipendAmount('₹10,000 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-semibold border border-slate-200 cursor-pointer">₹10,000 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('₹15,000 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-semibold border border-slate-200 cursor-pointer">₹15,000 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('₹25,000 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-semibold border border-slate-200 cursor-pointer">₹25,000 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('₹35,000 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-semibold border border-slate-200 cursor-pointer">₹35,000 / mo</button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => setEditStipendAmount('$500 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-semibold border border-slate-200 cursor-pointer">$500 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('$1,000 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-semibold border border-slate-200 cursor-pointer">$1,000 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('$1,500 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-semibold border border-slate-200 cursor-pointer">$1,500 / mo</button>
+                        <button type="button" onClick={() => setEditStipendAmount('$2,500 / mo')} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-semibold border border-slate-200 cursor-pointer">$2,500 / mo</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 
