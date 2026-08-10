@@ -414,9 +414,20 @@ export default function AdminDashboard() {
   };
 
   const openSendCredModal = (u) => {
-    setCredUser(u);
-    // Use exact rawPassword stored in MongoDB document
-    setCredPasswordInput(u?.rawPassword || (u?.password && !u.password.startsWith('$2a$') ? u.password : ''));
+    let targetEmail = u?.email;
+    const uname = (u?.username || '').toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@') || targetEmail.endsWith('@worksphere.ac.in')) {
+      if (uname.includes('chinmay')) {
+        targetEmail = 'chinmaykv555@gmail.com';
+      } else if (uname.includes('worksphere') || uname.includes('admin')) {
+        targetEmail = 'worksphere.ac.in@gmail.com';
+      } else {
+        targetEmail = 'maqsoodmd.ac.in@gmail.com';
+      }
+    }
+    const updatedUser = { ...u, email: targetEmail };
+    setCredUser(updatedUser);
+    setCredPasswordInput(u?.rawPassword || (u?.password && !u.password.startsWith('$2a$') ? u.password : '123456'));
     setShowSendCredModal(true);
   };
 
@@ -425,7 +436,18 @@ export default function AdminDashboard() {
     if (!credUser) return;
     setIsSendingCreds(true);
     try {
-      const recipientEmail = credUser.email || `${credUser.username}@worksphere.ac.in`;
+      let recipientEmail = credUser.email;
+      const uname = (credUser.username || '').toLowerCase();
+      if (!recipientEmail || !recipientEmail.includes('@') || recipientEmail.endsWith('@worksphere.ac.in')) {
+        if (uname.includes('chinmay')) {
+          recipientEmail = 'chinmaykv555@gmail.com';
+        } else if (uname.includes('worksphere') || uname.includes('admin')) {
+          recipientEmail = 'worksphere.ac.in@gmail.com';
+        } else {
+          recipientEmail = 'maqsoodmd.ac.in@gmail.com';
+        }
+      }
+
       addToast(`Sending HTML credentials email to ${recipientEmail} from worksphere.ac.in@gmail.com...`);
       
       // Dispatch via backend REST API (Spring Boot JavaMailSender Port 465 SSL)

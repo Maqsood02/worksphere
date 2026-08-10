@@ -451,25 +451,53 @@ public class InternRestController {
         Map<String, Object> profile = getOrCreateProfile(username);
         Optional<User> userOpt = userService.findByUsername(username);
 
-        String email = userOpt.map(User::getEmail).orElse((String) profile.get("email"));
-        String name = userOpt.map(User::getName).orElse((String) profile.get("name"));
-        String role = userOpt.map(User::getRole).orElse("ROLE_INTERN");
+        String name = (payload != null && payload.get("name") != null && !payload.get("name").isBlank()) 
+            ? payload.get("name") : userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", username));
+        String role = (payload != null && payload.get("role") != null && !payload.get("role").isBlank()) 
+            ? payload.get("role") : userOpt.map(User::getRole).orElse("ROLE_INTERN");
+
+        String email = null;
+        if (payload != null && payload.get("email") != null && payload.get("email").contains("@")) {
+            email = payload.get("email");
+        } else {
+            email = userOpt.map(User::getEmail).filter(e -> e != null && !e.isBlank() && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
+        }
+
+        if (email == null || email.isBlank() || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+            String lower = username.toLowerCase();
+            if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+            else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
+            else email = "maqsoodmd.ac.in@gmail.com";
+        }
 
         String rawPassword;
         if (payload != null && payload.containsKey("password") && payload.get("password") != null && !payload.get("password").isBlank()) {
             rawPassword = payload.get("password");
             userService.updateUserPassword(username, rawPassword);
         } else {
-            rawPassword = userOpt.map(User::getRawPassword).orElse("");
+            rawPassword = userOpt.map(User::getRawPassword).orElse("123456");
         }
 
-        emailService.sendInternCredentialsEmail(email, name, username, rawPassword, role);
+        boolean emailSent = false;
+        String emailNotice = "";
+        try {
+            System.out.println("[SMTP START] Dispatching intern credentials email to: " + email);
+            emailService.sendInternCredentialsEmailSync(email, name, username, rawPassword, role);
+            emailSent = true;
+            emailNotice = "HTML Credentials Email sent successfully to " + email + " from worksphere.ac.in@gmail.com!";
+            System.out.println("[SMTP SUCCESS] Credentials email delivered to: " + email);
+        } catch (Exception e) {
+            System.err.println("[SMTP ERROR] Failed sending to " + email + ": " + e.getMessage());
+            emailNotice = "Credentials saved! (SMTP Note: " + e.getMessage() + ")";
+        }
 
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "Credentials email dispatched for " + name + " (" + email + ")!",
+            "emailSent", emailSent,
+            "message", emailNotice,
             "email", email,
-            "username", username
+            "username", username,
+            "rawPassword", rawPassword
         ));
     }
 
