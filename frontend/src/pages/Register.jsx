@@ -32,7 +32,7 @@ export default function Register() {
       setError(null);
 
       if (!isPasswordValid) {
-        setError("Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).");
+        setError("Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).");
         return;
       }
 

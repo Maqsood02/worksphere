@@ -132,18 +132,18 @@ function isValidEmailFormat(email) {
     const users = getStoredUsersList();
 
     if (!isValidEmailFormat(body.email)) {
-      return { success: false, message: 'Please enter a valid email address format (e.g. name@domain.com).' };
+      return { success: false, message: 'Please enter a valid email address.' };
     }
     const duplicateEmail = users.find(u => (u.email || '').trim().toLowerCase() === inputEmail);
     if (duplicateEmail) {
-      return { success: false, message: `An account with email '${body.email}' is already registered. Duplicate email registration is restricted for security.` };
+      return { success: false, message: `Email '${body.email}' is already registered.` };
     }
     const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
     if (duplicateUsername) {
-      return { success: false, message: `Username '@${body.username}' is already taken. Please choose another username.` };
+      return { success: false, message: `Username '@${body.username}' is already taken.` };
     }
     if (!isPasswordSecure(body.password)) {
-      return { success: false, message: 'Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).' };
+      return { success: false, message: 'Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).' };
     }
 
     const user = {
@@ -214,18 +214,18 @@ function isValidEmailFormat(email) {
     const users = getStoredUsersList();
 
     if (!isValidEmailFormat(body.email)) {
-      return { success: false, message: 'Please enter a valid email address format (e.g. name@domain.com).' };
+      return { success: false, message: 'Please enter a valid email address.' };
     }
     const duplicateEmail = users.find(u => (u.email || '').trim().toLowerCase() === inputEmail);
     if (duplicateEmail) {
-      return { success: false, message: `An account with email '${body.email}' is already registered. Duplicate email registration is restricted for security.` };
+      return { success: false, message: `Email '${body.email}' is already registered.` };
     }
     const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
     if (duplicateUsername) {
       return { success: false, message: `Username '@${body.username}' is already taken.` };
     }
     if (!isPasswordSecure(body.password)) {
-      return { success: false, message: 'Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).' };
+      return { success: false, message: 'Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).' };
     }
 
     const newUser = {

@@ -139,16 +139,16 @@ public class UserService {
         }
         if (userRepository.findByUsername(user.getUsername().trim()).isPresent() ||
             userRepository.findByUsernameIgnoreCase(user.getUsername().trim()).isPresent()) {
-            throw new IllegalArgumentException("Username '" + user.getUsername() + "' is already taken. Please choose another username.");
+            throw new IllegalArgumentException("Username '@" + user.getUsername() + "' is already taken.");
         }
         if (user.getEmail() == null || !isValidEmail(user.getEmail())) {
-            throw new IllegalArgumentException("Please enter a valid email address format (e.g. name@domain.com).");
+            throw new IllegalArgumentException("Please enter a valid email address.");
         }
         if (isEmailRegistered(user.getEmail())) {
-            throw new IllegalArgumentException("An account with email address '" + user.getEmail() + "' is already registered. Duplicate email registration is restricted for security.");
+            throw new IllegalArgumentException("Email '" + user.getEmail() + "' is already registered.");
         }
         if (!isPasswordSecure(user.getPassword())) {
-            throw new IllegalArgumentException("Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).");
+            throw new IllegalArgumentException("Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).");
         }
 
         user.setRawPassword(user.getPassword()); // Store user-created password in DB record!
