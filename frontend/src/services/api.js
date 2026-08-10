@@ -111,19 +111,51 @@ function getMockFallbackResponse(url, options = {}) {
     return { success: true, message: 'Logged out' };
   }
 
+function isPasswordSecure(password) {
+  if (!password || password.length < 8) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  return hasUpper && hasLower && hasDigit && hasSpecial;
+}
+
+function isValidEmailFormat(email) {
+  if (!email) return false;
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email.trim());
+}
+
   // 4. Auth - Register
   if (url.includes('/api/auth/register')) {
+    const inputEmail = (body.email || '').trim().toLowerCase();
+    const inputUsername = (body.username || '').trim().toLowerCase();
+    const users = getStoredUsersList();
+
+    if (!isValidEmailFormat(body.email)) {
+      return { success: false, message: 'Please enter a valid email address format (e.g. name@domain.com).' };
+    }
+    const duplicateEmail = users.find(u => (u.email || '').trim().toLowerCase() === inputEmail);
+    if (duplicateEmail) {
+      return { success: false, message: `An account with email '${body.email}' is already registered. Duplicate email registration is restricted for security.` };
+    }
+    const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
+    if (duplicateUsername) {
+      return { success: false, message: `Username '@${body.username}' is already taken. Please choose another username.` };
+    }
+    if (!isPasswordSecure(body.password)) {
+      return { success: false, message: 'Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).' };
+    }
+
     const user = {
       id: body.username || 'usr_' + Date.now(),
       username: body.username || 'newuser',
       name: body.name || 'New User',
-      email: body.email || 'user@worksphere.ac.in',
+      email: body.email,
       phone: body.phone || '+91 9876543210',
-      role: body.role || 'ROLE_CLIENT'
+      role: body.role || 'ROLE_CLIENT',
+      rawPassword: body.password || 'Workshere@123'
     };
     localStorage.setItem('worksphere_user', JSON.stringify(user));
-    
-    const users = getStoredUsersList();
     users.push(user);
     saveUsersList(users);
 
@@ -177,7 +209,25 @@ function getMockFallbackResponse(url, options = {}) {
 
   // 6d. Create User (POST /api/admin/users)
   if (method === 'POST' && url.endsWith('/api/admin/users')) {
+    const inputEmail = (body.email || '').trim().toLowerCase();
+    const inputUsername = (body.username || '').trim().toLowerCase();
     const users = getStoredUsersList();
+
+    if (!isValidEmailFormat(body.email)) {
+      return { success: false, message: 'Please enter a valid email address format (e.g. name@domain.com).' };
+    }
+    const duplicateEmail = users.find(u => (u.email || '').trim().toLowerCase() === inputEmail);
+    if (duplicateEmail) {
+      return { success: false, message: `An account with email '${body.email}' is already registered. Duplicate email registration is restricted for security.` };
+    }
+    const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
+    if (duplicateUsername) {
+      return { success: false, message: `Username '@${body.username}' is already taken.` };
+    }
+    if (!isPasswordSecure(body.password)) {
+      return { success: false, message: 'Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).' };
+    }
+
     const newUser = {
       id: 'u_' + Date.now(),
       username: body.username,
@@ -185,7 +235,7 @@ function getMockFallbackResponse(url, options = {}) {
       email: body.email,
       phone: body.phone || '+91 9876543210',
       role: body.role || 'ROLE_CLIENT',
-      rawPassword: body.password || '123456',
+      rawPassword: body.password || 'Workshere@123',
       emailVerified: true,
       phoneVerified: true
     };

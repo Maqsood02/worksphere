@@ -111,10 +111,46 @@ public class UserService {
         return false;
     }
 
+    public static boolean isValidEmail(String email) {
+        if (email == null || email.isBlank()) return false;
+        String regex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+        return email.trim().matches(regex);
+    }
+
+    public boolean isEmailRegistered(String email) {
+        if (email == null || email.isBlank()) return false;
+        String cleaned = email.trim().toLowerCase();
+        return userRepository.findAll().stream()
+                .anyMatch(u -> u.getEmail() != null && u.getEmail().trim().equalsIgnoreCase(cleaned));
+    }
+
+    public static boolean isPasswordSecure(String password) {
+        if (password == null || password.length() < 8) return false;
+        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*");
+        return hasUpper && hasLower && hasDigit && hasSpecial;
+    }
+
     public User registerUser(User user) {
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Username already exists!");
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            throw new IllegalArgumentException("Username is required.");
         }
+        if (userRepository.findByUsername(user.getUsername().trim()).isPresent() ||
+            userRepository.findByUsernameIgnoreCase(user.getUsername().trim()).isPresent()) {
+            throw new IllegalArgumentException("Username '" + user.getUsername() + "' is already taken. Please choose another username.");
+        }
+        if (user.getEmail() == null || !isValidEmail(user.getEmail())) {
+            throw new IllegalArgumentException("Please enter a valid email address format (e.g. name@domain.com).");
+        }
+        if (isEmailRegistered(user.getEmail())) {
+            throw new IllegalArgumentException("An account with email address '" + user.getEmail() + "' is already registered. Duplicate email registration is restricted for security.");
+        }
+        if (!isPasswordSecure(user.getPassword())) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).");
+        }
+
         user.setRawPassword(user.getPassword()); // Store user-created password in DB record!
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         if (user.getRole() == null) {

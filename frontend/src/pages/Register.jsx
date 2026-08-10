@@ -17,35 +17,48 @@ export default function Register() {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+    // Security criteria evaluation
+    const passLength = password.length >= 8;
+    const passUpper = /[A-Z]/.test(password);
+    const passLower = /[a-z]/.test(password);
+    const passDigit = /[0-9]/.test(password);
+    const passSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    const isPasswordValid = passLength && passUpper && passLower && passDigit && passSpecial;
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match. Please retype your password.");
-      return;
-    }
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError(null);
 
-    try {
-      const data = await register({ name, email, phone, username, password, role });
-      if (data && (data.success || data.requireOtpVerification)) {
-        if (data.requireOtpVerification) {
-          setShowOtpModal(true);
-        } else {
-          if (role === 'ROLE_INTERN') {
-            navigate('/intern/dashboard');
-          } else {
-            navigate('/client/dashboard');
-          }
-        }
-      } else {
-        setError(data?.message || "Registration failed.");
+      if (!isPasswordValid) {
+        setError("Password must be at least 8 characters long and include an uppercase letter (A-Z), lowercase letter (a-z), a number (0-9), and a special character (!@#$%^&*).");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setError("Failed to connect to authentication server.");
-    }
-  };
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match. Please retype your password.");
+        return;
+      }
+
+      try {
+        const data = await register({ name, email, phone, username, password, role });
+        if (data && (data.success || data.requireOtpVerification)) {
+          if (data.requireOtpVerification) {
+            setShowOtpModal(true);
+          } else {
+            if (role === 'ROLE_INTERN') {
+              navigate('/intern/dashboard');
+            } else {
+              navigate('/client/dashboard');
+            }
+          }
+        } else {
+          setError(data?.message || "Registration failed.");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Failed to connect to authentication server.");
+      }
+    };
 
   const handleOtpSuccess = () => {
     if (role === 'ROLE_INTERN') {
@@ -211,6 +224,30 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Password Security Policy Checklist */}
+          {password.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-1.5 text-[11px] font-medium">
+              <span className="font-bold text-slate-700 block mb-1">Password Security Criteria:</span>
+              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                <span className={`flex items-center gap-1 font-bold ${passLength ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {passLength ? '✓' : '•'} 8+ Characters
+                </span>
+                <span className={`flex items-center gap-1 font-bold ${passUpper ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {passUpper ? '✓' : '•'} 1 Uppercase (A-Z)
+                </span>
+                <span className={`flex items-center gap-1 font-bold ${passLower ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {passLower ? '✓' : '•'} 1 Lowercase (a-z)
+                </span>
+                <span className={`flex items-center gap-1 font-bold ${passDigit ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {passDigit ? '✓' : '•'} 1 Number (0-9)
+                </span>
+                <span className={`flex items-center gap-1 font-bold ${passSpecial ? 'text-emerald-600' : 'text-slate-400'} col-span-2`}>
+                  {passSpecial ? '✓' : '•'} 1 Special Character (!@#$%^&*)
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="pt-2">
             <button 
