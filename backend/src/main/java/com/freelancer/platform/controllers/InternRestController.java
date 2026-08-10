@@ -154,14 +154,14 @@ public class InternRestController {
             newProfile.put("name", name);
             newProfile.put("email", email);
             newProfile.put("track", "Full-Stack Software Engineering");
-            newProfile.put("mentorName", "Dr. Sarah Jenkins");
+            newProfile.put("mentorName", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
             newProfile.put("mentorEmail", "s.jenkins@worksphere.ac.in");
-            newProfile.put("startDate", "2026-06-01");
-            newProfile.put("endDate", "2026-08-31");
+            newProfile.put("startDate", LocalDate.now().toString());
+            newProfile.put("endDate", LocalDate.now().plusMonths(3).toString());
             newProfile.put("stipendType", "PAID");
             newProfile.put("stipendCurrency", "INR");
-            newProfile.put("stipendAmount", "₹15,000 / month");
-            newProfile.put("performanceRating", "4.9 / 5.0");
+            newProfile.put("stipendAmount", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "₹15,000 / mo" : "Pending Admin Setup");
+            newProfile.put("performanceRating", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "4.9 / 5.0" : "New Intern");
             newProfile.put("certificateStatus", "NOT_ISSUED");
             internProfiles.put(username, newProfile);
         }

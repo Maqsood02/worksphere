@@ -175,11 +175,12 @@ export default function InternDashboard() {
 
   const hoursLoggedVal = typeof stats?.hoursLogged === 'number' 
     ? stats.hoursLogged 
-    : (attendanceLogs.length > 0 ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 8), 0) : 160);
+    : (attendanceLogs.length > 0 ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 8), 0) : 0);
 
-  const rawStipendAmount = profile?.stipendAmount || stats?.stipendAmount || '₹15,000 / mo';
+  const rawStipendAmount = profile?.stipendAmount || stats?.stipendAmount || 'Pending Admin Setup';
   const displayStipend = isPaid ? rawStipendAmount : 'Unpaid (Academic Credit)';
   const isRupeeCurrency = rawStipendAmount.includes('₹') || profile?.stipendCurrency === 'INR';
+  const isStipendSetByAdmin = isPaid && rawStipendAmount !== 'Pending Admin Setup';
 
   const filteredTasks = tasks.filter(t => {
     if (taskFilter === 'ALL') return true;
@@ -288,7 +289,9 @@ export default function InternDashboard() {
             <span className="text-3xl font-poppins font-extrabold text-slate-800">{hoursLoggedVal}</span>
             <span className="text-xs text-slate-500 font-semibold">Hours</span>
           </div>
-          <p className="text-[11px] text-emerald-600 font-bold">✓ Meets 40h/week goal</p>
+          <p className={`text-[11px] font-bold ${hoursLoggedVal > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {hoursLoggedVal > 0 ? '✓ Hours Recorded' : 'Log daily standups above to track hours'}
+          </p>
         </div>
 
         <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-2">
@@ -298,10 +301,10 @@ export default function InternDashboard() {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-poppins font-extrabold text-slate-800">
-              {attendanceLogs.length === 0 ? '100%' : (stats?.attendanceRate || '100%')}
+              {attendanceLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
             </span>
             <span className={`text-xs font-bold ${attendanceLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
-              {attendanceLogs.length === 0 ? 'Standard 100%' : 'Active Streak'}
+              {attendanceLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
             </span>
           </div>
           <p className="text-[11px] text-slate-500 font-medium">
@@ -325,8 +328,8 @@ export default function InternDashboard() {
               {displayStipend}
             </span>
           </div>
-          <p className={`text-[11px] font-bold ${isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {isPaid ? '✓ Admin Configured' : 'Academic Credit Internship'}
+          <p className={`text-[11px] font-bold ${isStipendSetByAdmin ? 'text-emerald-600' : 'text-amber-600'}`}>
+            {isStipendSetByAdmin ? '✓ Admin Configured' : 'Awaiting Admin Action'}
           </p>
         </div>
       </div>
