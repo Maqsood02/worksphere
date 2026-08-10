@@ -124,6 +124,15 @@ public class UserService {
                 .anyMatch(u -> u.getEmail() != null && u.getEmail().trim().equalsIgnoreCase(cleaned));
     }
 
+    public boolean isPhoneRegistered(String phone) {
+        if (phone == null || phone.isBlank()) return false;
+        String digits = phone.replaceAll("[^0-9]", "");
+        if (digits.isBlank()) return false;
+        return userRepository.findAll().stream()
+                .anyMatch(u -> u.getPhone() != null && !u.getPhone().isBlank() &&
+                        u.getPhone().replaceAll("[^0-9]", "").equals(digits));
+    }
+
     public static boolean isPasswordSecure(String password) {
         if (password == null || password.length() < 8) return false;
         boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
@@ -146,6 +155,9 @@ public class UserService {
         }
         if (isEmailRegistered(user.getEmail())) {
             throw new IllegalArgumentException("Email '" + user.getEmail() + "' is already registered.");
+        }
+        if (user.getPhone() != null && !user.getPhone().isBlank() && isPhoneRegistered(user.getPhone())) {
+            throw new IllegalArgumentException("Phone number '" + user.getPhone() + "' is already registered.");
         }
         if (!isPasswordSecure(user.getPassword())) {
             throw new IllegalArgumentException("Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).");

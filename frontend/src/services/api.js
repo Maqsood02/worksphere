@@ -129,6 +129,7 @@ function isValidEmailFormat(email) {
   if (url.includes('/api/auth/register')) {
     const inputEmail = (body.email || '').trim().toLowerCase();
     const inputUsername = (body.username || '').trim().toLowerCase();
+    const inputPhoneDigits = (body.phone || '').replace(/[^0-9]/g, '');
     const users = getStoredUsersList();
 
     if (!isValidEmailFormat(body.email)) {
@@ -141,6 +142,12 @@ function isValidEmailFormat(email) {
     const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
     if (duplicateUsername) {
       return { success: false, message: `Username '@${body.username}' is already taken.` };
+    }
+    if (inputPhoneDigits.length > 0) {
+      const duplicatePhone = users.find(u => (u.phone || '').replace(/[^0-9]/g, '') === inputPhoneDigits);
+      if (duplicatePhone) {
+        return { success: false, message: `Phone number '${body.phone}' is already registered.` };
+      }
     }
     if (!isPasswordSecure(body.password)) {
       return { success: false, message: 'Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).' };
@@ -211,6 +218,7 @@ function isValidEmailFormat(email) {
   if (method === 'POST' && url.endsWith('/api/admin/users')) {
     const inputEmail = (body.email || '').trim().toLowerCase();
     const inputUsername = (body.username || '').trim().toLowerCase();
+    const inputPhoneDigits = (body.phone || '').replace(/[^0-9]/g, '');
     const users = getStoredUsersList();
 
     if (!isValidEmailFormat(body.email)) {
@@ -223,6 +231,12 @@ function isValidEmailFormat(email) {
     const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
     if (duplicateUsername) {
       return { success: false, message: `Username '@${body.username}' is already taken.` };
+    }
+    if (inputPhoneDigits.length > 0) {
+      const duplicatePhone = users.find(u => (u.phone || '').replace(/[^0-9]/g, '') === inputPhoneDigits);
+      if (duplicatePhone) {
+        return { success: false, message: `Phone number '${body.phone}' is already registered.` };
+      }
     }
     if (!isPasswordSecure(body.password)) {
       return { success: false, message: 'Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).' };
