@@ -151,47 +151,83 @@ export default function AdminDashboard() {
         api.getAdminAppointments()
       ]);
 
-      const projList = (projData && projData.success && Array.isArray(projData.projects) && projData.projects.length > 0) ? projData.projects : defaultProjects;
+      // Normalize Projects
+      let projList = [];
+      if (Array.isArray(projData)) {
+        projList = projData;
+      } else if (projData && projData.success && Array.isArray(projData.projects)) {
+        projList = projData.projects;
+      }
+      if (!projList || projList.length === 0) {
+        projList = defaultProjects;
+      }
       setProjects(projList);
       setProjectsCount(projList.length);
 
-      const clients = Array.from(new Set(projList.map(p => p.clientUsername).filter(Boolean)));
+      const clients = Array.from(new Set(projList.map(p => p.clientName || p.clientUsername).filter(Boolean)));
       setClientList(clients.length > 0 ? clients : ['Maqsood', 'Tech Corp']);
       if (!selectedClient) {
         setSelectedClient(clients[0] || 'Maqsood');
       }
 
-      const invs = (invData && invData.success && Array.isArray(invData.invoices) && invData.invoices.length > 0) ? invData.invoices : defaultInvoices;
+      // Normalize Invoices
+      let invs = [];
+      if (Array.isArray(invData)) {
+        invs = invData;
+      } else if (invData && invData.success && Array.isArray(invData.invoices)) {
+        invs = invData.invoices;
+      }
+      if (!invs || invs.length === 0) {
+        invs = defaultInvoices;
+      }
       setInvoices(invs);
-      const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + i.amount, 0);
-      setRevenue(totalPaid > 0 ? totalPaid : 3700);
+      const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (i.amount || 0), 0);
+      const calculatedRevenue = totalPaid > 0 ? totalPaid : invs.reduce((sum, i) => sum + (i.amount || 0), 0);
+      const finalRevenue = calculatedRevenue > 0 ? calculatedRevenue : 3700;
+      setRevenue(finalRevenue);
 
       setEarningsData([
         { name: 'May', revenue: 1500 },
         { name: 'Jun', revenue: 2200 },
         { name: 'Jul', revenue: 3100 },
-        { name: 'Aug', revenue: totalPaid > 0 ? totalPaid : 3700 },
+        { name: 'Aug', revenue: finalRevenue },
       ]);
 
-      const apps = (appData && appData.success && Array.isArray(appData.appointments) && appData.appointments.length > 0) ? appData.appointments : defaultAppointments;
+      // Normalize Appointments
+      let apps = [];
+      if (Array.isArray(appData)) {
+        apps = appData;
+      } else if (appData && appData.success && Array.isArray(appData.appointments)) {
+        apps = appData.appointments;
+      }
+      if (!apps || apps.length === 0) {
+        apps = defaultAppointments;
+      }
       setAppointments(apps);
       setAppointmentsCount(apps.length);
     } catch (err) {
       console.error("Admin dashboard fetch error:", err);
       setProjects(defaultProjects);
+      setProjectsCount(defaultProjects.length);
       setInvoices(defaultInvoices);
+      setRevenue(3700);
       setAppointments(defaultAppointments);
+      setAppointmentsCount(defaultAppointments.length);
     }
   };
 
   const fetchUsersData = async () => {
     try {
       const res = await api.getAdminUsers();
-      if (res && res.success && Array.isArray(res.users) && res.users.length > 0) {
-        setUsersList(res.users);
-      } else {
-        setUsersList(defaultUsersList);
+      let users = [];
+      if (Array.isArray(res)) {
+        users = res;
+      } else if (res && res.success && Array.isArray(res.users)) {
+        users = res.users;
+      } else if (res && Array.isArray(res.users)) {
+        users = res.users;
       }
+      setUsersList(users && users.length > 0 ? users : defaultUsersList);
     } catch (err) {
       console.error("Fetch users error:", err);
       setUsersList(defaultUsersList);
@@ -201,12 +237,16 @@ export default function AdminDashboard() {
   const fetchInternsData = async () => {
     try {
       const res = await api.getAdminInterns();
-      if (res && res.success && Array.isArray(res.interns) && res.interns.length > 0) {
-        setInternsList(res.interns);
+      let interns = [];
+      if (Array.isArray(res)) {
+        interns = res;
+      } else if (res && res.success && Array.isArray(res.interns)) {
+        interns = res.interns;
         setAllInternTasks(res.allTasks || []);
-      } else {
-        setInternsList(defaultInterns);
+      } else if (res && Array.isArray(res.interns)) {
+        interns = res.interns;
       }
+      setInternsList(interns && interns.length > 0 ? interns : defaultInterns);
     } catch (err) {
       console.error(err);
       setInternsList(defaultInterns);
@@ -597,7 +637,7 @@ export default function AdminDashboard() {
                       userRoleFilter === r ? 'bg-primary text-white font-bold shadow-sm' : 'hover:bg-slate-100 text-slate-600'
                     }`}
                   >
-                    {r}S
+                    {r === 'ALL' ? 'ALL ACCOUNTS' : `${r}S`}
                   </button>
                 ))}
               </div>
