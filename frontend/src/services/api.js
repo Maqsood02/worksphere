@@ -632,15 +632,28 @@ export const api = {
           };
         }
 
-        // Clean stats to strictly reflect real tasks and attendance logs
-        const tasksArr = Array.isArray(res.tasks) ? res.tasks : [];
-        const logsArr = Array.isArray(res.attendanceLogs) ? res.attendanceLogs : [];
+        // Force user-specific tasks & logs from localStorage unless explicitly created
+        let realTasks = [];
+        const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+        if (savedTasks) {
+          try { realTasks = JSON.parse(savedTasks); } catch(e) {}
+        }
+        res.tasks = realTasks;
+
+        let realLogs = [];
+        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        if (savedLogs) {
+          try { realLogs = JSON.parse(savedLogs); } catch(e) {}
+        }
+        res.attendanceLogs = realLogs;
+
+        // Clean stats to strictly reflect real user tasks and attendance logs
         res.stats = {
           ...(res.stats || {}),
-          tasksCompleted: tasksArr.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
-          tasksTotal: tasksArr.length,
-          hoursLogged: logsArr.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
-          attendanceRate: logsArr.length === 0 ? '0%' : '100%',
+          tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
+          tasksTotal: realTasks.length,
+          hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+          attendanceRate: realLogs.length === 0 ? '0%' : '100%',
           stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
         };
       } catch (e) {}
@@ -652,11 +665,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload)
     }),
-  logInternAttendance: (payload) => 
-    request('/api/intern/attendance/log', {
+  logInternAttendance: async (payload) => {
+    try {
+      let currentUser = null;
+      try {
+        const savedUser = localStorage.getItem('worksphere_user');
+        if (savedUser) currentUser = JSON.parse(savedUser);
+      } catch (e) {}
+      const uKey = (currentUser?.username || 'intern').toLowerCase();
+      const saved = localStorage.getItem(`worksphere_attendance_${uKey}`);
+      let list = saved ? JSON.parse(saved) : [];
+      const newLog = {
+        id: 'ATT-' + Date.now(),
+        username: currentUser?.username || uKey,
+        date: new Date().toISOString().split('T')[0],
+        hours: Number(payload.hours) || 8,
+        summary: payload.summary || 'Daily standup recorded',
+        status: 'APPROVED'
+      };
+      list.push(newLog);
+      localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(list));
+    } catch(e) {}
+    return request('/api/intern/attendance/log', {
       method: 'POST',
       body: JSON.stringify(payload)
-    }),
+    });
+  },
   requestInternCertificate: () => 
     request('/api/intern/certificate/request', {
       method: 'POST'
@@ -680,11 +714,30 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  assignInternTask: (username, payload) => 
-    request(`/api/admin/interns/${username}/tasks`, {
+  assignInternTask: async (username, payload) => {
+    try {
+      const uKey = (username || 'intern').toLowerCase();
+      const saved = localStorage.getItem(`worksphere_tasks_${uKey}`);
+      let list = saved ? JSON.parse(saved) : [];
+      const newTask = {
+        id: 'TSK-' + Date.now(),
+        assignedTo: username,
+        title: payload.title || 'New Task',
+        description: payload.description || '',
+        deadline: payload.deadline || '2026-08-31',
+        priority: payload.priority || 'MEDIUM',
+        status: 'PENDING',
+        submissionUrl: '',
+        submissionNotes: ''
+      };
+      list.push(newTask);
+      localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(list));
+    } catch(e) {}
+    return request(`/api/admin/interns/${username}/tasks`, {
       method: 'POST',
       body: JSON.stringify(payload)
-    }),
+    });
+  },
   generateInternCertificate: (username, payload) => 
     request(`/api/admin/interns/${username}/certificate/generate`, {
       method: 'POST',
