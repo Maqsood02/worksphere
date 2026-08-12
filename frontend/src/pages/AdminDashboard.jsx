@@ -347,6 +347,49 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleLoadPresets = async () => {
+    const presets = [
+      {
+        title: 'Modern React 19 & Context API Mastery',
+        category: 'Frontend',
+        track: 'Full-Stack Software Engineering',
+        description: 'Master React 19 hooks, Context API, state optimization, and responsive Tailwind layout design.',
+        videoUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
+        resourceUrl: 'https://react.dev/learn'
+      },
+      {
+        title: 'Spring Boot 3 Security & JWT Architecture',
+        category: 'Backend',
+        track: 'Full-Stack Software Engineering',
+        description: 'Deep dive into Spring Boot 3 Security Filters, JWT token validation, refresh tokens, and RESTful APIs.',
+        videoUrl: 'https://www.youtube.com/watch?v=BVWdF0nL7_M',
+        resourceUrl: 'https://spring.io/projects/spring-boot'
+      },
+      {
+        title: 'NoSQL Data Modeling with MongoDB',
+        category: 'Database',
+        track: 'Full-Stack Software Engineering',
+        description: 'Learn document database schemas, aggregation pipelines, indexing strategies, and Spring Data MongoDB.',
+        videoUrl: 'https://www.youtube.com/watch?v=c2M-rlkkT5o',
+        resourceUrl: 'https://www.mongodb.com/docs/'
+      },
+      {
+        title: 'AI Prompt Engineering & Automation Workflows',
+        category: 'AI & Automation',
+        track: 'AI & Automation Engineering',
+        description: 'Build automated AI pipelines, LLM integration, agentic workflows, and function calling tools.',
+        videoUrl: 'https://www.youtube.com/watch?v=jC4v5AS4RIM',
+        resourceUrl: 'https://platform.openai.com/docs/'
+      }
+    ];
+
+    for (const p of presets) {
+      await api.createLearningModule(p);
+    }
+    addToast("4 Preset Learning Modules & Video Resources published!");
+    fetchLearningModules();
+  };
+
   const handleCreateUserSubmit = async (e) => {
     e.preventDefault();
     setIsCreatingUser(true);
