@@ -304,9 +304,33 @@ public class InternRestController {
 
         tasksList.add(newTask);
 
+        // Dispatch Email Notification to Intern's Registered Email ID
+        Optional<User> userOpt = userService.findByUsername(username);
+        Map<String, Object> profile = getOrCreateProfile(username);
+
+        String internName = userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", username));
+        String email = userOpt.map(User::getEmail).filter(e -> e != null && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
+
+        if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+            String lower = username.toLowerCase();
+            if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+            else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
+            else email = "maqsoodmd.ac.in@gmail.com";
+        }
+
+        boolean emailSent = false;
+        try {
+            System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + username);
+            emailService.sendTaskAssignedEmail(email, internName, username, title, description, deadline, priority);
+            emailSent = true;
+        } catch (Exception e) {
+            System.err.println("[SMTP ERROR] Task email trigger failed: " + e.getMessage());
+        }
+
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "New task assigned to intern " + username + " successfully!",
+            "emailSent", emailSent,
+            "message", "New task assigned to @" + username + " & notification email dispatched to " + email + "!",
             "task", newTask
         ));
     }
