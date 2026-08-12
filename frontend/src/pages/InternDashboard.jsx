@@ -329,88 +329,106 @@ export default function InternDashboard() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Tasks Completed</span>
-            <CheckCircle className="w-5 h-5 text-indigo-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+        
+        {/* Card 1: Tasks Completed */}
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-extrabold uppercase tracking-wider">Tasks Completed</span>
+              <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" />
+            </div>
+            <div className="flex items-baseline space-x-2">
+              <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">{completedTasksVal}</span>
+              <span className="text-xs text-slate-500 font-semibold">/ {totalTasksVal} assigned</span>
+            </div>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-poppins font-extrabold text-slate-800">{completedTasksVal}</span>
-            <span className="text-xs text-slate-500 font-semibold">/ {totalTasksVal} assigned</span>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${totalTasksVal > 0 ? (completedTasksVal / totalTasksVal) * 100 : 0}%` }}></div>
+          <div className="space-y-1.5 pt-1">
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${totalTasksVal > 0 ? (completedTasksVal / totalTasksVal) * 100 : 0}%` }}></div>
+            </div>
+            <p className="text-[11px] text-slate-400 font-semibold">
+              {totalTasksVal === 0 ? 'No tasks assigned yet' : `${completedTasksVal} of ${totalTasksVal} tasks completed`}
+            </p>
           </div>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Hours Logged</span>
-            <Clock className="w-5 h-5 text-cyan-600" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-poppins font-extrabold text-slate-800">{hoursLoggedVal}</span>
-            <span className="text-xs text-slate-500 font-semibold">Hours</span>
+        {/* Card 2: Hours Logged */}
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-extrabold uppercase tracking-wider">Hours Logged</span>
+              <Clock className="w-5 h-5 text-cyan-600 shrink-0" />
+            </div>
+            <div className="flex items-baseline space-x-2">
+              <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">{hoursLoggedVal}</span>
+              <span className="text-xs text-slate-500 font-semibold">Hours</span>
+            </div>
           </div>
           <p className={`text-[11px] font-bold ${hoursLoggedVal > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-            {hoursLoggedVal > 0 ? '✓ Hours Recorded' : 'Log daily standups above to track hours'}
+            {hoursLoggedVal > 0 ? '✓ Hours Recorded' : 'Log daily standup above to track hours'}
           </p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Attendance Rate</span>
-            <Calendar className="w-5 h-5 text-emerald-600" />
+        {/* Card 3: Attendance Rate */}
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-xs font-extrabold uppercase tracking-wider">Attendance Rate</span>
+              <Calendar className="w-5 h-5 text-emerald-600 shrink-0" />
+            </div>
+            <div className="flex items-baseline space-x-2">
+              <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">
+                {attendanceLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
+              </span>
+              <span className={`text-xs font-bold ${attendanceLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
+                {attendanceLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-poppins font-extrabold text-slate-800">
-              {attendanceLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
-            </span>
-            <span className={`text-xs font-bold ${attendanceLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
-              {attendanceLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 font-medium">
+          <p className="text-[11px] text-slate-400 font-semibold">
             {attendanceLogs.length === 0 
               ? 'Log daily standup above to build streak' 
               : `${attendanceLogs.length} standup log${attendanceLogs.length > 1 ? 's' : ''} recorded`}
           </p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                isExplicitUnpaid
-                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : (isPaid 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-slate-100 text-slate-700 border-slate-200')
-              }`}>
-                {isExplicitUnpaid ? '• UNPAID' : (isPaid ? '• PAID STIPEND' : '• PENDING SETUP')}
-              </span>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Stipend Status</span>
+        {/* Card 4: Stipend Status */}
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full relative overflow-hidden">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                  isExplicitUnpaid
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : (isPaid 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                      : 'bg-slate-100 text-slate-700 border-slate-200')
+                }`}>
+                  {isExplicitUnpaid ? '• UNPAID' : (isPaid ? '• PAID STIPEND' : '• PENDING SETUP')}
+                </span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Stipend Status</span>
+              </div>
+              
+              {isPaid && !isExplicitUnpaid && (
+                <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${
+                  isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                }`}>
+                  {isRupeeCurrency ? '₹ INR' : '$ USD'}
+                </span>
+              )}
             </div>
-            
-            {isPaid && !isExplicitUnpaid && (
-              <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${
-                isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-              }`}>
-                {isRupeeCurrency ? '₹ INR' : '$ USD'}
-              </span>
-            )}
-          </div>
 
-          <div className="space-y-1">
-            <div className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-900 tracking-tight">
-              {displayStipend}
+            <div className="space-y-0.5">
+              <div className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-900 tracking-tight">
+                {isExplicitUnpaid ? 'Unpaid' : displayStipend}
+              </div>
+              <p className="text-[11px] text-slate-500 font-semibold truncate">
+                {isExplicitUnpaid 
+                  ? 'Academic credit program (Unpaid)'
+                  : (isPaid ? 'Monthly performance stipend payout' : 'Stipend settings awaiting admin confirmation')}
+              </p>
             </div>
-            <p className="text-[11px] text-slate-500 font-semibold">
-              {isExplicitUnpaid 
-                ? 'Academic credit program (Unpaid)'
-                : (isPaid ? 'Monthly performance stipend payout' : 'Stipend settings awaiting admin confirmation')}
-            </p>
           </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">

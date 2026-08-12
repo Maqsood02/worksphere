@@ -455,9 +455,8 @@ function isValidEmailFormat(email) {
       saveStoredInternProfiles(profiles);
     }
 
-    const profile = profiles[uname];
-
-    const tasks = isDemoUser ? [
+    const isUnpaid = profile.stipendType === 'UNPAID';
+    const tasks = (isDemoUser && !isUnpaid) ? [
       { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
       { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
     ] : [];
@@ -466,10 +465,10 @@ function isValidEmailFormat(email) {
       success: true,
       profile: profile,
       stats: {
-        tasksCompleted: isDemoUser ? 1 : 0,
+        tasksCompleted: tasks.filter(t => t.status === 'COMPLETED').length,
         tasksTotal: tasks.length,
-        hoursLogged: isDemoUser ? 16 : 0,
-        attendanceRate: isDemoUser ? '100%' : '0%',
+        hoursLogged: 0,
+        attendanceRate: '0%',
         stipendStatus: profile.stipendAmount || 'Pending Admin Setup'
       },
       tasks: tasks,
