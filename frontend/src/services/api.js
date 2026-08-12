@@ -434,12 +434,23 @@ function isValidEmailFormat(email) {
     });
 
     saveStoredInternProfiles(uniqueMap);
-    const result = Object.values(uniqueMap).map(p => ({
-      ...p,
-      tasksTotal: 0,
-      tasksCompleted: 0
-    }));
-    return { success: true, interns: result, allTasks: [] };
+
+    let allTasks = [];
+    try {
+      const gSaved = localStorage.getItem('worksphere_global_tasks');
+      if (gSaved) allTasks = JSON.parse(gSaved);
+    } catch(e) {}
+
+    const result = Object.values(uniqueMap).map(p => {
+      const uKey = (p.username || '').toLowerCase();
+      const pTasks = allTasks.filter(t => (t.assignedTo || '').toLowerCase().includes(uKey) || uKey.includes((t.assignedTo || '').toLowerCase()));
+      return {
+        ...p,
+        tasksTotal: pTasks.length,
+        tasksCompleted: pTasks.filter(t => t.status === 'COMPLETED').length
+      };
+    });
+    return { success: true, interns: result, allTasks: allTasks };
   }
 
   if (url.includes('/api/intern/overview')) {
@@ -473,11 +484,31 @@ function isValidEmailFormat(email) {
 
     const profile = profiles[uname];
 
-    // User-specific tasks & logs (defaults to empty for new accounts)
+    // User-specific tasks & logs (fetches from both user-specific and global task stores)
     let userTasks = [];
     try {
       const savedTasks = localStorage.getItem(`worksphere_tasks_${uname}`);
       if (savedTasks) userTasks = JSON.parse(savedTasks);
+
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        const globalList = JSON.parse(globalSaved);
+        const matched = globalList.filter(t => {
+          if (!t.assignedTo) return true;
+          const assignedLower = t.assignedTo.toLowerCase();
+          return assignedLower === uname || 
+                 assignedLower.includes(uname) || 
+                 uname.includes(assignedLower) || 
+                 assignedLower === 'all' ||
+                 uname === 'intern';
+        });
+        const existingIds = new Set(userTasks.map(t => t.id));
+        for (const gTask of matched) {
+          if (!existingIds.has(gTask.id)) {
+            userTasks.push(gTask);
+          }
+        }
+      }
     } catch(e) {}
 
     let userLogs = [];
@@ -734,11 +765,44 @@ export const api = {
       body: JSON.stringify({ progressPct, completed })
     });
   },
-  submitInternTask: (taskId, payload) => 
-    request(`/api/intern/tasks/${taskId}/submit`, {
+  submitInternTask: async (taskId, payload) => {
+    try {
+      let currentUser = null;
+      try {
+        const savedUser = localStorage.getItem('worksphere_user');
+        if (savedUser) currentUser = JSON.parse(savedUser);
+      } catch (e) {}
+      const uKey = (currentUser?.username || 'intern').toLowerCase();
+      
+      const updateList = (list) => {
+        return list.map(t => {
+          if (t.id === taskId || t.title === taskId) {
+            return {
+              ...t,
+              status: 'SUBMITTED',
+              submissionUrl: payload.submissionUrl || payload.url || '',
+              submissionNotes: payload.notes || payload.submissionNotes || ''
+            };
+          }
+          return t;
+        });
+      };
+
+      const userSaved = localStorage.getItem(`worksphere_tasks_${uKey}`);
+      if (userSaved) {
+        localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(updateList(JSON.parse(userSaved))));
+      }
+
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(updateList(JSON.parse(globalSaved))));
+      }
+    } catch(e) {}
+    return request(`/api/intern/tasks/${taskId}/submit`, {
       method: 'POST',
       body: JSON.stringify(payload)
-    }),
+    });
+  },
   logInternAttendance: async (payload) => {
     try {
       let currentUser = null;
@@ -800,12 +864,17 @@ export const api = {
         description: payload.description || '',
         deadline: payload.deadline || '2026-08-31',
         priority: payload.priority || 'MEDIUM',
-        status: 'PENDING',
+        status: 'IN_PROGRESS',
         submissionUrl: '',
         submissionNotes: ''
       };
       list.push(newTask);
       localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(list));
+
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      let globalList = globalSaved ? JSON.parse(globalSaved) : [];
+      globalList.push(newTask);
+      localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
     } catch(e) {}
     return request(`/api/admin/interns/${username}/tasks`, {
       method: 'POST',
@@ -831,11 +900,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload || {})
     }),
-  updateAdminInternTaskStatus: (taskId, status) => 
-    request(`/api/admin/interns/tasks/${taskId}/status`, {
+  updateAdminInternTaskStatus: async (taskId, status) => {
+    try {
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        let globalList = JSON.parse(globalSaved);
+        globalList = globalList.map(t => t.id === taskId || t.title === taskId ? { ...t, status } : t);
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
+      }
+    } catch(e) {}
+    return request(`/api/admin/interns/tasks/${taskId}/status`, {
       method: 'POST',
       body: JSON.stringify({ status })
-    }),
+    });
+  },
   // Admin User Directory & Role Management
   getAdminUsers: () => request('/api/admin/users'),
   createAdminUser: (payload) => 
