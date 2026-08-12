@@ -39,108 +39,15 @@ public class InternRestController {
         internData.put("name", "Alex Rivera");
         internData.put("email", "alex.intern@worksphere.ac.in");
         internData.put("track", "Full-Stack Software Engineering");
-        internData.put("mentorName", "Dr. Sarah Jenkins");
+        internData.put("mentorName", "Unassigned Mentor");
         internData.put("mentorEmail", "s.jenkins@worksphere.ac.in");
         internData.put("startDate", "2026-06-01");
         internData.put("endDate", "2026-08-31");
         internData.put("stipendType", "UNPAID"); // PAID or UNPAID
         internData.put("stipendAmount", "Unpaid (Academic Credit)");
-        internData.put("performanceRating", "4.9 / 5.0");
+        internData.put("performanceRating", "New Intern");
         internData.put("certificateStatus", "NOT_ISSUED"); // NOT_ISSUED, PENDING, ISSUED
         internProfiles.put("intern", internData);
-
-        // Default Tasks
-        Map<String, Object> t1 = new HashMap<>();
-        t1.put("id", "TSK-101");
-        t1.put("assignedTo", "intern");
-        t1.put("title", "Implement JWT Refresh Token Rotation");
-        t1.put("description", "Secure API authentication by adding token rotation & revocation lists.");
-        t1.put("deadline", "2026-08-10");
-        t1.put("priority", "HIGH");
-        t1.put("status", "COMPLETED");
-        t1.put("submissionUrl", "https://github.com/worksphere/auth-service/pull/42");
-        t1.put("submissionNotes", "Implemented token rotation in Spring Security filter.");
-        tasksList.add(t1);
-
-        Map<String, Object> t2 = new HashMap<>();
-        t2.put("id", "TSK-102");
-        t2.put("assignedTo", "intern");
-        t2.put("title", "Build Responsive Intern Dashboard UI");
-        t2.put("description", "Create tabbed React interface for task submission & daily standup logs.");
-        t2.put("deadline", "2026-08-14");
-        t2.put("priority", "HIGH");
-        t2.put("status", "IN_PROGRESS");
-        t2.put("submissionUrl", "");
-        t2.put("submissionNotes", "");
-        tasksList.add(t2);
-
-        Map<String, Object> t3 = new HashMap<>();
-        t3.put("id", "TSK-103");
-        t3.put("assignedTo", "intern");
-        t3.put("title", "MongoDB Query Index Optimization");
-        t3.put("description", "Analyze slow queries on user & project collections and apply compound indexing.");
-        t3.put("deadline", "2026-08-18");
-        t3.put("priority", "MEDIUM");
-        t3.put("status", "PENDING");
-        t3.put("submissionUrl", "");
-        t3.put("submissionNotes", "");
-        tasksList.add(t3);
-
-        Map<String, Object> t4 = new HashMap<>();
-        t4.put("id", "TSK-104");
-        t4.put("assignedTo", "intern");
-        t4.put("title", "Docker Multi-stage Containerization");
-        t4.put("description", "Write optimized Dockerfiles for React frontend & Spring Boot backend.");
-        t4.put("deadline", "2026-08-22");
-        t4.put("priority", "MEDIUM");
-        t4.put("status", "PENDING");
-        t4.put("submissionUrl", "");
-        t4.put("submissionNotes", "");
-        tasksList.add(t4);
-
-        // Attendance Logs
-        Map<String, Object> a1 = new HashMap<>();
-        a1.put("id", "ATT-001");
-        a1.put("username", "intern");
-        a1.put("date", "2026-08-05");
-        a1.put("hours", 8);
-        a1.put("summary", "Worked on frontend authentication hooks & OTP validation modals.");
-        a1.put("status", "APPROVED");
-        attendanceLogs.add(a1);
-
-        Map<String, Object> a2 = new HashMap<>();
-        a2.put("id", "ATT-002");
-        a2.put("username", "intern");
-        a2.put("date", "2026-08-04");
-        a2.put("hours", 8);
-        a2.put("summary", "Refactored REST Controllers and fixed Spring Security session persistence.");
-        a2.put("status", "APPROVED");
-        attendanceLogs.add(a2);
-
-        // Learning Modules
-        Map<String, Object> m1 = new HashMap<>();
-        m1.put("id", "MOD-1");
-        m1.put("title", "Modern React 19 & Context API Mastery");
-        m1.put("category", "Frontend");
-        m1.put("progressPct", 100);
-        m1.put("completed", true);
-        learningModules.add(m1);
-
-        Map<String, Object> m2 = new HashMap<>();
-        m2.put("id", "MOD-2");
-        m2.put("title", "Spring Boot 3 Security Architecture");
-        m2.put("category", "Backend");
-        m2.put("progressPct", 85);
-        m2.put("completed", false);
-        learningModules.add(m2);
-
-        Map<String, Object> m3 = new HashMap<>();
-        m3.put("id", "MOD-3");
-        m3.put("title", "NoSQL Data Modeling with MongoDB");
-        m3.put("category", "Database");
-        m3.put("progressPct", 60);
-        m3.put("completed", false);
-        learningModules.add(m3);
     }
 
     private synchronized Map<String, Object> getOrCreateProfile(String username) {
@@ -150,21 +57,19 @@ public class InternRestController {
             String name = userOpt.map(User::getName).orElse("Intern " + username);
             String email = userOpt.map(User::getEmail).orElse(username + "@worksphere.ac.in");
 
-            boolean isDemo = "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) || "intern".equalsIgnoreCase(username);
-
             Map<String, Object> newProfile = new HashMap<>();
             newProfile.put("username", username);
             newProfile.put("name", name);
             newProfile.put("email", email);
             newProfile.put("track", "Full-Stack Software Engineering");
-            newProfile.put("mentorName", isDemo ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
+            newProfile.put("mentorName", "Unassigned Mentor");
             newProfile.put("mentorEmail", "s.jenkins@worksphere.ac.in");
             newProfile.put("startDate", LocalDate.now().toString());
             newProfile.put("endDate", LocalDate.now().plusMonths(3).toString());
-            newProfile.put("stipendType", "PAID");
+            newProfile.put("stipendType", "UNPAID");
             newProfile.put("stipendCurrency", "INR");
-            newProfile.put("stipendAmount", isDemo ? "₹15,000 / mo" : "Pending Admin Setup");
-            newProfile.put("performanceRating", isDemo ? "4.9 / 5.0" : "New Intern");
+            newProfile.put("stipendAmount", "Unpaid (Academic Credit)");
+            newProfile.put("performanceRating", "New Intern");
             newProfile.put("certificateStatus", "NOT_ISSUED");
             internProfiles.put(key, newProfile);
         }
@@ -182,7 +87,7 @@ public class InternRestController {
 
         List<Map<String, Object>> myTasks = new ArrayList<>();
         for (Map<String, Object> t : tasksList) {
-            if (username.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))) {
+            if (username.equalsIgnoreCase((String) t.get("assignedTo"))) {
                 myTasks.add(t);
             }
         }
