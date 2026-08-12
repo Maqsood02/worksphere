@@ -150,19 +150,21 @@ public class InternRestController {
             String name = userOpt.map(User::getName).orElse("Intern " + username);
             String email = userOpt.map(User::getEmail).orElse(username + "@worksphere.ac.in");
 
+            boolean isDemo = "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) || "intern".equalsIgnoreCase(username);
+
             Map<String, Object> newProfile = new HashMap<>();
             newProfile.put("username", username);
             newProfile.put("name", name);
             newProfile.put("email", email);
             newProfile.put("track", "Full-Stack Software Engineering");
-            newProfile.put("mentorName", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
+            newProfile.put("mentorName", isDemo ? "Dr. Sarah Jenkins" : "Unassigned Mentor");
             newProfile.put("mentorEmail", "s.jenkins@worksphere.ac.in");
             newProfile.put("startDate", LocalDate.now().toString());
             newProfile.put("endDate", LocalDate.now().plusMonths(3).toString());
             newProfile.put("stipendType", "PAID");
             newProfile.put("stipendCurrency", "INR");
-            newProfile.put("stipendAmount", "₹15,000 / mo");
-            newProfile.put("performanceRating", "4.9 / 5.0");
+            newProfile.put("stipendAmount", isDemo ? "₹15,000 / mo" : "Pending Admin Setup");
+            newProfile.put("performanceRating", isDemo ? "4.9 / 5.0" : "New Intern");
             newProfile.put("certificateStatus", "NOT_ISSUED");
             internProfiles.put(key, newProfile);
         }

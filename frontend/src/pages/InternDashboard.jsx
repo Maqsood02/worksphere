@@ -63,6 +63,8 @@ export default function InternDashboard() {
     };
   }, [user]);
 
+  const isDemo = ['maqsood', 'chinmaykv', 'intern'].includes((user?.username || '').toLowerCase());
+
   const defaultInternData = {
     success: true,
     profile: {
@@ -70,26 +72,26 @@ export default function InternDashboard() {
       name: user?.name || 'Intern',
       email: user?.email || 'intern@worksphere.ac.in',
       track: 'Full-Stack Software Engineering',
-      mentorName: 'Dr. Sarah Jenkins',
+      mentorName: isDemo ? 'Dr. Sarah Jenkins' : 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
       stipendType: 'PAID',
       stipendCurrency: 'INR',
-      stipendAmount: '₹15,000 / mo',
-      performanceRating: '4.9 / 5.0'
+      stipendAmount: isDemo ? '₹15,000 / mo' : 'Pending Admin Setup',
+      performanceRating: isDemo ? '4.9 / 5.0' : 'New Intern'
     },
     stats: {
-      tasksCompleted: 1,
-      tasksTotal: 2,
-      hoursLogged: 16,
-      attendanceRate: '100%',
-      stipendStatus: 'Paid (₹15,000 / mo)'
+      tasksCompleted: isDemo ? 1 : 0,
+      tasksTotal: isDemo ? 2 : 0,
+      hoursLogged: isDemo ? 16 : 0,
+      attendanceRate: isDemo ? '100%' : '0%',
+      stipendStatus: isDemo ? 'Paid (₹15,000 / mo)' : 'Pending Admin Setup'
     },
-    tasks: [
+    tasks: isDemo ? [
       { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
       { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
-    ],
+    ] : [],
     attendanceLogs: [],
     learningModules: [],
     certificate: { issued: false }
@@ -348,16 +350,18 @@ export default function InternDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                isPaid 
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                !isStipendSetByAdmin
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : isPaid 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    : 'bg-indigo-50 text-indigo-700 border-indigo-200'
               }`}>
-                {isPaid ? '• PAID STIPEND' : '• UNPAID'}
+                {!isStipendSetByAdmin ? '• PENDING SETUP' : (isPaid ? '• PAID STIPEND' : '• UNPAID')}
               </span>
               <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Stipend Status</span>
             </div>
             
-            {isPaid && (
+            {isPaid && isStipendSetByAdmin && (
               <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${
                 isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
               }`}>
@@ -371,17 +375,19 @@ export default function InternDashboard() {
               {displayStipend}
             </div>
             <p className="text-[11px] text-slate-500 font-semibold">
-              {isPaid ? 'Monthly performance stipend payout' : 'Academic credit program (Unpaid)'}
+              {!isStipendSetByAdmin 
+                ? 'Stipend settings awaiting admin confirmation'
+                : (isPaid ? 'Monthly performance stipend payout' : 'Academic credit program (Unpaid)')}
             </p>
           </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
             <span className={`text-[11px] font-bold flex items-center gap-1 ${
-              isPaid ? 'text-emerald-600' : 'text-indigo-600'
+              !isStipendSetByAdmin ? 'text-amber-600' : (isPaid ? 'text-emerald-600' : 'text-indigo-600')
             }`}>
-              {isPaid 
-                ? (isStipendSetByAdmin ? '✓ Paid Stipend Active & Configured' : 'Awaiting Admin Action')
-                : '✓ Academic Credit Approved'
+              {isStipendSetByAdmin 
+                ? (isPaid ? '✓ Paid Stipend Active & Configured' : '✓ Academic Credit Approved')
+                : 'Awaiting Admin Action'
               }
             </span>
             <span className="text-[10px] font-mono font-bold text-slate-400">
