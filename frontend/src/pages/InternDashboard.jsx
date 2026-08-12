@@ -655,66 +655,80 @@ export default function InternDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {learningModules.map(mod => (
-              <div
-                key={mod.id}
-                onClick={() => setSelectedModule(mod)}
-                className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-indigo-700 uppercase bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md tracking-wider">
-                      {mod.category}
-                    </span>
-                    {mod.completed ? (
-                      <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+          {learningModules.length === 0 ? (
+            <div className="bg-white p-12 rounded-3xl border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+                <GraduationCap className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-poppins font-bold text-slate-800">No Learning Modules Published Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                  Your program admin & mentor will publish video tutorials, code repositories, and documentation resources here shortly.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {learningModules.map(mod => (
+                <div
+                  key={mod.id}
+                  onClick={() => setSelectedModule(mod)}
+                  className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-indigo-700 uppercase bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md tracking-wider">
+                        {mod.category}
                       </span>
-                    ) : (
-                      mod.videoUrl && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">
-                          ▶ Video
+                      {mod.completed ? (
+                        <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                         </span>
-                      )
+                      ) : (
+                        mod.videoUrl && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full">
+                            ▶ Video
+                          </span>
+                        )
+                      )}
+                    </div>
+
+                    <h4 className="text-base font-poppins font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug">
+                      {mod.title}
+                    </h4>
+
+                    {mod.description && (
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                        {mod.description}
+                      </p>
                     )}
                   </div>
 
-                  <h4 className="text-base font-poppins font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug">
-                    {mod.title}
-                  </h4>
-
-                  {mod.description && (
-                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                      {mod.description}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-slate-600">
-                      <span>Module Progress</span>
-                      <span className="font-bold text-indigo-600">{mod.progressPct}%</span>
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-semibold text-slate-600">
+                        <span>Module Progress</span>
+                        <span className="font-bold text-indigo-600">{mod.progressPct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div className="bg-indigo-600 h-2 rounded-full transition-all duration-300" style={{ width: `${mod.progressPct}%` }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div className="bg-indigo-600 h-2 rounded-full transition-all duration-300" style={{ width: `${mod.progressPct}%` }}></div>
-                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedModule(mod);
+                      }}
+                      className="w-full bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
+                    >
+                      <BookOpen className="w-4 h-4" /> Watch Tutorial & Resources
+                    </button>
                   </div>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedModule(mod);
-                    }}
-                    className="w-full bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
-                  >
-                    <BookOpen className="w-4 h-4" /> Watch Tutorial & Resources
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

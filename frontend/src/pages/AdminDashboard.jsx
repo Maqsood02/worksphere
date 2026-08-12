@@ -1076,54 +1076,74 @@ export default function AdminDashboard() {
                     Upload YouTube video tutorials, GitHub repos, and documentation resources. These immediately publish to all intern portals.
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowAddModuleModal(true)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 cursor-pointer"
-                >
-                  <PlusCircle className="w-4 h-4" /> Upload Video & Resource
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={handleLoadPresets}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    + Load Preset Curriculum
+                  </button>
+                  <button
+                    onClick={() => setShowAddModuleModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Upload Video & Resource
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {learningModules.map(mod => (
-                  <div key={mod.id} className="bg-slate-50/80 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                          {mod.category || 'Engineering'}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteModule(mod.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
-                          title="Remove Learning Module"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+              {learningModules.length === 0 ? (
+                <div className="bg-slate-50/60 p-8 rounded-2xl border border-dashed border-slate-200 text-center space-y-3">
+                  <GraduationCap className="w-8 h-8 text-slate-400 mx-auto" />
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-700">No Learning Modules Published Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Click <strong>"Upload Video & Resource"</strong> to add a custom video tutorial or click <strong>"+ Load Preset Curriculum"</strong> to publish standard engineering modules.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {learningModules.map(mod => (
+                    <div key={mod.id} className="bg-slate-50/80 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                            {mod.category || 'Engineering'}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteModule(mod.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                            title="Remove Learning Module"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <h4 className="font-poppins font-bold text-sm text-slate-800 leading-snug">{mod.title}</h4>
+                        {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{mod.description}</p>}
                       </div>
 
-                      <h4 className="font-poppins font-bold text-sm text-slate-800 leading-snug">{mod.title}</h4>
-                      {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{mod.description}</p>}
+                      <div className="pt-3 border-t border-slate-200/60 space-y-2 text-xs">
+                        {mod.videoUrl && (
+                          <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-[11px] truncate">
+                            <span className="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px]">▶ YouTube</span>
+                            <span className="truncate">{mod.videoUrl}</span>
+                          </div>
+                        )}
+                        {mod.resourceUrl && (
+                          <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px] truncate">
+                            <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                            <a href={mod.resourceUrl} target="_blank" rel="noreferrer" className="hover:underline text-indigo-600 font-semibold truncate">
+                              {mod.resourceUrl}
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
-
-                    <div className="pt-3 border-t border-slate-200/60 space-y-2 text-xs">
-                      {mod.videoUrl && (
-                        <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-[11px] truncate">
-                          <span className="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px]">▶ YouTube</span>
-                          <span className="truncate">{mod.videoUrl}</span>
-                        </div>
-                      )}
-                      {mod.resourceUrl && (
-                        <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px] truncate">
-                          <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
-                          <a href={mod.resourceUrl} target="_blank" rel="noreferrer" className="hover:underline text-indigo-600 font-semibold truncate">
-                            {mod.resourceUrl}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

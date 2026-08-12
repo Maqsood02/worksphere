@@ -48,63 +48,22 @@ function saveUsersList(users) {
 }
 
 function getStoredLearningModules() {
-  const defaultModules = [
-    {
-      id: 'MOD-1',
-      title: 'Modern React 19 & Context API Mastery',
-      category: 'Frontend',
-      track: 'Full-Stack Software Engineering',
-      description: 'Master React 19 hooks, Context API, state optimization, and responsive Tailwind layout design.',
-      videoUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
-      resourceUrl: 'https://react.dev/learn',
-      progressPct: 100,
-      completed: true
-    },
-    {
-      id: 'MOD-2',
-      title: 'Spring Boot 3 Security & JWT Architecture',
-      category: 'Backend',
-      track: 'Full-Stack Software Engineering',
-      description: 'Deep dive into Spring Boot 3 Security Filters, JWT token validation, refresh tokens, and RESTful APIs.',
-      videoUrl: 'https://www.youtube.com/watch?v=BVWdF0nL7_M',
-      resourceUrl: 'https://spring.io/projects/spring-boot',
-      progressPct: 85,
-      completed: false
-    },
-    {
-      id: 'MOD-3',
-      title: 'NoSQL Data Modeling with MongoDB',
-      category: 'Database',
-      track: 'Full-Stack Software Engineering',
-      description: 'Learn document database schemas, aggregation pipelines, indexing strategies, and Spring Data MongoDB.',
-      videoUrl: 'https://www.youtube.com/watch?v=c2M-rlkkT5o',
-      resourceUrl: 'https://www.mongodb.com/docs/',
-      progressPct: 60,
-      completed: false
-    },
-    {
-      id: 'MOD-4',
-      title: 'AI Prompt Engineering & Automation Workflows',
-      category: 'AI & Automation',
-      track: 'AI & Automation Engineering',
-      description: 'Build automated AI pipelines, LLM integration, agentic workflows, and function calling tools.',
-      videoUrl: 'https://www.youtube.com/watch?v=jC4v5AS4RIM',
-      resourceUrl: 'https://platform.openai.com/docs/',
-      progressPct: 40,
-      completed: false
-    }
-  ];
+  // Force cache bust to v5 to clear pre-seeded demo modules for clean admin publishing
+  const cacheVer = localStorage.getItem('worksphere_modules_version');
+  if (cacheVer !== 'v5') {
+    localStorage.removeItem('worksphere_learning_modules');
+    localStorage.setItem('worksphere_modules_version', 'v5');
+  }
 
   const saved = localStorage.getItem('worksphere_learning_modules');
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch(e) {}
   }
 
-  localStorage.setItem('worksphere_learning_modules', JSON.stringify(defaultModules));
-  return defaultModules;
+  return [];
 }
 
 function saveStoredLearningModules(modules) {
