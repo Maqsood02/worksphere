@@ -872,7 +872,12 @@ export default function AdminDashboard() {
                                 onClick={() => {
                                   setTargetIntern(intern);
                                   setEditStipendType(intern.stipendType || 'PAID');
-                                  setEditStipendAmount(intern.stipendAmount || '$1,500 / month');
+                                  setEditStipendCurrency(intern.stipendCurrency || (intern.stipendAmount?.includes('$') ? 'USD' : 'INR'));
+                                  setEditStipendAmount(
+                                    (intern.stipendAmount && intern.stipendAmount !== 'Pending Admin Setup') 
+                                      ? intern.stipendAmount 
+                                      : (intern.stipendCurrency === 'USD' ? '$1,500 / mo' : '₹15,000 / mo')
+                                  );
                                   setEditMentorName(intern.mentorName || 'Dr. Sarah Jenkins');
                                   setEditMentorEmail(intern.mentorEmail || 's.jenkins@worksphere.ac.in');
                                   setEditTrack(intern.track || 'Full-Stack Software Engineering');

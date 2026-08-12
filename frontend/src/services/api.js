@@ -47,6 +47,74 @@ function saveUsersList(users) {
   localStorage.setItem('worksphere_users_list', JSON.stringify(users));
 }
 
+function getStoredInternProfiles() {
+  const defaultProfiles = {
+    'maqsood': {
+      username: 'maqsood',
+      name: 'Maqsood MD',
+      email: 'maqsoodmd.ac.in@gmail.com',
+      phone: '8792404950',
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      mentorEmail: 's.jenkins@worksphere.ac.in',
+      startDate: '2026-06-01',
+      endDate: '2026-08-31',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.9 / 5.0',
+      certificateStatus: 'ISSUED'
+    },
+    'chinmaykv': {
+      username: 'chinmaykv',
+      name: 'Chinmay K V',
+      email: 'chinmaykv555@gmail.com',
+      phone: '7760674555',
+      track: 'AI & Automation Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      mentorEmail: 's.jenkins@worksphere.ac.in',
+      startDate: '2026-06-01',
+      endDate: '2026-08-31',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.8 / 5.0',
+      certificateStatus: 'ISSUED'
+    },
+    'intern': {
+      username: 'intern',
+      name: 'Alex Rivera',
+      email: 'alex.intern@worksphere.ac.in',
+      phone: '9876543210',
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      mentorEmail: 's.jenkins@worksphere.ac.in',
+      startDate: '2026-06-01',
+      endDate: '2026-08-31',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.9 / 5.0',
+      certificateStatus: 'NOT_ISSUED'
+    }
+  };
+
+  const saved = localStorage.getItem('worksphere_intern_profiles');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
+    } catch (e) {}
+  }
+
+  localStorage.setItem('worksphere_intern_profiles', JSON.stringify(defaultProfiles));
+  return defaultProfiles;
+}
+
+function saveStoredInternProfiles(profiles) {
+  localStorage.setItem('worksphere_intern_profiles', JSON.stringify(profiles));
+}
+
 // Mock Fallback Handler for Standalone Cloud Deployments (e.g. Vercel preview without live backend)
 function getMockFallbackResponse(url, options = {}) {
   let body = {};
@@ -292,32 +360,106 @@ function isValidEmailFormat(email) {
   }
 
   // 10. Intern Overview & Management
+  if (url.includes('/api/admin/interns/') && url.includes('/update')) {
+    const parts = url.split('/');
+    const targetUsername = (parts[parts.length - 2] || 'intern').toLowerCase();
+    const profiles = getStoredInternProfiles();
+    const current = profiles[targetUsername] || {
+      username: targetUsername,
+      name: targetUsername,
+      email: `${targetUsername}@worksphere.ac.in`,
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.9 / 5.0'
+    };
+    const updated = { ...current, ...body };
+    profiles[targetUsername] = updated;
+    saveStoredInternProfiles(profiles);
+    return {
+      success: true,
+      message: `Intern profile & stipend settings updated for @${targetUsername}!`,
+      profile: updated
+    };
+  }
+
+  if (url.includes('/api/admin/interns')) {
+    const profiles = getStoredInternProfiles();
+    const users = getStoredUsersList();
+    users.forEach(u => {
+      const r = (u.role || '').toUpperCase();
+      const uname = (u.username || '').toLowerCase();
+      if ((r.includes('INTERN')) && !profiles[uname]) {
+        profiles[uname] = {
+          username: u.username,
+          name: u.name || u.username,
+          email: u.email || `${u.username}@worksphere.ac.in`,
+          phone: u.phone || '',
+          track: 'Full-Stack Software Engineering',
+          mentorName: 'Dr. Sarah Jenkins',
+          stipendType: 'PAID',
+          stipendCurrency: 'INR',
+          stipendAmount: '₹15,000 / mo',
+          performanceRating: '4.9 / 5.0',
+          certificateStatus: 'NOT_ISSUED'
+        };
+      }
+    });
+    saveStoredInternProfiles(profiles);
+    const result = Object.values(profiles).map(p => ({
+      ...p,
+      tasksTotal: 2,
+      tasksCompleted: 1
+    }));
+    return { success: true, interns: result, allTasks: [] };
+  }
+
+  if (url.includes('/api/intern/overview')) {
+    let currentUser = null;
+    try {
+      const savedUser = localStorage.getItem('worksphere_user');
+      if (savedUser) currentUser = JSON.parse(savedUser);
+    } catch (e) {}
+    const uname = (currentUser?.username || 'maqsood').toLowerCase();
+    const profiles = getStoredInternProfiles();
+    const profile = profiles[uname] || profiles['intern'] || {
+      username: uname,
+      name: currentUser?.name || uname,
+      email: currentUser?.email || `${uname}@worksphere.ac.in`,
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.9 / 5.0',
+      certificateStatus: 'NOT_ISSUED'
+    };
+    return {
+      success: true,
+      profile: profile,
+      stats: {
+        tasksCompleted: 1,
+        tasksTotal: 2,
+        hoursLogged: 16,
+        attendanceRate: '100%',
+        stipendStatus: `Paid (${profile.stipendAmount || '₹15,000 / mo'})`
+      },
+      tasks: [
+        { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
+        { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
+      ],
+      attendanceLogs: [],
+      learningModules: [],
+      certificate: { issued: profile.certificateStatus === 'ISSUED' }
+    };
+  }
+
   if (url.includes('/intern') || url.includes('/interns')) {
     return {
       success: true,
-      message: 'Intern operation completed successfully',
-      intern: {
-        username: 'maqsood',
-        name: 'Maqsood M D',
-        email: 'maqsoodmd.ac.in@gmail.com',
-        phone: '8792404950',
-        role: 'ROLE_INTERN',
-        department: 'Full-Stack Engineering',
-        attendanceCount: 24,
-        performanceScore: 98,
-        stipendCurrency: 'INR',
-        stipendAmount: '₹15,000 / mo',
-        tasks: [
-          { id: 't1', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', dueDate: '2026-08-08' },
-          { id: 't2', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', dueDate: '2026-08-15' }
-        ],
-        certificateGenerated: true,
-        certificateUrl: '#'
-      },
-      interns: [
-        { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendCurrency: 'INR', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' },
-        { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendCurrency: 'INR', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' }
-      ]
+      message: 'Intern operation completed successfully'
     };
   }
 

@@ -48,42 +48,71 @@ export default function InternDashboard() {
       return;
     }
     fetchInternData();
+
+    // Live polling every 4 seconds so admin updates reflect in real-time without manual refresh
+    const interval = setInterval(() => {
+      fetchInternData(true);
+    }, 4000);
+
+    const handleFocus = () => fetchInternData(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [user]);
 
   const defaultInternData = {
     success: true,
-    intern: {
-      username: 'maqsood',
-      name: 'Maqsood MD',
-      email: 'maqsoodmd.ac.in@gmail.com',
-      phone: '8792404950',
-      role: 'ROLE_INTERN',
-      department: 'Full-Stack Software Engineering',
-      attendanceCount: 24,
-      performanceScore: 98,
-      tasks: [
-        { id: 't1', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', dueDate: '2026-08-08', desc: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
-        { id: 't2', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', dueDate: '2026-08-15', desc: 'Build responsive admin, intern, and client dashboards.' }
-      ],
-      certificateGenerated: true,
-      certificateUrl: '#'
-    }
+    profile: {
+      username: user?.username || 'intern',
+      name: user?.name || 'Intern',
+      email: user?.email || 'intern@worksphere.ac.in',
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Dr. Sarah Jenkins',
+      mentorEmail: 's.jenkins@worksphere.ac.in',
+      startDate: '2026-06-01',
+      endDate: '2026-08-31',
+      stipendType: 'PAID',
+      stipendCurrency: 'INR',
+      stipendAmount: '₹15,000 / mo',
+      performanceRating: '4.9 / 5.0'
+    },
+    stats: {
+      tasksCompleted: 1,
+      tasksTotal: 2,
+      hoursLogged: 16,
+      attendanceRate: '100%',
+      stipendStatus: 'Paid (₹15,000 / mo)'
+    },
+    tasks: [
+      { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
+      { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
+    ],
+    attendanceLogs: [],
+    learningModules: [],
+    certificate: { issued: false }
   };
 
-  const fetchInternData = async () => {
-    setLoading(true);
+  const fetchInternData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await api.getInternOverview();
-      if (res && res.success && res.intern) {
-        setData(res);
+      if (res && res.success && (res.profile || res.intern)) {
+        const normalized = {
+          ...res,
+          profile: res.profile || res.intern
+        };
+        setData(normalized);
       } else {
         setData(defaultInternData);
       }
     } catch (err) {
       console.error(err);
-      setData(defaultInternData);
+      if (!data) setData(defaultInternData);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -181,7 +210,7 @@ export default function InternDashboard() {
   const displayStipend = isPaid ? rawStipendAmount : 'Unpaid (Academic Credit)';
   const isUsdCurrency = rawStipendAmount.includes('$') || profile?.stipendCurrency === 'USD';
   const isRupeeCurrency = !isUsdCurrency; // Default is ALWAYS INR (₹ Rupees)!
-  const isStipendSetByAdmin = isPaid && rawStipendAmount !== 'Pending Admin Setup';
+  const isStipendSetByAdmin = isPaid ? (rawStipendAmount && rawStipendAmount !== 'Pending Admin Setup') : true;
 
   const filteredTasks = tasks.filter(t => {
     if (taskFilter === 'ALL') return true;
@@ -315,23 +344,50 @@ export default function InternDashboard() {
           </p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-2">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Stipend Status</span>
-            <span className={`text-xs font-extrabold px-2 py-0.5 rounded-md border ${
-              isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-            }`}>
-              {isRupeeCurrency ? '₹ INR' : '$ USD'}
-            </span>
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-3 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                isPaid 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                {isPaid ? '• PAID STIPEND' : '• UNPAID'}
+              </span>
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Stipend Status</span>
+            </div>
+            
+            {isPaid && (
+              <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${
+                isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+              }`}>
+                {isRupeeCurrency ? '₹ INR' : '$ USD'}
+              </span>
+            )}
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-poppins font-extrabold text-slate-800">
+
+          <div className="space-y-1">
+            <div className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-900 tracking-tight">
               {displayStipend}
+            </div>
+            <p className="text-[11px] text-slate-500 font-semibold">
+              {isPaid ? 'Monthly performance stipend payout' : 'Academic credit program (Unpaid)'}
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span className={`text-[11px] font-bold flex items-center gap-1 ${
+              isPaid ? 'text-emerald-600' : 'text-indigo-600'
+            }`}>
+              {isPaid 
+                ? (isStipendSetByAdmin ? '✓ Paid Stipend Active & Configured' : 'Awaiting Admin Action')
+                : '✓ Academic Credit Approved'
+              }
+            </span>
+            <span className="text-[10px] font-mono font-bold text-slate-400">
+              {profile?.stipendCurrency || 'INR'}
             </span>
           </div>
-          <p className={`text-[11px] font-bold ${isStipendSetByAdmin ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {isStipendSetByAdmin ? '✓ Admin Configured' : 'Awaiting Admin Action'}
-          </p>
         </div>
       </div>
 

@@ -144,7 +144,8 @@ public class InternRestController {
     }
 
     private synchronized Map<String, Object> getOrCreateProfile(String username) {
-        if (!internProfiles.containsKey(username)) {
+        String key = (username != null && !username.isBlank()) ? username.toLowerCase() : "intern";
+        if (!internProfiles.containsKey(key)) {
             Optional<User> userOpt = userService.findByUsername(username);
             String name = userOpt.map(User::getName).orElse("Intern " + username);
             String email = userOpt.map(User::getEmail).orElse(username + "@worksphere.ac.in");
@@ -160,12 +161,12 @@ public class InternRestController {
             newProfile.put("endDate", LocalDate.now().plusMonths(3).toString());
             newProfile.put("stipendType", "PAID");
             newProfile.put("stipendCurrency", "INR");
-            newProfile.put("stipendAmount", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "₹15,000 / mo" : "Pending Admin Setup");
-            newProfile.put("performanceRating", "maqsood".equalsIgnoreCase(username) || "chinmaykv".equalsIgnoreCase(username) ? "4.9 / 5.0" : "New Intern");
+            newProfile.put("stipendAmount", "₹15,000 / mo");
+            newProfile.put("performanceRating", "4.9 / 5.0");
             newProfile.put("certificateStatus", "NOT_ISSUED");
-            internProfiles.put(username, newProfile);
+            internProfiles.put(key, newProfile);
         }
-        return internProfiles.get(username);
+        return internProfiles.get(key);
     }
 
     // -------------------------------------------------------------
@@ -179,14 +180,14 @@ public class InternRestController {
 
         List<Map<String, Object>> myTasks = new ArrayList<>();
         for (Map<String, Object> t : tasksList) {
-            if (username.equals(t.get("assignedTo"))) {
+            if (username.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))) {
                 myTasks.add(t);
             }
         }
 
         List<Map<String, Object>> myAttendance = new ArrayList<>();
         for (Map<String, Object> a : attendanceLogs) {
-            if (username.equals(a.get("username"))) {
+            if (username.equalsIgnoreCase((String) a.get("username"))) {
                 myAttendance.add(a);
             }
         }
@@ -204,12 +205,12 @@ public class InternRestController {
         if ("UNPAID".equalsIgnoreCase(stipendType)) {
             stats.put("stipendStatus", "Unpaid (Academic Credit)");
         } else {
-            stats.put("stipendStatus", "Paid (" + profile.getOrDefault("stipendAmount", "$1,500 / mo") + ")");
+            stats.put("stipendStatus", "Paid (" + profile.getOrDefault("stipendAmount", "Pending Admin Setup") + ")");
         }
 
         // Find Issued Certificate if any for this specific intern
         Map<String, Object> certificate = certificatesIssued.stream()
-                .filter(c -> username.equals(c.get("username")))
+                .filter(c -> username.equalsIgnoreCase((String) c.get("username")))
                 .findFirst()
                 .orElse(null);
 
@@ -295,8 +296,6 @@ public class InternRestController {
 
     @GetMapping("/api/admin/interns")
     public ResponseEntity<?> getAdminInterns() {
-        internProfiles.remove("intern");
-
         try {
             List<User> allUsers = userService.findAllUsers();
             for (User u : allUsers) {
@@ -313,8 +312,8 @@ public class InternRestController {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> p : internProfiles.values()) {
             String uname = (String) p.get("username");
-            long totalTasks = tasksList.stream().filter(t -> uname.equals(t.get("assignedTo")) || "intern".equals(t.get("assignedTo"))).count();
-            long completedTasks = tasksList.stream().filter(t -> (uname.equals(t.get("assignedTo")) || "intern".equals(t.get("assignedTo"))) && ("COMPLETED".equals(t.get("status")) || "SUBMITTED".equals(t.get("status")))).count();
+            long totalTasks = tasksList.stream().filter(t -> uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))).count();
+            long completedTasks = tasksList.stream().filter(t -> (uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))) && ("COMPLETED".equals(t.get("status")) || "SUBMITTED".equals(t.get("status")))).count();
 
             Map<String, Object> copy = new HashMap<>(p);
             Optional<User> uOpt = userService.findByUsername(uname);
