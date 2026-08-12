@@ -364,24 +364,25 @@ function isValidEmailFormat(email) {
     const parts = url.split('/');
     const targetUsername = (parts[parts.length - 2] || 'intern').toLowerCase();
     const profiles = getStoredInternProfiles();
-    const current = profiles[targetUsername] || {
-      username: targetUsername,
-      name: targetUsername,
-      email: `${targetUsername}@worksphere.ac.in`,
-      track: 'Full-Stack Software Engineering',
-      mentorName: 'Dr. Sarah Jenkins',
-      stipendType: 'PAID',
-      stipendCurrency: 'INR',
-      stipendAmount: '₹15,000 / mo',
-      performanceRating: '4.9 / 5.0'
-    };
-    const updated = { ...current, ...body };
-    profiles[targetUsername] = updated;
+
+    // Update target profile and sync across demo intern keys
+    Object.keys(profiles).forEach(k => {
+      if (k === targetUsername || k === 'intern' || k === 'maqsood' || targetUsername.includes('intern')) {
+        const current = profiles[k] || {};
+        profiles[k] = {
+          ...current,
+          ...body,
+          stipendType: body.stipendType || current.stipendType || 'PAID',
+          stipendAmount: body.stipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : (body.stipendAmount || current.stipendAmount || '₹15,000 / mo')
+        };
+      }
+    });
+
     saveStoredInternProfiles(profiles);
     return {
       success: true,
       message: `Intern profile & stipend settings updated for @${targetUsername}!`,
-      profile: updated
+      profile: profiles[targetUsername] || Object.values(profiles)[0]
     };
   }
 

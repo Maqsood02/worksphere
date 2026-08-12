@@ -374,10 +374,11 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!targetIntern) return;
     try {
+      const updatedAmount = editStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : editStipendAmount;
       const res = await api.updateAdminIntern(targetIntern.username, {
         stipendType: editStipendType,
         stipendCurrency: editStipendCurrency,
-        stipendAmount: editStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : editStipendAmount,
+        stipendAmount: updatedAmount,
         mentorName: editMentorName,
         mentorEmail: editMentorEmail,
         track: editTrack,
@@ -388,6 +389,23 @@ export default function AdminDashboard() {
       if (res && res.success) {
         addToast(res.message);
         setShowEditStipendModal(false);
+        setInternsList(prev => prev.map(i => {
+          if (i.username.toLowerCase() === targetIntern.username.toLowerCase()) {
+            return {
+              ...i,
+              stipendType: editStipendType,
+              stipendCurrency: editStipendCurrency,
+              stipendAmount: updatedAmount,
+              mentorName: editMentorName,
+              mentorEmail: editMentorEmail,
+              track: editTrack,
+              startDate: editStartDate,
+              endDate: editEndDate,
+              performanceRating: editPerformanceRating
+            };
+          }
+          return i;
+        }));
         setTargetIntern(null);
         fetchInternsData();
       } else {

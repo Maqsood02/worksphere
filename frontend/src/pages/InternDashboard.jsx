@@ -190,7 +190,7 @@ export default function InternDashboard() {
   }
 
   const { profile, stats, tasks = [], attendanceLogs = [], learningModules = [], certificate } = data || {};
-  const isPaid = profile?.stipendType !== 'UNPAID';
+  const isPaid = (profile?.stipendType || '').toUpperCase() !== 'UNPAID';
   const hasCertificate = certificate && certificate.issued;
 
   // Compute live metrics strictly based on tasks, attendance, & Admin profile configuration
