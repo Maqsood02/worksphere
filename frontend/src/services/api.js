@@ -608,7 +608,26 @@ export const api = {
   getAdminAppointments: () => request('/api/admin/appointments'),
 
   // Intern Dashboard Data & Actions
-  getInternOverview: () => request('/api/intern/overview'),
+  getInternOverview: async () => {
+    const res = await request('/api/intern/overview');
+    if (res && (res.profile || res.intern)) {
+      const p = res.profile || res.intern;
+      const uKey = (p.username || 'intern').toLowerCase();
+      try {
+        const storedProfiles = getStoredInternProfiles();
+        if (storedProfiles[uKey]) {
+          res.profile = { ...p, ...storedProfiles[uKey] };
+        } else if (p.stipendAmount === '$1,500 / month' || p.stipendAmount === '$1,500/mo') {
+          res.profile = {
+            ...p,
+            stipendType: 'UNPAID',
+            stipendAmount: 'Unpaid (Academic Credit)'
+          };
+        }
+      } catch (e) {}
+    }
+    return res;
+  },
   submitInternTask: (taskId, payload) => 
     request(`/api/intern/tasks/${taskId}/submit`, {
       method: 'POST',
@@ -626,11 +645,22 @@ export const api = {
 
   // Admin Intern Management
   getAdminInterns: () => request('/api/admin/interns'),
-  updateAdminIntern: (username, payload) => 
-    request(`/api/admin/interns/${username}/update`, {
+  updateAdminIntern: async (username, payload) => {
+    try {
+      const uKey = (username || 'intern').toLowerCase();
+      const storedProfiles = getStoredInternProfiles();
+      storedProfiles[uKey] = { ...(storedProfiles[uKey] || {}), ...payload, username };
+      storedProfiles['intern'] = { ...(storedProfiles['intern'] || {}), ...payload };
+      storedProfiles['maqsood'] = { ...(storedProfiles['maqsood'] || {}), ...payload };
+      saveStoredInternProfiles(storedProfiles);
+      localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(payload));
+      localStorage.setItem('worksphere_active_intern_profile', JSON.stringify(payload));
+    } catch (e) {}
+    return request(`/api/admin/interns/${username}/update`, {
       method: 'POST',
       body: JSON.stringify(payload)
-    }),
+    });
+  },
   assignInternTask: (username, payload) => 
     request(`/api/admin/interns/${username}/tasks`, {
       method: 'POST',
