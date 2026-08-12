@@ -100,6 +100,7 @@ export default function AdminDashboard() {
     fetchData();
     fetchUsersData();
     fetchInternsData();
+    fetchLearningModules();
   }, [user]);
 
   useEffect(() => {
@@ -278,6 +279,71 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       setInternsList(defaultInterns);
+    }
+  };
+
+  // Learning Modules & Video Resources Handlers
+  const [learningModules, setLearningModules] = useState([]);
+  const [showAddModuleModal, setShowAddModuleModal] = useState(false);
+  const [newModTitle, setNewModTitle] = useState('');
+  const [newModCategory, setNewModCategory] = useState('Frontend');
+  const [newModTrack, setNewModTrack] = useState('ALL');
+  const [newModDesc, setNewModDesc] = useState('');
+  const [newModVideoUrl, setNewModVideoUrl] = useState('');
+  const [newModResourceUrl, setNewModResourceUrl] = useState('');
+  const [isAddingModule, setIsAddingModule] = useState(false);
+
+  const fetchLearningModules = async () => {
+    try {
+      const res = await api.getLearningModules();
+      if (res && res.modules) {
+        setLearningModules(res.modules);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddModuleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newModTitle) return;
+    setIsAddingModule(true);
+    try {
+      const res = await api.createLearningModule({
+        title: newModTitle,
+        category: newModCategory,
+        track: newModTrack,
+        description: newModDesc,
+        videoUrl: newModVideoUrl,
+        resourceUrl: newModResourceUrl
+      });
+      if (res && res.success !== false) {
+        addToast("Learning Module & Video Resource published to Intern Portal!");
+        setShowAddModuleModal(false);
+        setNewModTitle('');
+        setNewModDesc('');
+        setNewModVideoUrl('');
+        setNewModResourceUrl('');
+        fetchLearningModules();
+      } else {
+        addToast(res?.message || "Failed to publish learning module.");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Error publishing learning module.");
+    } finally {
+      setIsAddingModule(false);
+    }
+  };
+
+  const handleDeleteModule = async (id) => {
+    try {
+      await api.deleteLearningModule(id);
+      addToast("Learning module removed.");
+      fetchLearningModules();
+    } catch (err) {
+      console.error(err);
+      addToast("Error removing module.");
     }
   };
 
@@ -998,6 +1064,67 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </div>
+
+            {/* Learning Curriculum & Video Resources Management */}
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="font-poppins font-extrabold text-base text-slate-800 flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-indigo-600" /> Learning Roadmap & Video Resources
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Upload YouTube video tutorials, GitHub repos, and documentation resources. These immediately publish to all intern portals.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddModuleModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" /> Upload Video & Resource
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {learningModules.map(mod => (
+                  <div key={mod.id} className="bg-slate-50/80 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                          {mod.category || 'Engineering'}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteModule(mod.id)}
+                          className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                          title="Remove Learning Module"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <h4 className="font-poppins font-bold text-sm text-slate-800 leading-snug">{mod.title}</h4>
+                      {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{mod.description}</p>}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200/60 space-y-2 text-xs">
+                      {mod.videoUrl && (
+                        <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-[11px] truncate">
+                          <span className="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px]">▶ YouTube</span>
+                          <span className="truncate">{mod.videoUrl}</span>
+                        </div>
+                      )}
+                      {mod.resourceUrl && (
+                        <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px] truncate">
+                          <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                          <a href={mod.resourceUrl} target="_blank" rel="noreferrer" className="hover:underline text-indigo-600 font-semibold truncate">
+                            {mod.resourceUrl}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1643,6 +1770,122 @@ export default function AdminDashboard() {
                 >
                   <Mail className="w-4 h-4" />
                   <span>{isSendingCreds ? 'Sending Email...' : 'Send Official Email'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD LEARNING MODULE & VIDEO RESOURCE */}
+      {showAddModuleModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <h3 className="font-poppins font-extrabold text-base text-slate-800">Upload Video & Learning Resource</h3>
+              </div>
+              <button onClick={() => setShowAddModuleModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddModuleSubmit} className="space-y-4 text-xs font-medium">
+              <div className="space-y-1">
+                <label className="text-slate-700 font-bold block">Module Title *</label>
+                <input
+                  type="text"
+                  value={newModTitle}
+                  onChange={(e) => setNewModTitle(e.target.value)}
+                  placeholder="e.g. Modern React 19 & Next.js App Router Mastery"
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 font-bold outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Category</label>
+                  <select
+                    value={newModCategory}
+                    onChange={(e) => setNewModCategory(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500"
+                  >
+                    <option value="Frontend">Frontend</option>
+                    <option value="Backend">Backend</option>
+                    <option value="Database">Database</option>
+                    <option value="AI & Automation">AI & Automation</option>
+                    <option value="DevOps & Cloud">DevOps & Cloud</option>
+                    <option value="Mobile App Dev">Mobile App Dev</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Target Engineering Track</label>
+                  <select
+                    value={newModTrack}
+                    onChange={(e) => setNewModTrack(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500"
+                  >
+                    <option value="ALL">ALL Tracks</option>
+                    <option value="Full-Stack Software Engineering">Full-Stack Engineering</option>
+                    <option value="AI & Automation Engineering">AI & Automation</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-700 font-bold block">YouTube Video URL or Video ID</label>
+                <input
+                  type="text"
+                  value={newModVideoUrl}
+                  onChange={(e) => setNewModVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... or SqcY0GlETPk"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                />
+                <p className="text-[10px] text-slate-400">Embeds an interactive YouTube Video Player inside the Intern Portal.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-700 font-bold block">Documentation / GitHub Resource Link</label>
+                <input
+                  type="url"
+                  value={newModResourceUrl}
+                  onChange={(e) => setNewModResourceUrl(e.target.value)}
+                  placeholder="https://react.dev or https://github.com/..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-700 font-bold block">Description & Learning Objectives</label>
+                <textarea
+                  value={newModDesc}
+                  onChange={(e) => setNewModDesc(e.target.value)}
+                  rows="3"
+                  placeholder="Outline key learning outcomes, skills to master, or sprint tasks..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModuleModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingModule}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>{isAddingModule ? 'Publishing...' : 'Publish to Intern Portal'}</span>
                 </button>
               </div>
             </form>

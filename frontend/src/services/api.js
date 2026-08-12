@@ -47,6 +47,70 @@ function saveUsersList(users) {
   localStorage.setItem('worksphere_users_list', JSON.stringify(users));
 }
 
+function getStoredLearningModules() {
+  const defaultModules = [
+    {
+      id: 'MOD-1',
+      title: 'Modern React 19 & Context API Mastery',
+      category: 'Frontend',
+      track: 'Full-Stack Software Engineering',
+      description: 'Master React 19 hooks, Context API, state optimization, and responsive Tailwind layout design.',
+      videoUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
+      resourceUrl: 'https://react.dev/learn',
+      progressPct: 100,
+      completed: true
+    },
+    {
+      id: 'MOD-2',
+      title: 'Spring Boot 3 Security & JWT Architecture',
+      category: 'Backend',
+      track: 'Full-Stack Software Engineering',
+      description: 'Deep dive into Spring Boot 3 Security Filters, JWT token validation, refresh tokens, and RESTful APIs.',
+      videoUrl: 'https://www.youtube.com/watch?v=BVWdF0nL7_M',
+      resourceUrl: 'https://spring.io/projects/spring-boot',
+      progressPct: 85,
+      completed: false
+    },
+    {
+      id: 'MOD-3',
+      title: 'NoSQL Data Modeling with MongoDB',
+      category: 'Database',
+      track: 'Full-Stack Software Engineering',
+      description: 'Learn document database schemas, aggregation pipelines, indexing strategies, and Spring Data MongoDB.',
+      videoUrl: 'https://www.youtube.com/watch?v=c2M-rlkkT5o',
+      resourceUrl: 'https://www.mongodb.com/docs/',
+      progressPct: 60,
+      completed: false
+    },
+    {
+      id: 'MOD-4',
+      title: 'AI Prompt Engineering & Automation Workflows',
+      category: 'AI & Automation',
+      track: 'AI & Automation Engineering',
+      description: 'Build automated AI pipelines, LLM integration, agentic workflows, and function calling tools.',
+      videoUrl: 'https://www.youtube.com/watch?v=jC4v5AS4RIM',
+      resourceUrl: 'https://platform.openai.com/docs/',
+      progressPct: 40,
+      completed: false
+    }
+  ];
+
+  const saved = localStorage.getItem('worksphere_learning_modules');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch(e) {}
+  }
+
+  localStorage.setItem('worksphere_learning_modules', JSON.stringify(defaultModules));
+  return defaultModules;
+}
+
+function saveStoredLearningModules(modules) {
+  localStorage.setItem('worksphere_learning_modules', JSON.stringify(modules));
+}
+
 function getStoredInternProfiles() {
   const defaultProfiles = {
     'maqsood': {
@@ -650,9 +714,65 @@ export const api = {
           attendanceRate: realLogs.length === 0 ? '0%' : '100%',
           stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
         };
+        res.learningModules = getStoredLearningModules();
       } catch (e) {}
     }
     return res;
+  },
+  getLearningModules: async () => {
+    return { success: true, modules: getStoredLearningModules() };
+  },
+  createLearningModule: async (payload) => {
+    try {
+      const modules = getStoredLearningModules();
+      const newMod = {
+        id: 'MOD-' + Date.now(),
+        title: payload.title || 'New Learning Module',
+        category: payload.category || 'Engineering',
+        track: payload.track || 'ALL',
+        description: payload.description || '',
+        videoUrl: payload.videoUrl || '',
+        resourceUrl: payload.resourceUrl || '',
+        progressPct: 0,
+        completed: false
+      };
+      modules.unshift(newMod);
+      saveStoredLearningModules(modules);
+    } catch (e) {}
+    return request('/api/admin/learning-modules', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteLearningModule: async (id) => {
+    try {
+      let modules = getStoredLearningModules();
+      modules = modules.filter(m => m.id !== id);
+      saveStoredLearningModules(modules);
+    } catch (e) {}
+    return request(`/api/admin/learning-modules/${id}`, {
+      method: 'DELETE'
+    });
+  },
+  updateLearningModuleProgress: async (id, progressPct, completed) => {
+    try {
+      let modules = getStoredLearningModules();
+      modules = modules.map(m => {
+        if (m.id === id) {
+          return {
+            ...m,
+            progressPct: typeof progressPct === 'number' ? progressPct : m.progressPct,
+            completed: typeof completed === 'boolean' ? completed : m.completed
+          };
+        }
+        return m;
+      });
+      saveStoredLearningModules(modules);
+    } catch (e) {}
+    return request(`/api/intern/learning-modules/${id}/progress`, {
+      method: 'POST',
+      body: JSON.stringify({ progressPct, completed })
+    });
   },
   submitInternTask: (taskId, payload) => 
     request(`/api/intern/tasks/${taskId}/submit`, {
