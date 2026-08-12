@@ -665,72 +665,94 @@ export const api = {
 
   // Intern Dashboard Data & Actions
   getInternOverview: async () => {
-    const res = await request('/api/intern/overview');
-    if (res && (res.profile || res.intern)) {
-      const p = res.profile || res.intern;
-      const uKey = (p.username || 'intern').toLowerCase();
-      try {
-        const storedProfiles = getStoredInternProfiles();
-        if (storedProfiles[uKey]) {
-          res.profile = { ...p, ...storedProfiles[uKey] };
-        } else if (p.stipendAmount === '$1,500 / month' || p.stipendAmount === '$1,500/mo') {
-          res.profile = {
-            ...p,
-            stipendType: 'UNPAID',
-            stipendAmount: 'Unpaid (Academic Credit)'
-          };
-        }
+    let currentUser = null;
+    try {
+      const savedUser = localStorage.getItem('worksphere_user');
+      if (savedUser) currentUser = JSON.parse(savedUser);
+    } catch (e) {}
+    const defaultUKey = (currentUser?.username || 'intern').toLowerCase();
 
-        // Force user-specific tasks & logs from localStorage + worksphere_global_tasks
-        let realTasks = [];
-        const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
-        if (savedTasks) {
-          try { realTasks = JSON.parse(savedTasks); } catch(e) {}
-        }
+    let res = await request('/api/intern/overview');
+    if (!res || typeof res !== 'object') res = {};
 
-        try {
-          const globalSaved = localStorage.getItem('worksphere_global_tasks');
-          if (globalSaved) {
-            const globalList = JSON.parse(globalSaved);
-            const matched = globalList.filter(t => {
-              if (!t.assignedTo) return true;
-              const assignedLower = t.assignedTo.toLowerCase();
-              return assignedLower === uKey || 
-                     assignedLower.includes(uKey) || 
-                     uKey.includes(assignedLower) || 
-                     assignedLower === 'all' ||
-                     uKey === 'intern';
-            });
-            const existingIds = new Set(realTasks.map(t => t.id));
-            for (const gTask of matched) {
-              if (!existingIds.has(gTask.id)) {
-                realTasks.push(gTask);
-              }
-            }
-          }
-        } catch(e) {}
+    const p = res.profile || res.intern || {
+      username: currentUser?.username || defaultUKey,
+      name: currentUser?.name || defaultUKey,
+      email: currentUser?.email || `${defaultUKey}@worksphere.ac.in`,
+      track: 'Full-Stack Software Engineering',
+      mentorName: 'Unassigned Mentor',
+      mentorEmail: 's.jenkins@worksphere.ac.in',
+      startDate: '2026-06-01',
+      endDate: '2026-08-31',
+      stipendType: 'UNPAID',
+      stipendCurrency: 'INR',
+      stipendAmount: 'Unpaid (Academic Credit)',
+      performanceRating: 'Active Intern',
+      certificateStatus: 'NOT_ISSUED'
+    };
 
-        res.tasks = realTasks;
+    const uKey = (p.username || defaultUKey).toLowerCase();
 
-        let realLogs = [];
-        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-        if (savedLogs) {
-          try { realLogs = JSON.parse(savedLogs); } catch(e) {}
-        }
-        res.attendanceLogs = realLogs;
-
-        // Clean stats to strictly reflect real user tasks and attendance logs
-        res.stats = {
-          ...(res.stats || {}),
-          tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
-          tasksTotal: realTasks.length,
-          hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
-          attendanceRate: realLogs.length === 0 ? '0%' : '100%',
-          stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
-        };
-        res.learningModules = getStoredLearningModules();
-      } catch (e) {}
+    try {
+      const storedProfiles = getStoredInternProfiles();
+      if (storedProfiles[uKey]) {
+        res.profile = { ...p, ...storedProfiles[uKey] };
+      } else {
+        res.profile = p;
+      }
+    } catch (e) {
+      res.profile = p;
     }
+
+    // User-specific tasks & logs from localStorage + worksphere_global_tasks
+    let realTasks = [];
+    const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+    if (savedTasks) {
+      try { realTasks = JSON.parse(savedTasks); } catch(e) {}
+    }
+
+    try {
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        const globalList = JSON.parse(globalSaved);
+        const matched = globalList.filter(t => {
+          if (!t.assignedTo) return true;
+          const assignedLower = t.assignedTo.toLowerCase();
+          return assignedLower === uKey || 
+                 assignedLower.includes(uKey) || 
+                 uKey.includes(assignedLower) || 
+                 assignedLower === 'all' ||
+                 uKey === 'intern';
+        });
+        const existingIds = new Set(realTasks.map(t => t.id));
+        for (const gTask of matched) {
+          if (!existingIds.has(gTask.id)) {
+            realTasks.push(gTask);
+          }
+        }
+      }
+    } catch(e) {}
+
+    res.tasks = realTasks;
+
+    let realLogs = [];
+    const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+    if (savedLogs) {
+      try { realLogs = JSON.parse(savedLogs); } catch(e) {}
+    }
+    res.attendanceLogs = realLogs;
+
+    // Clean stats to strictly reflect real user tasks and attendance logs
+    res.stats = {
+      ...(res.stats || {}),
+      tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED' || t.status === 'APPROVED').length,
+      tasksTotal: realTasks.length,
+      hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+      attendanceRate: realLogs.length === 0 ? '0%' : '100%',
+      stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
+    };
+    res.learningModules = getStoredLearningModules();
+    res.success = true;
     return res;
   },
   getLearningModules: async () => {
