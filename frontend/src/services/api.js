@@ -59,9 +59,9 @@ function getStoredInternProfiles() {
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
-      stipendType: 'PAID',
+      stipendType: 'UNPAID',
       stipendCurrency: 'INR',
-      stipendAmount: '₹15,000 / mo',
+      stipendAmount: 'Unpaid (Academic Credit)',
       performanceRating: '4.9 / 5.0',
       certificateStatus: 'ISSUED'
     },
@@ -75,9 +75,9 @@ function getStoredInternProfiles() {
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
-      stipendType: 'PAID',
+      stipendType: 'UNPAID',
       stipendCurrency: 'INR',
-      stipendAmount: '₹15,000 / mo',
+      stipendAmount: 'Unpaid (Academic Credit)',
       performanceRating: '4.8 / 5.0',
       certificateStatus: 'ISSUED'
     },
@@ -91,13 +91,21 @@ function getStoredInternProfiles() {
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
-      stipendType: 'PAID',
+      stipendType: 'UNPAID',
       stipendCurrency: 'INR',
-      stipendAmount: '₹15,000 / mo',
+      stipendAmount: 'Unpaid (Academic Credit)',
       performanceRating: '4.9 / 5.0',
       certificateStatus: 'NOT_ISSUED'
     }
   };
+
+  // Force cache bust old stale browser localStorage
+  const cacheVer = localStorage.getItem('worksphere_profiles_version');
+  if (cacheVer !== 'v3') {
+    localStorage.removeItem('worksphere_intern_profiles');
+    localStorage.removeItem('worksphere_active_intern_profile');
+    localStorage.setItem('worksphere_profiles_version', 'v3');
+  }
 
   const saved = localStorage.getItem('worksphere_intern_profiles');
   if (saved) {

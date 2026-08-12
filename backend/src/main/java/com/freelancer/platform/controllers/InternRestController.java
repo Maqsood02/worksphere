@@ -43,8 +43,8 @@ public class InternRestController {
         internData.put("mentorEmail", "s.jenkins@worksphere.ac.in");
         internData.put("startDate", "2026-06-01");
         internData.put("endDate", "2026-08-31");
-        internData.put("stipendType", "PAID"); // PAID or UNPAID
-        internData.put("stipendAmount", "$1,500 / month");
+        internData.put("stipendType", "UNPAID"); // PAID or UNPAID
+        internData.put("stipendAmount", "Unpaid (Academic Credit)");
         internData.put("performanceRating", "4.9 / 5.0");
         internData.put("certificateStatus", "NOT_ISSUED"); // NOT_ISSUED, PENDING, ISSUED
         internProfiles.put("intern", internData);
