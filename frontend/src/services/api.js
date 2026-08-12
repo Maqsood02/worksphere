@@ -432,7 +432,6 @@ function isValidEmailFormat(email) {
       if (savedUser) currentUser = JSON.parse(savedUser);
     } catch (e) {}
     const uname = (currentUser?.username || 'intern').toLowerCase();
-    const isDemoUser = ['maqsood', 'chinmaykv', 'intern'].includes(uname);
 
     const profiles = getStoredInternProfiles();
     
@@ -442,37 +441,46 @@ function isValidEmailFormat(email) {
         name: currentUser?.name || uname,
         email: currentUser?.email || `${uname}@worksphere.ac.in`,
         track: 'Full-Stack Software Engineering',
-        mentorName: isDemoUser ? 'Dr. Sarah Jenkins' : 'Unassigned Mentor',
+        mentorName: 'Unassigned Mentor',
         mentorEmail: 's.jenkins@worksphere.ac.in',
         startDate: '2026-06-01',
         endDate: '2026-08-31',
-        stipendType: 'PAID',
+        stipendType: 'UNPAID',
         stipendCurrency: 'INR',
-        stipendAmount: isDemoUser ? '₹15,000 / mo' : 'Pending Admin Setup',
-        performanceRating: isDemoUser ? '4.9 / 5.0' : 'New Intern',
-        certificateStatus: isDemoUser ? 'ISSUED' : 'NOT_ISSUED'
+        stipendAmount: 'Unpaid (Academic Credit)',
+        performanceRating: 'New Intern',
+        certificateStatus: 'NOT_ISSUED'
       };
       saveStoredInternProfiles(profiles);
     }
 
-    const isUnpaid = profile.stipendType === 'UNPAID';
-    const tasks = (isDemoUser && !isUnpaid) ? [
-      { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
-      { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
-    ] : [];
+    const profile = profiles[uname];
+
+    // User-specific tasks & logs (defaults to empty for new accounts)
+    let userTasks = [];
+    try {
+      const savedTasks = localStorage.getItem(`worksphere_tasks_${uname}`);
+      if (savedTasks) userTasks = JSON.parse(savedTasks);
+    } catch(e) {}
+
+    let userLogs = [];
+    try {
+      const savedLogs = localStorage.getItem(`worksphere_attendance_${uname}`);
+      if (savedLogs) userLogs = JSON.parse(savedLogs);
+    } catch(e) {}
 
     return {
       success: true,
       profile: profile,
       stats: {
-        tasksCompleted: tasks.filter(t => t.status === 'COMPLETED').length,
-        tasksTotal: tasks.length,
-        hoursLogged: 0,
-        attendanceRate: '0%',
-        stipendStatus: profile.stipendAmount || 'Pending Admin Setup'
+        tasksCompleted: userTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
+        tasksTotal: userTasks.length,
+        hoursLogged: userLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+        attendanceRate: userLogs.length === 0 ? '0%' : '100%',
+        stipendStatus: profile.stipendAmount || 'Unpaid (Academic Credit)'
       },
-      tasks: tasks,
-      attendanceLogs: [],
+      tasks: userTasks,
+      attendanceLogs: userLogs,
       learningModules: [],
       certificate: { issued: profile.certificateStatus === 'ISSUED' }
     };

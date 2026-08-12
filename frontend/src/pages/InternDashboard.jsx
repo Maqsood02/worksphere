@@ -63,8 +63,6 @@ export default function InternDashboard() {
     };
   }, [user]);
 
-  const isDemo = ['maqsood', 'chinmaykv', 'intern'].includes((user?.username || '').toLowerCase());
-
   const defaultInternData = {
     success: true,
     profile: {
@@ -72,26 +70,23 @@ export default function InternDashboard() {
       name: user?.name || 'Intern',
       email: user?.email || 'intern@worksphere.ac.in',
       track: 'Full-Stack Software Engineering',
-      mentorName: isDemo ? 'Dr. Sarah Jenkins' : 'Unassigned Mentor',
+      mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
-      stipendType: 'PAID',
+      stipendType: 'UNPAID',
       stipendCurrency: 'INR',
-      stipendAmount: isDemo ? '₹15,000 / mo' : 'Pending Admin Setup',
-      performanceRating: isDemo ? '4.9 / 5.0' : 'New Intern'
+      stipendAmount: 'Unpaid (Academic Credit)',
+      performanceRating: 'New Intern'
     },
     stats: {
-      tasksCompleted: isDemo ? 1 : 0,
-      tasksTotal: isDemo ? 2 : 0,
-      hoursLogged: isDemo ? 16 : 0,
-      attendanceRate: isDemo ? '100%' : '0%',
-      stipendStatus: isDemo ? 'Paid (₹15,000 / mo)' : 'Pending Admin Setup'
+      tasksCompleted: 0,
+      tasksTotal: 0,
+      hoursLogged: 0,
+      attendanceRate: '0%',
+      stipendStatus: 'Unpaid (Academic Credit)'
     },
-    tasks: isDemo ? [
-      { id: 'TSK-101', title: 'Deploy Vercel & Spring Boot Config', status: 'COMPLETED', deadline: '2026-08-08', description: 'Configure CORS, SMTPS Email, and MongoDB schemas.' },
-      { id: 'TSK-102', title: 'Implement React 19 Frontend Components', status: 'IN_PROGRESS', deadline: '2026-08-15', description: 'Build responsive admin, intern, and client dashboards.' }
-    ] : [],
+    tasks: [],
     attendanceLogs: [],
     learningModules: [],
     certificate: { issued: false }
