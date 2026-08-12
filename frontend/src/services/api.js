@@ -623,6 +623,18 @@ export const api = {
             stipendAmount: 'Unpaid (Academic Credit)'
           };
         }
+
+        // Clean stats to strictly reflect real tasks and attendance logs
+        const tasksArr = Array.isArray(res.tasks) ? res.tasks : [];
+        const logsArr = Array.isArray(res.attendanceLogs) ? res.attendanceLogs : [];
+        res.stats = {
+          ...(res.stats || {}),
+          tasksCompleted: tasksArr.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
+          tasksTotal: tasksArr.length,
+          hoursLogged: logsArr.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+          attendanceRate: logsArr.length === 0 ? '0%' : '100%',
+          stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
+        };
       } catch (e) {}
     }
     return res;

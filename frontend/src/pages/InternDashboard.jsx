@@ -233,18 +233,12 @@ export default function InternDashboard() {
 
   const hasCertificate = certificate && certificate.issued;
 
-  // Compute live metrics strictly based on tasks, attendance, & Admin profile configuration
-  const completedTasksVal = typeof stats?.tasksCompleted === 'number' 
-    ? stats.tasksCompleted 
-    : tasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length;
-
-  const totalTasksVal = typeof stats?.tasksTotal === 'number' 
-    ? stats.tasksTotal 
-    : tasks.length;
-
-  const hoursLoggedVal = typeof stats?.hoursLogged === 'number' 
-    ? stats.hoursLogged 
-    : (attendanceLogs.length > 0 ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 8), 0) : 0);
+  // Compute live metrics strictly based on actual tasks & attendanceLogs arrays
+  const completedTasksVal = tasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length;
+  const totalTasksVal = tasks.length;
+  const hoursLoggedVal = attendanceLogs.length > 0 
+    ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0) 
+    : 0;
 
   const filteredTasks = tasks.filter(t => {
     if (taskFilter === 'ALL') return true;
