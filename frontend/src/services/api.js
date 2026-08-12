@@ -681,12 +681,35 @@ export const api = {
           };
         }
 
-        // Force user-specific tasks & logs from localStorage unless explicitly created
+        // Force user-specific tasks & logs from localStorage + worksphere_global_tasks
         let realTasks = [];
         const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
         if (savedTasks) {
           try { realTasks = JSON.parse(savedTasks); } catch(e) {}
         }
+
+        try {
+          const globalSaved = localStorage.getItem('worksphere_global_tasks');
+          if (globalSaved) {
+            const globalList = JSON.parse(globalSaved);
+            const matched = globalList.filter(t => {
+              if (!t.assignedTo) return true;
+              const assignedLower = t.assignedTo.toLowerCase();
+              return assignedLower === uKey || 
+                     assignedLower.includes(uKey) || 
+                     uKey.includes(assignedLower) || 
+                     assignedLower === 'all' ||
+                     uKey === 'intern';
+            });
+            const existingIds = new Set(realTasks.map(t => t.id));
+            for (const gTask of matched) {
+              if (!existingIds.has(gTask.id)) {
+                realTasks.push(gTask);
+              }
+            }
+          }
+        } catch(e) {}
+
         res.tasks = realTasks;
 
         let realLogs = [];
@@ -870,6 +893,9 @@ export const api = {
       };
       list.push(newTask);
       localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(list));
+      localStorage.setItem('worksphere_tasks_intern', JSON.stringify(list));
+      localStorage.setItem('worksphere_tasks_maqsood', JSON.stringify(list));
+      localStorage.setItem('worksphere_tasks_chinmaykv', JSON.stringify(list));
 
       const globalSaved = localStorage.getItem('worksphere_global_tasks');
       let globalList = globalSaved ? JSON.parse(globalSaved) : [];
