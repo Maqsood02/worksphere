@@ -100,13 +100,29 @@ export default function InternDashboard() {
   const fetchInternData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
+      let localOverride = null;
+      try {
+        const uKey = (user?.username || 'intern').toLowerCase();
+        const savedOverride = localStorage.getItem(`worksphere_profile_${uKey}`) || localStorage.getItem('worksphere_active_intern_profile');
+        if (savedOverride) {
+          localOverride = JSON.parse(savedOverride);
+        }
+      } catch (e) {}
+
       const res = await api.getInternOverview();
       if (res && res.success && (res.profile || res.intern)) {
+        const apiProfile = res.profile || res.intern;
+        const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
         const normalized = {
           ...res,
-          profile: res.profile || res.intern
+          profile: finalProfile
         };
         setData(normalized);
+      } else if (localOverride) {
+        setData({
+          ...defaultInternData,
+          profile: { ...defaultInternData.profile, ...localOverride }
+        });
       } else {
         setData(defaultInternData);
       }

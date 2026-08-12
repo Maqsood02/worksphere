@@ -375,7 +375,8 @@ export default function AdminDashboard() {
     if (!targetIntern) return;
     try {
       const updatedAmount = editStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : editStipendAmount;
-      const res = await api.updateAdminIntern(targetIntern.username, {
+      const updatedPayload = {
+        username: targetIntern.username,
         stipendType: editStipendType,
         stipendCurrency: editStipendCurrency,
         stipendAmount: updatedAmount,
@@ -385,7 +386,23 @@ export default function AdminDashboard() {
         startDate: editStartDate,
         endDate: editEndDate,
         performanceRating: editPerformanceRating
-      });
+      };
+
+      // Save to localStorage immediately for instant cross-portal persistence
+      try {
+        const uKey = targetIntern.username.toLowerCase();
+        localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(updatedPayload));
+        localStorage.setItem('worksphere_active_intern_profile', JSON.stringify(updatedPayload));
+        
+        const profilesSaved = localStorage.getItem('worksphere_intern_profiles');
+        let profilesMap = profilesSaved ? JSON.parse(profilesSaved) : {};
+        profilesMap[uKey] = { ...(profilesMap[uKey] || {}), ...updatedPayload };
+        profilesMap['intern'] = { ...(profilesMap['intern'] || {}), ...updatedPayload };
+        profilesMap['maqsood'] = { ...(profilesMap['maqsood'] || {}), ...updatedPayload };
+        localStorage.setItem('worksphere_intern_profiles', JSON.stringify(profilesMap));
+      } catch (e) {}
+
+      const res = await api.updateAdminIntern(targetIntern.username, updatedPayload);
       if (res && res.success) {
         addToast(res.message);
         setShowEditStipendModal(false);
@@ -393,15 +410,7 @@ export default function AdminDashboard() {
           if (i.username.toLowerCase() === targetIntern.username.toLowerCase()) {
             return {
               ...i,
-              stipendType: editStipendType,
-              stipendCurrency: editStipendCurrency,
-              stipendAmount: updatedAmount,
-              mentorName: editMentorName,
-              mentorEmail: editMentorEmail,
-              track: editTrack,
-              startDate: editStartDate,
-              endDate: editEndDate,
-              performanceRating: editPerformanceRating
+              ...updatedPayload
             };
           }
           return i;
