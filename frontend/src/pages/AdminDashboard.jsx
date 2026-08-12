@@ -743,6 +743,10 @@ export default function AdminDashboard() {
             <GraduationCap className="w-4 h-4 shrink-0" />
             <span>Internship Portal</span>
           </button>
+          <button onClick={() => setActiveTab('curriculum')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'curriculum' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
+            <BookOpen className="w-4 h-4 shrink-0" />
+            <span>Learning Curriculum</span>
+          </button>
           <button onClick={() => setActiveTab('projects')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'projects' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <Layout className="w-4 h-4 shrink-0" />
             <span>Active Projects</span>
@@ -1107,87 +1111,91 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Learning Curriculum & Video Resources Management */}
-            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="font-poppins font-extrabold text-base text-slate-800 flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-indigo-600" /> Learning Roadmap & Video Resources
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Upload YouTube video tutorials, GitHub repos, and documentation resources. These immediately publish to all intern portals.
+        {/* TAB: LEARNING CURRICULUM */}
+        {activeTab === 'curriculum' && (
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+              <div>
+                <h3 className="font-poppins font-extrabold text-xl text-slate-900 flex items-center gap-2.5">
+                  <GraduationCap className="w-6 h-6 text-indigo-600" /> Learning Roadmap & Video Resources
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Upload YouTube video tutorials, GitHub repos, and documentation resources. Published resources automatically appear on all intern portals.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleLoadPresets}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-indigo-200/80 transition-all cursor-pointer whitespace-nowrap shadow-sm"
+                >
+                  + Load Preset Curriculum
+                </button>
+                <button
+                  onClick={() => setShowAddModuleModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <PlusCircle className="w-4 h-4" /> Upload Video & Resource
+                </button>
+              </div>
+            </div>
+
+            {learningModules.length === 0 ? (
+              <div className="bg-slate-50/70 p-12 rounded-3xl border border-dashed border-slate-200 text-center space-y-4 max-w-xl mx-auto my-6">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+                  <GraduationCap className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="font-poppins font-bold text-base text-slate-800">No Learning Modules Published Yet</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto font-medium">
+                    Click <strong>"Upload Video & Resource"</strong> to add custom tutorials or click <strong>"+ Load Preset Curriculum"</strong> to publish standard engineering modules.
                   </p>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    onClick={handleLoadPresets}
-                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    + Load Preset Curriculum
-                  </button>
-                  <button
-                    onClick={() => setShowAddModuleModal(true)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0 cursor-pointer"
-                  >
-                    <PlusCircle className="w-4 h-4" /> Upload Video & Resource
-                  </button>
-                </div>
               </div>
-
-              {learningModules.length === 0 ? (
-                <div className="bg-slate-50/60 p-8 rounded-2xl border border-dashed border-slate-200 text-center space-y-3">
-                  <GraduationCap className="w-8 h-8 text-slate-400 mx-auto" />
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-sm text-slate-700">No Learning Modules Published Yet</h4>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto">
-                      Click <strong>"Upload Video & Resource"</strong> to add a custom video tutorial or click <strong>"+ Load Preset Curriculum"</strong> to publish standard engineering modules.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {learningModules.map(mod => (
-                    <div key={mod.id} className="bg-slate-50/80 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between hover:border-indigo-300 transition-all">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                            {mod.category || 'Engineering'}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteModule(mod.id)}
-                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
-                            title="Remove Learning Module"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <h4 className="font-poppins font-bold text-sm text-slate-800 leading-snug">{mod.title}</h4>
-                        {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{mod.description}</p>}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                {learningModules.map(mod => (
+                  <div key={mod.id} className="bg-slate-50/90 border border-slate-200/90 p-6 rounded-2xl space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                          {mod.category || 'Engineering'}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteModule(mod.id)}
+                          className="text-slate-400 hover:text-rose-600 p-1.5 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
+                          title="Remove Learning Module"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-200/60 space-y-2 text-xs">
-                        {mod.videoUrl && (
-                          <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-[11px] truncate">
-                            <span className="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px]">▶ YouTube</span>
-                            <span className="truncate">{mod.videoUrl}</span>
-                          </div>
-                        )}
-                        {mod.resourceUrl && (
-                          <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px] truncate">
-                            <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
-                            <a href={mod.resourceUrl} target="_blank" rel="noreferrer" className="hover:underline text-indigo-600 font-semibold truncate">
-                              {mod.resourceUrl}
-                            </a>
-                          </div>
-                        )}
-                      </div>
+                      <h4 className="font-poppins font-bold text-base text-slate-900 leading-snug">{mod.title}</h4>
+                      {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{mod.description}</p>}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
+                    <div className="pt-4 border-t border-slate-200/80 space-y-2 text-xs">
+                      {mod.videoUrl && (
+                        <div className="flex items-center gap-2 text-indigo-600 font-bold text-[11px] truncate bg-white p-2.5 rounded-xl border border-slate-200/60">
+                          <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[10px] shrink-0 font-extrabold">▶ YouTube</span>
+                          <span className="truncate">{mod.videoUrl}</span>
+                        </div>
+                      )}
+                      {mod.resourceUrl && (
+                        <div className="flex items-center gap-2 text-slate-600 font-semibold text-[11px] truncate bg-white p-2.5 rounded-xl border border-slate-200/60">
+                          <ExternalLink className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <a href={mod.resourceUrl} target="_blank" rel="noreferrer" className="hover:underline text-indigo-600 font-bold truncate">
+                            {mod.resourceUrl}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
