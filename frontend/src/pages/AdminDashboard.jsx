@@ -262,7 +262,19 @@ export default function AdminDashboard() {
       } else if (res && Array.isArray(res.interns)) {
         interns = res.interns;
       }
-      setInternsList(interns && interns.length > 0 ? interns : defaultInterns);
+
+      // Deduplicate interns by lowercase username & remove sample intern key
+      const seen = new Set();
+      const uniqueInterns = [];
+      (interns || []).forEach(i => {
+        const uKey = (i.username || '').trim().toLowerCase();
+        if (uKey && uKey !== 'intern' && !seen.has(uKey)) {
+          seen.add(uKey);
+          uniqueInterns.push({ ...i, username: uKey });
+        }
+      });
+
+      setInternsList(uniqueInterns);
     } catch (err) {
       console.error(err);
       setInternsList(defaultInterns);

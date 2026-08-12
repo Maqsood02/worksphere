@@ -80,31 +80,15 @@ function getStoredInternProfiles() {
       stipendAmount: 'Unpaid (Academic Credit)',
       performanceRating: '4.8 / 5.0',
       certificateStatus: 'ISSUED'
-    },
-    'intern': {
-      username: 'intern',
-      name: 'Alex Rivera',
-      email: 'alex.intern@worksphere.ac.in',
-      phone: '9876543210',
-      track: 'Full-Stack Software Engineering',
-      mentorName: 'Dr. Sarah Jenkins',
-      mentorEmail: 's.jenkins@worksphere.ac.in',
-      startDate: '2026-06-01',
-      endDate: '2026-08-31',
-      stipendType: 'UNPAID',
-      stipendCurrency: 'INR',
-      stipendAmount: 'Unpaid (Academic Credit)',
-      performanceRating: '4.9 / 5.0',
-      certificateStatus: 'NOT_ISSUED'
     }
   };
 
-  // Force cache bust old stale browser localStorage
+  // Force cache bust v4 to remove duplicate profiles and sample intern
   const cacheVer = localStorage.getItem('worksphere_profiles_version');
-  if (cacheVer !== 'v3') {
+  if (cacheVer !== 'v4') {
     localStorage.removeItem('worksphere_intern_profiles');
     localStorage.removeItem('worksphere_active_intern_profile');
-    localStorage.setItem('worksphere_profiles_version', 'v3');
+    localStorage.setItem('worksphere_profiles_version', 'v4');
   }
 
   const saved = localStorage.getItem('worksphere_intern_profiles');
@@ -397,30 +381,40 @@ function isValidEmailFormat(email) {
   if (url.includes('/api/admin/interns')) {
     const profiles = getStoredInternProfiles();
     const users = getStoredUsersList();
+    
+    const uniqueMap = {};
+    Object.keys(profiles).forEach(k => {
+      const lower = k.toLowerCase();
+      if (lower !== 'intern') {
+        uniqueMap[lower] = { ...profiles[k], username: lower };
+      }
+    });
+
     users.forEach(u => {
       const r = (u.role || '').toUpperCase();
       const uname = (u.username || '').toLowerCase();
-      if ((r.includes('INTERN')) && !profiles[uname]) {
-        profiles[uname] = {
-          username: u.username,
+      if ((r.includes('INTERN')) && uname !== 'intern' && !uniqueMap[uname]) {
+        uniqueMap[uname] = {
+          username: uname,
           name: u.name || u.username,
-          email: u.email || `${u.username}@worksphere.ac.in`,
+          email: u.email || `${uname}@worksphere.ac.in`,
           phone: u.phone || '',
           track: 'Full-Stack Software Engineering',
-          mentorName: 'Dr. Sarah Jenkins',
-          stipendType: 'PAID',
+          mentorName: 'Unassigned Mentor',
+          stipendType: 'UNPAID',
           stipendCurrency: 'INR',
-          stipendAmount: '₹15,000 / mo',
-          performanceRating: '4.9 / 5.0',
+          stipendAmount: 'Unpaid (Academic Credit)',
+          performanceRating: 'New Intern',
           certificateStatus: 'NOT_ISSUED'
         };
       }
     });
-    saveStoredInternProfiles(profiles);
-    const result = Object.values(profiles).map(p => ({
+
+    saveStoredInternProfiles(uniqueMap);
+    const result = Object.values(uniqueMap).map(p => ({
       ...p,
-      tasksTotal: 2,
-      tasksCompleted: 1
+      tasksTotal: 0,
+      tasksCompleted: 0
     }));
     return { success: true, interns: result, allTasks: [] };
   }
