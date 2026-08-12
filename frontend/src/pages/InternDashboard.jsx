@@ -208,7 +208,29 @@ export default function InternDashboard() {
   }
 
   const { profile, stats, tasks = [], attendanceLogs = [], learningModules = [], certificate } = data || {};
-  const isPaid = (profile?.stipendType || '').toUpperCase() !== 'UNPAID';
+
+  const stipendTypeUpper = ((profile?.stipendType || stats?.stipendType || '').toUpperCase());
+  const stipendAmountStr = (profile?.stipendAmount || stats?.stipendAmount || '').toString();
+  const stipendStatusStr = (stats?.stipendStatus || '').toString();
+
+  const isExplicitUnpaid = stipendTypeUpper === 'UNPAID' || 
+    stipendAmountStr.toLowerCase().includes('unpaid') || 
+    stipendStatusStr.toLowerCase().includes('unpaid');
+
+  const isPaid = !isExplicitUnpaid && (
+    stipendTypeUpper === 'PAID' || 
+    (profile?.stipendAmount && !profile.stipendAmount.includes('Pending') && !profile.stipendAmount.toLowerCase().includes('unpaid'))
+  );
+
+  const rawStipendAmount = profile?.stipendAmount || (isPaid ? '₹15,000 / mo' : 'Unpaid (Academic Credit)');
+  const displayStipend = isExplicitUnpaid 
+    ? 'Unpaid (Academic Credit)' 
+    : (isPaid ? rawStipendAmount : 'Pending Admin Setup');
+
+  const isUsdCurrency = rawStipendAmount.includes('$') || profile?.stipendCurrency === 'USD';
+  const isRupeeCurrency = !isUsdCurrency; // Default is ALWAYS INR (₹ Rupees)!
+  const isStipendSetByAdmin = isExplicitUnpaid || (isPaid && rawStipendAmount !== 'Pending Admin Setup');
+
   const hasCertificate = certificate && certificate.issued;
 
   // Compute live metrics strictly based on tasks, attendance, & Admin profile configuration
@@ -223,12 +245,6 @@ export default function InternDashboard() {
   const hoursLoggedVal = typeof stats?.hoursLogged === 'number' 
     ? stats.hoursLogged 
     : (attendanceLogs.length > 0 ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 8), 0) : 0);
-
-  const rawStipendAmount = profile?.stipendAmount || stats?.stipendAmount || 'Pending Admin Setup';
-  const displayStipend = isPaid ? rawStipendAmount : 'Unpaid (Academic Credit)';
-  const isUsdCurrency = rawStipendAmount.includes('$') || profile?.stipendCurrency === 'USD';
-  const isRupeeCurrency = !isUsdCurrency; // Default is ALWAYS INR (₹ Rupees)!
-  const isStipendSetByAdmin = isPaid ? (rawStipendAmount && rawStipendAmount !== 'Pending Admin Setup') : true;
 
   const filteredTasks = tasks.filter(t => {
     if (taskFilter === 'ALL') return true;
@@ -257,11 +273,11 @@ export default function InternDashboard() {
                   <ShieldCheck className="w-3.5 h-3.5" /> Active Intern
                 </span>
                 <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${
-                  isPaid 
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' 
-                    : 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                  isExplicitUnpaid 
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/30' 
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
                 }`}>
-                  {isPaid ? `Paid Stipend (${displayStipend})` : 'Academic Credit (Unpaid)'}
+                  {isExplicitUnpaid ? 'Academic Credit (Unpaid)' : `Paid Stipend (${displayStipend})`}
                 </span>
               </div>
 
@@ -366,18 +382,18 @@ export default function InternDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                !isStipendSetByAdmin
+                isExplicitUnpaid
                   ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : isPaid 
+                  : (isPaid 
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200')
               }`}>
-                {!isStipendSetByAdmin ? '• PENDING SETUP' : (isPaid ? '• PAID STIPEND' : '• UNPAID')}
+                {isExplicitUnpaid ? '• UNPAID' : (isPaid ? '• PAID STIPEND' : '• PENDING SETUP')}
               </span>
               <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Stipend Status</span>
             </div>
             
-            {isPaid && isStipendSetByAdmin && (
+            {isPaid && !isExplicitUnpaid && (
               <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${
                 isRupeeCurrency ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
               }`}>
@@ -391,19 +407,19 @@ export default function InternDashboard() {
               {displayStipend}
             </div>
             <p className="text-[11px] text-slate-500 font-semibold">
-              {!isStipendSetByAdmin 
-                ? 'Stipend settings awaiting admin confirmation'
-                : (isPaid ? 'Monthly performance stipend payout' : 'Academic credit program (Unpaid)')}
+              {isExplicitUnpaid 
+                ? 'Academic credit program (Unpaid)'
+                : (isPaid ? 'Monthly performance stipend payout' : 'Stipend settings awaiting admin confirmation')}
             </p>
           </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
             <span className={`text-[11px] font-bold flex items-center gap-1 ${
-              !isStipendSetByAdmin ? 'text-amber-600' : (isPaid ? 'text-emerald-600' : 'text-indigo-600')
+              isExplicitUnpaid ? 'text-indigo-600' : (isPaid ? 'text-emerald-600' : 'text-amber-600')
             }`}>
-              {isStipendSetByAdmin 
-                ? (isPaid ? '✓ Paid Stipend Active & Configured' : '✓ Academic Credit Approved')
-                : 'Awaiting Admin Action'
+              {isExplicitUnpaid 
+                ? '✓ Academic Credit Approved'
+                : (isPaid ? '✓ Paid Stipend Active & Configured' : 'Awaiting Admin Action')
               }
             </span>
             <span className="text-[10px] font-mono font-bold text-slate-400">
