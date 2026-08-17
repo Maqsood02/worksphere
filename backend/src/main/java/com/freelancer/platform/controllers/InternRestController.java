@@ -509,10 +509,10 @@ public class InternRestController {
 
     @PostMapping("/api/admin/interns/tasks/{taskId}/status")
     public synchronized ResponseEntity<?> updateTaskStatus(@PathVariable String taskId, @RequestBody Map<String, String> payload) {
-        String status = payload.get("status");
+        String status = payload != null ? payload.get("status") : "COMPLETED";
 
         for (Map<String, Object> t : tasksList) {
-            if (taskId.equals(t.get("id"))) {
+            if (taskId.equalsIgnoreCase(String.valueOf(t.get("id")))) {
                 t.put("status", status != null ? status : "COMPLETED");
                 return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -523,5 +523,19 @@ public class InternRestController {
         }
 
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task not found."));
+    }
+
+    @DeleteMapping("/api/admin/interns/tasks/{taskId}")
+    public synchronized ResponseEntity<?> deleteInternTask(@PathVariable String taskId) {
+        boolean removed = tasksList.removeIf(t -> taskId.equalsIgnoreCase(String.valueOf(t.get("id"))));
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Assigned deliverable task " + taskId + " deleted successfully!"
+        ));
+    }
+
+    @PostMapping("/api/admin/interns/tasks/{taskId}/delete")
+    public synchronized ResponseEntity<?> deleteInternTaskPost(@PathVariable String taskId) {
+        return deleteInternTask(taskId);
     }
 }

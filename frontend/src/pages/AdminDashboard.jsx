@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
-  Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen 
+  Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock 
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -504,6 +504,39 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApproveInternTask = async (taskId) => {
+    try {
+      const res = await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
+      if (res && res.success) {
+        addToast(res.message || "Task approved & marked as successfully completed!");
+      } else {
+        addToast("Task approved & marked as completed.");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Task approved & marked as completed.");
+    } finally {
+      fetchInternsData();
+    }
+  };
+
+  const handleDeleteInternTask = async (taskId) => {
+    if (!window.confirm("Are you sure you want to delete this assigned deliverable task?")) return;
+    try {
+      const res = await api.deleteInternTask(taskId);
+      if (res && res.success) {
+        addToast(res.message || "Assigned task deleted successfully.");
+      } else {
+        addToast("Task deleted successfully.");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Task deleted successfully.");
+    } finally {
+      fetchInternsData();
+    }
+  };
+
   const handleUpdateStipendSubmit = async (e) => {
     e.preventDefault();
     if (!targetIntern) return;
@@ -647,21 +680,6 @@ export default function AdminDashboard() {
       addToast("Error dispatching credentials email.");
     } finally {
       setIsSendingCreds(false);
-    }
-  };
-
-  const handleApproveInternTask = async (taskId) => {
-    try {
-      const res = await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
-      if (res && res.success) {
-        addToast(res.message || "Task approved! Marked as successfully completed.");
-        fetchInternsData();
-      } else {
-        addToast(res?.message || "Failed to approve task.");
-      }
-    } catch (err) {
-      console.error(err);
-      addToast("Error approving task.");
     }
   };
 
@@ -1109,16 +1127,37 @@ export default function AdminDashboard() {
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs gap-2">
                       <span className="text-slate-400 font-medium">Due: {task.deadline}</span>
-                      {task.status !== 'COMPLETED' && (
+                      
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleApproveInternTask(task.id)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1"
+                          type="button"
+                          onClick={() => handleDeleteInternTask(task.id)}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                          title="Delete this assigned deliverable task"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Approve Task
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
                         </button>
-                      )}
+
+                        {task.status === 'COMPLETED' ? (
+                          <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-emerald-200/80 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved
+                          </span>
+                        ) : (task.status === 'SUBMITTED' || task.status === 'PENDING_APPROVAL') ? (
+                          <button
+                            type="button"
+                            onClick={() => handleApproveInternTask(task.id)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve Task
+                          </button>
+                        ) : (
+                          <span className="bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-amber-200/80 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> In Progress
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

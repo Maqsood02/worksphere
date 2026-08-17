@@ -1031,6 +1031,27 @@ export const api = {
       body: JSON.stringify({ status })
     });
   },
+  deleteInternTask: async (taskId) => {
+    try {
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        let globalList = JSON.parse(globalSaved);
+        globalList = globalList.filter(t => t.id !== taskId);
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
+      }
+      ['intern', 'maqsood', 'chinmaykv'].forEach(k => {
+        const saved = localStorage.getItem(`worksphere_tasks_${k}`);
+        if (saved) {
+          let list = JSON.parse(saved);
+          list = list.filter(t => t.id !== taskId);
+          localStorage.setItem(`worksphere_tasks_${k}`, JSON.stringify(list));
+        }
+      });
+    } catch(e) {}
+    return request(`/api/admin/interns/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+  },
   // Admin User Directory & Role Management
   getAdminUsers: () => request('/api/admin/users'),
   createAdminUser: (payload) => 
