@@ -48,6 +48,20 @@ public class InternRestController {
         internData.put("performanceRating", "New Intern");
         internData.put("certificateStatus", "NOT_ISSUED"); // NOT_ISSUED, PENDING, ISSUED
         internProfiles.put("intern", internData);
+
+        // Seed Profile for "maqsood"
+        Map<String, Object> maqsoodData = new HashMap<>(internData);
+        maqsoodData.put("username", "maqsood");
+        maqsoodData.put("name", "Maqsood MD");
+        maqsoodData.put("email", "maqsoodmd.ac.in@gmail.com");
+        internProfiles.put("maqsood", maqsoodData);
+
+        // Seed Profile for "chinmaykv"
+        Map<String, Object> chinmayData = new HashMap<>(internData);
+        chinmayData.put("username", "chinmaykv");
+        chinmayData.put("name", "Chinmay K V");
+        chinmayData.put("email", "chinmaykv555@gmail.com");
+        internProfiles.put("chinmaykv", chinmayData);
     }
 
     private synchronized Map<String, Object> getOrCreateProfile(String username) {
@@ -104,7 +118,7 @@ public class InternRestController {
         stats.put("hoursLogged", totalLoggedHours);
         stats.put("attendanceRate", myAttendance.isEmpty() ? "0%" : "100%");
         
-        String stipendType = (String) profile.getOrDefault("stipendType", "PAID");
+        String stipendType = (String) profile.getOrDefault("stipendType", "UNPAID");
         if ("UNPAID".equalsIgnoreCase(stipendType)) {
             stats.put("stipendStatus", "Unpaid (Academic Credit)");
         } else {
@@ -259,10 +273,19 @@ public class InternRestController {
         Map<String, Object> profile = getOrCreateProfile(username);
 
         if (payload.containsKey("stipendType")) {
-            profile.put("stipendType", payload.get("stipendType"));
+            String sType = String.valueOf(payload.get("stipendType"));
+            profile.put("stipendType", sType);
+            if ("UNPAID".equalsIgnoreCase(sType)) {
+                profile.put("stipendAmount", "Unpaid (Academic Credit)");
+            }
         }
         if (payload.containsKey("stipendAmount")) {
-            profile.put("stipendAmount", payload.get("stipendAmount"));
+            String currentType = String.valueOf(profile.getOrDefault("stipendType", "UNPAID"));
+            if ("UNPAID".equalsIgnoreCase(currentType)) {
+                profile.put("stipendAmount", "Unpaid (Academic Credit)");
+            } else {
+                profile.put("stipendAmount", payload.get("stipendAmount"));
+            }
         }
         if (payload.containsKey("stipendCurrency")) {
             profile.put("stipendCurrency", payload.get("stipendCurrency"));
