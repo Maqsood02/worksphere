@@ -333,7 +333,7 @@ public class InternRestController {
         newTask.put("title", title);
         newTask.put("description", description != null ? description : "");
         newTask.put("deadline", deadline != null && !deadline.isBlank() ? deadline : LocalDate.now().plusDays(7).toString());
-        newTask.put("priority", priority != null ? priority : "HIGH");
+        newTask.put("priority", priority != null && !priority.isBlank() ? priority : "HIGH");
         newTask.put("status", "IN_PROGRESS");
         newTask.put("submissionUrl", "");
         newTask.put("submissionNotes", "");

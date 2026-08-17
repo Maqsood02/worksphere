@@ -491,8 +491,8 @@ export default function AdminDashboard() {
       const res = await api.assignInternTask(targetUser, {
         title: newTaskTitle,
         description: newTaskDesc,
-        deadline: newTaskDeadline,
-        priority: newTaskPriority
+        deadline: newTaskDeadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: newTaskPriority || 'HIGH'
       });
       if (res && res.success) {
         addToast(res.message);
