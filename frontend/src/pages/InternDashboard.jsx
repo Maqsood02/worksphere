@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { 
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
-  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign
+  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload
 } from 'lucide-react';
 
 export default function InternDashboard() {
