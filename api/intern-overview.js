@@ -40,17 +40,25 @@ export default async function handler(req, res) {
       submissionNotes: t.submissionNotes || ''
     }));
 
-    // Query Attendance
-    const allLogs = await attendanceCol.find({}).sort({ createdAt: -1 }).toArray();
-    const myLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey).map(l => ({
-      id: l.logId || l.id || l._id.toString(),
-      logId: l.logId || l.id || l._id.toString(),
-      username: l.username,
-      date: l.date,
-      hours: Number(l.hours) || 8,
-      summary: l.summary || '',
-      status: l.status || 'SUBMITTED'
-    }));
+    const myLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey).map(l => {
+      let timeStr = l.time;
+      if (!timeStr && l.createdAt) {
+        try {
+          timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        } catch (e) {}
+      }
+      return {
+        id: l.logId || l.id || l._id.toString(),
+        logId: l.logId || l.id || l._id.toString(),
+        username: l.username,
+        date: l.date || new Date().toISOString().split('T')[0],
+        time: timeStr || '10:00 AM',
+        hours: Number(l.hours) || 8,
+        summary: l.summary || '',
+        status: l.status || 'SUBMITTED',
+        createdAt: l.createdAt || new Date()
+      };
+    });
 
     const completedCount = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
     const totalHours = myLogs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);

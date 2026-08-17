@@ -32,25 +32,30 @@ export default async function handler(req, res) {
     // 2. CREATE NEW ATTENDANCE LOG (POST)
     if (req.method === 'POST') {
       const body = req.body || {};
-      const { username = 'intern', hours = 8, summary = '', date = new Date().toISOString().split('T')[0] } = body;
+      const { username = 'intern', hours = 8, summary = '', date } = body;
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      const dateStr = date || now.toISOString().split('T')[0];
 
       const logId = 'ATT-' + Date.now();
       const newLogDoc = {
         logId,
         id: logId,
         username: username.replace(/^@+/, '').toLowerCase().trim(),
-        date,
+        date: dateStr,
+        time: timeStr,
         hours: Number(hours) || 8,
         summary: summary.trim(),
         status: 'SUBMITTED',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       };
 
       await attendanceCol.insertOne(newLogDoc);
       return res.status(200).json({
         success: true,
-        message: 'Daily standup log saved successfully!',
+        message: `Daily standup recorded for ${dateStr} at ${timeStr}!`,
         log: newLogDoc
       });
     }

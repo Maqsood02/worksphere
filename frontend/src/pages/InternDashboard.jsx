@@ -34,6 +34,16 @@ export default function InternDashboard() {
   // Task Filter
   const [taskFilter, setTaskFilter] = useState('ALL');
 
+  // Real-Time Live Clock State
+  const [liveClock, setLiveClock] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+
+  useEffect(() => {
+    const clockTimer = setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+    }, 1000);
+    return () => clearInterval(clockTimer);
+  }, []);
+
   // Learning Module Video Modal State
   const [selectedModule, setSelectedModule] = useState(null);
 
@@ -856,114 +866,140 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
       )}
 
       {/* TAB 2: STANDUP LOGS */}
-      {activeTab === 'standup' && (
-        <div className="space-y-6">
-          {/* Clean Modern Section Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-lg">
-                  Timesheet Tracker
-                </span>
-                <span className="text-xs text-slate-500 font-semibold">• {attendanceLogs.length} {attendanceLogs.length === 1 ? 'Entry' : 'Entries'} Recorded</span>
-              </div>
-              <h3 className="text-xl font-poppins font-extrabold text-slate-900 tracking-tight">
-                Daily Standup & Timesheet Logs
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Log daily tasks, hours worked, and deliverables. Records sync automatically with your admin and mentors.
-              </p>
-            </div>
+      {activeTab === 'standup' && (() => {
+        const todayDateStr = new Date().toISOString().split('T')[0];
+        const todayLog = attendanceLogs.find(l => l.date === todayDateStr);
+        const currentDateFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
-            <button
-              onClick={() => setShowLogModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md shadow-indigo-500/20 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer whitespace-nowrap self-start sm:self-center"
-            >
-              <PlusCircle className="w-4 h-4" /> Log Today's Standup
-            </button>
-          </div>
+        return (
+          <div className="space-y-6">
+            {/* Clean Modern Section Bar with Real-Time Clock & Strict Date Tracker */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Real-Time Tracker
+                  </span>
+                  <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                    🕒 {liveClock}
+                  </span>
+                  <span className="text-xs text-slate-500 font-semibold">• {currentDateFormatted}</span>
+                </div>
 
-          {/* Standup Log Cards / Grid */}
-          {attendanceLogs.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
-                <Clock className="w-8 h-8" />
+                <h3 className="text-xl font-poppins font-extrabold text-slate-900 tracking-tight">
+                  Daily Standup & Real-Time Timesheet Logs
+                </h3>
+                
+                <div className="flex items-center gap-2 pt-0.5">
+                  {todayLog ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Checked-in Today: {todayLog.hours} hrs logged at {todayLog.time || '10:00 AM'} ({todayLog.status === 'APPROVED' ? 'Verified' : 'Under Review'})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
+                      Daily Standup Check-in Pending for Today ({currentDateFormatted})
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="space-y-1">
-                <h4 className="text-base font-poppins font-bold text-slate-800">No Standup Logs Recorded Yet</h4>
-                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                  You haven't recorded any daily standup logs yet. Click the button below to log today's hours and work summary.
-                </p>
-              </div>
+
               <button
                 onClick={() => setShowLogModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+                className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold text-xs px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer whitespace-nowrap self-start md:self-center"
               >
-                <PlusCircle className="w-4 h-4" /> Log Today's Work
+                <PlusCircle className="w-4 h-4" /> {todayLog ? 'Update Today\'s Standup' : 'Record Today\'s Standup'}
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {attendanceLogs.map(log => {
-                const isApproved = log.status === 'APPROVED';
 
-                return (
-                  <div
-                    key={log.id}
-                    className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 group"
-                  >
-                    <div className="space-y-3">
-                      {/* Top Header info */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
-                            {log.id}
-                          </span>
-                          <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            {log.date}
+            {/* Standup Log Cards / Grid */}
+            {attendanceLogs.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+                  <Clock className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-base font-poppins font-bold text-slate-800">No Standup Logs Recorded Yet</h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                    You haven't recorded any daily standup logs yet. Click the button above to log today's hours and work summary.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowLogModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" /> Record Today's Standup
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {attendanceLogs.map(log => {
+                  const isApproved = log.status === 'APPROVED';
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 group"
+                    >
+                      <div className="space-y-3">
+                        {/* Top Header info with exact Date & Real-time timestamp */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
+                              {log.id}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              {log.date}
+                            </span>
+                          </div>
+
+                          <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
+                            isApproved ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                            {isApproved ? 'Verified & Approved' : 'Submitted (Under Review)'}
                           </span>
                         </div>
 
-                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
-                          isApproved ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                          {isApproved ? 'Verified & Approved' : 'Submitted (Under Review)'}
+                        {/* Logged Hours & Exact Timestamp Pill */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-indigo-600" />
+                            <span className="text-xs font-bold text-slate-800">{log.hours} Hours Logged</span>
+                          </div>
+                          {log.time && (
+                            <div className="bg-indigo-50/60 border border-indigo-100 px-3 py-1.5 rounded-xl text-[11px] font-bold text-indigo-700 flex items-center gap-1">
+                              <span>🕒 Logged at {log.time}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Summary text */}
+                        <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 text-xs font-medium text-slate-700 leading-relaxed">
+                          <p className="italic text-slate-600">"{log.summary || 'Completed daily standup tasks and project milestones.'}"</p>
+                        </div>
+                      </div>
+
+                      {/* Footer bar */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Logged by <span className="font-bold text-slate-600">@{log.username || user?.username}</span>
+                        </span>
+
+                        <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Synced with Admin
                         </span>
                       </div>
-
-                      {/* Logged Hours Pill */}
-                      <div className="flex items-center gap-2">
-                        <div className="bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-indigo-600" />
-                          <span className="text-xs font-bold text-slate-800">{log.hours} Hours Logged</span>
-                        </div>
-                      </div>
-
-                      {/* Summary text */}
-                      <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 text-xs font-medium text-slate-700 leading-relaxed">
-                        <p className="italic text-slate-600">"{log.summary || 'Completed daily standup tasks and project milestones.'}"</p>
-                      </div>
                     </div>
-
-                    {/* Footer bar */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Logged by <span className="font-bold text-slate-600">@{log.username || user?.username}</span>
-                      </span>
-
-                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Synced with Admin
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* TAB 3: CURRICULUM */}
       {activeTab === 'curriculum' && (
