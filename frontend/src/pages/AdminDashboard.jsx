@@ -847,12 +847,25 @@ export default function AdminDashboard() {
     }
   };
 
-  function formatDisplayId(rawId, prefix = 'TSK') {
-    if (!rawId) return `${prefix}-101`;
+  function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (!rawId) {
+      if (index !== null && index !== undefined) {
+        return `${prefix}-${String(index + 1).padStart(3, '0')}`;
+      }
+      return `${prefix}-001`;
+    }
     const str = String(rawId).trim();
-    const match = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (match && match[2].length > 4) {
-      return `${match[1].toUpperCase()}-${match[2].slice(-4)}`;
+    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d{1,4})$/i);
+    if (cleanMatch) {
+      const num = parseInt(cleanMatch[2], 10);
+      return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
+    }
+    const longMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
+    if (longMatch && longMatch[2].length > 4) {
+      if (index !== null && index !== undefined) {
+        return `${longMatch[1].toUpperCase()}-${String(index + 1).padStart(3, '0')}`;
+      }
+      return `${longMatch[1].toUpperCase()}-001`;
     }
     return str.toUpperCase();
   }
@@ -1251,11 +1264,11 @@ export default function AdminDashboard() {
             <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-4">
               <h3 className="font-poppins font-bold text-base text-slate-800">Assigned Deliverables & Task Reviews</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {allInternTasks.map(task => (
+                {allInternTasks.map((task, idx) => (
                   <div key={task.id} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">{formatDisplayId(task.id, 'TSK')} • @{task.assignedTo || 'intern'}</span>
+                        <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">{formatDisplayId(task.id, 'TSK', idx)} • @{task.assignedTo || 'intern'}</span>
                         <span className={`px-2 py-0.5 rounded uppercase ${
                           task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
                           task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700 font-bold animate-pulse' :
@@ -1402,7 +1415,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                      {allAttendanceLogs.map(log => {
+                      {allAttendanceLogs.map((log, idx) => {
                         const logKey = log.logId || log.id;
                         const isEditing = editingLogId === logKey;
                         const isApproved = log.status === 'APPROVED';
@@ -1410,7 +1423,7 @@ export default function AdminDashboard() {
                         return (
                           <tr key={logKey} className="hover:bg-slate-50/60 transition-colors">
                             <td className="py-3.5 px-3 font-mono font-bold text-indigo-600 text-[11px]">
-                              {formatDisplayId(logKey, 'ATT')}
+                              {formatDisplayId(logKey, 'ATT', idx)}
                             </td>
                             <td className="py-3.5 px-3 font-bold text-slate-800">
                               @{log.username}

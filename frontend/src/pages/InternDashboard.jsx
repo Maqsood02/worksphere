@@ -71,12 +71,25 @@ export default function InternDashboard() {
     return null;
   }
 
-  function formatDisplayId(rawId, prefix = 'TSK') {
-    if (!rawId) return `${prefix}-101`;
+  function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (!rawId) {
+      if (index !== null && index !== undefined) {
+        return `${prefix}-${String(index + 1).padStart(3, '0')}`;
+      }
+      return `${prefix}-001`;
+    }
     const str = String(rawId).trim();
-    const match = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (match && match[2].length > 4) {
-      return `${match[1].toUpperCase()}-${match[2].slice(-4)}`;
+    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d{1,4})$/i);
+    if (cleanMatch) {
+      const num = parseInt(cleanMatch[2], 10);
+      return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
+    }
+    const longMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
+    if (longMatch && longMatch[2].length > 4) {
+      if (index !== null && index !== undefined) {
+        return `${longMatch[1].toUpperCase()}-${String(index + 1).padStart(3, '0')}`;
+      }
+      return `${longMatch[1].toUpperCase()}-001`;
     }
     return str.toUpperCase();
   }
@@ -766,7 +779,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {filteredTasks.map(task => {
+              {filteredTasks.map((task, idx) => {
                 const cleanAssignedTo = (task.assignedTo || '').replace(/^@+/, '').toLowerCase().trim();
                 const myUsernameClean = (user?.username || 'intern').replace(/^@+/, '').toLowerCase().trim();
                 const myNameClean = (user?.name || '').toLowerCase().trim();
@@ -788,7 +801,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-mono font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">
-                            {formatDisplayId(task.id, 'TSK')}
+                            {formatDisplayId(task.id, 'TSK', idx)}
                           </span>
                           <span className="text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             👤 {isAllTask ? 'ALL Interns' : `@${cleanAssignedTo}`}
@@ -944,7 +957,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {attendanceLogs.map(log => {
+                {attendanceLogs.map((log, idx) => {
                   const isApproved = log.status === 'APPROVED';
 
                   return (
@@ -957,7 +970,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
-                              {formatDisplayId(log.id, 'ATT')}
+                              {formatDisplayId(log.id, 'ATT', idx)}
                             </span>
                             <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />

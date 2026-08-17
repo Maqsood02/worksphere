@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       const dateStr = date || now.toISOString().split('T')[0];
 
       const totalCount = await attendanceCol.countDocuments();
-      const logId = `ATT-${100 + totalCount + 1}`;
+      const logId = `ATT-${String(totalCount + 1).padStart(3, '0')}`;
       const newLogDoc = {
         logId,
         id: logId,

@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       }
 
       const totalCount = await tasksCol.countDocuments();
-      const taskId = `TSK-${100 + totalCount + 1}`;
+      const taskId = `TSK-${String(totalCount + 1).padStart(3, '0')}`;
       const newTaskDoc = {
         taskId,
         id: taskId,
