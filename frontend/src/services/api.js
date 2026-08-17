@@ -106,12 +106,14 @@ function getStoredInternProfiles() {
     }
   };
 
-  // Force cache bust v4 to remove duplicate profiles and sample intern
+  // Force cache bust v6 to reset stipend status to UNPAID by default and clear stale PAID caches
   const cacheVer = localStorage.getItem('worksphere_profiles_version');
-  if (cacheVer !== 'v4') {
+  if (cacheVer !== 'v6') {
     localStorage.removeItem('worksphere_intern_profiles');
     localStorage.removeItem('worksphere_active_intern_profile');
-    localStorage.setItem('worksphere_profiles_version', 'v4');
+    localStorage.removeItem('worksphere_profile_maqsood');
+    localStorage.removeItem('worksphere_profile_chinmaykv');
+    localStorage.setItem('worksphere_profiles_version', 'v6');
   }
 
   const saved = localStorage.getItem('worksphere_intern_profiles');
@@ -919,9 +921,20 @@ export const api = {
     try {
       const uKey = (username || 'intern').toLowerCase();
       const storedProfiles = getStoredInternProfiles();
-      storedProfiles[uKey] = { ...(storedProfiles[uKey] || {}), ...payload, username };
+
+      const newStipendType = payload.stipendType || 'UNPAID';
+      const newStipendAmount = newStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : (payload.stipendAmount || '₹15,000 / mo');
+
+      const updatedPayload = {
+        ...payload,
+        username: uKey,
+        stipendType: newStipendType,
+        stipendAmount: newStipendAmount
+      };
+
+      storedProfiles[uKey] = { ...(storedProfiles[uKey] || {}), ...updatedPayload };
       saveStoredInternProfiles(storedProfiles);
-      localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(payload));
+      localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(updatedPayload));
     } catch (e) {}
     return request(`/api/admin/interns/${username}/update`, {
       method: 'POST',
