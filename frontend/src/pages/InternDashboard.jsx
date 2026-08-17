@@ -858,38 +858,29 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
       {/* TAB 2: STANDUP LOGS */}
       {activeTab === 'standup' && (
         <div className="space-y-6">
-          {/* Header Banner with Quick Stats */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 relative z-10">
-              <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 rounded-full text-[11px] font-bold text-indigo-300 backdrop-blur-md">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Daily Sprint Timesheet & Standup Logs</span>
+          {/* Clean Modern Section Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-lg">
+                  Timesheet Tracker
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">• {attendanceLogs.length} {attendanceLogs.length === 1 ? 'Entry' : 'Entries'} Recorded</span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-poppins font-extrabold tracking-tight">
-                Daily Standups & Timesheet Tracker
+              <h3 className="text-xl font-poppins font-extrabold text-slate-900 tracking-tight">
+                Daily Standup & Timesheet Logs
               </h3>
-              <p className="text-xs text-slate-300 font-medium max-w-xl leading-relaxed">
-                Log your daily sprint contributions, engineering milestones, and blockers. Logged hours are automatically verified and synchronized with your mentor.
+              <p className="text-xs text-slate-500 font-medium">
+                Log daily tasks, hours worked, and deliverables. Records sync automatically with your admin and mentors.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 relative z-10">
-              <div className="bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl text-center">
-                <span className="text-[10px] text-slate-300 font-semibold block uppercase tracking-wider">Total Verified</span>
-                <span className="text-lg font-poppins font-black text-indigo-300">{stats?.hoursLogged || 0} hrs</span>
-              </div>
-
-              <button
-                onClick={() => setShowLogModal(true)}
-                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white text-xs font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center gap-2.5 transition-all hover:scale-105 cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4" /> Record Today's Standup
-              </button>
-            </div>
-
-            {/* Decorative background glows */}
-            <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute -left-10 -top-10 w-48 h-48 bg-primary/20 rounded-full blur-2xl pointer-events-none"></div>
+            <button
+              onClick={() => setShowLogModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md shadow-indigo-500/20 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer whitespace-nowrap self-start sm:self-center"
+            >
+              <PlusCircle className="w-4 h-4" /> Log Today's Standup
+            </button>
           </div>
 
           {/* Standup Log Cards / Grid */}
