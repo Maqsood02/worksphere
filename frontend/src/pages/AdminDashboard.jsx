@@ -1404,14 +1404,14 @@ export default function AdminDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-extrabold text-[10px] uppercase tracking-wider">
-                        <th className="py-3 px-3">Entry ID</th>
-                        <th className="py-3 px-3">Intern</th>
-                        <th className="py-3 px-3">Date & Time</th>
-                        <th className="py-3 px-3">Hours Logged</th>
-                        <th className="py-3 px-3">Standup Summary</th>
-                        <th className="py-3 px-3">Approval Status</th>
-                        <th className="py-3 px-3 text-right">Actions</th>
+                      <tr className="border-b border-slate-200/80 text-slate-400 font-extrabold text-[10px] uppercase tracking-wider bg-slate-50/50">
+                        <th className="py-3.5 px-4 whitespace-nowrap">Entry ID</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Intern</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Date & Time</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Hours Logged</th>
+                        <th className="py-3.5 px-4 min-w-[220px]">Standup Summary</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Approval Status</th>
+                        <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -1421,20 +1421,22 @@ export default function AdminDashboard() {
                         const isApproved = log.status === 'APPROVED';
 
                         return (
-                          <tr key={logKey} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-3.5 px-3 font-mono font-bold text-indigo-600 text-[11px]">
-                              {formatDisplayId(logKey, 'ATT', idx)}
+                          <tr key={logKey} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-4 px-4 font-mono font-extrabold text-indigo-600 text-[11px] whitespace-nowrap align-middle">
+                              <span className="bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                                {formatDisplayId(logKey, 'ATT', idx)}
+                              </span>
                             </td>
-                            <td className="py-3.5 px-3 font-bold text-slate-800">
+                            <td className="py-4 px-4 font-bold text-slate-800 whitespace-nowrap align-middle">
                               @{log.username}
                             </td>
-                            <td className="py-3.5 px-3 text-slate-500">
-                              <div>{log.date || '2026-08-17'}</div>
+                            <td className="py-4 px-4 text-slate-600 whitespace-nowrap align-middle">
+                              <div className="font-bold text-slate-700">{log.date || '2026-08-17'}</div>
                               {log.time && <div className="text-[10px] text-slate-400 font-semibold">{log.time}</div>}
                             </td>
-                            <td className="py-3.5 px-3 font-bold">
+                            <td className="py-4 px-4 text-center align-middle whitespace-nowrap">
                               {isEditing ? (
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center justify-center gap-1">
                                   <input
                                     type="number"
                                     min="0"
@@ -1457,27 +1459,30 @@ export default function AdminDashboard() {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-lg border border-indigo-100">
+                                <span className="bg-indigo-50 text-indigo-700 font-extrabold px-3 py-1 rounded-xl border border-indigo-100/80 text-xs inline-block">
                                   {log.hours || 8} hrs
                                 </span>
                               )}
                             </td>
-                            <td className="py-3.5 px-3 max-w-xs truncate text-slate-600 text-xs">
-                              {log.summary || 'Daily standup recorded'}
+                            <td className="py-4 px-4 align-middle min-w-[240px] max-w-lg">
+                              <div className="bg-slate-50/70 border border-slate-100 p-3 rounded-2xl text-xs text-slate-700 leading-relaxed whitespace-normal break-words">
+                                <p className="italic font-medium text-slate-700">"{log.summary || 'Completed daily standup tasks and project milestones.'}"</p>
+                              </div>
                             </td>
-                            <td className="py-3.5 px-3">
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                            <td className="py-4 px-4 text-center align-middle whitespace-nowrap">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 ${
                                 isApproved ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
                               }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
                                 {isApproved ? 'Approved' : 'In Review'}
                               </span>
                             </td>
-                            <td className="py-3.5 px-3 text-right">
+                            <td className="py-4 px-4 text-right align-middle whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1.5">
                                 {!isApproved && (
                                   <button
                                     onClick={() => handleApproveAttendanceLog(logKey)}
-                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[11px] shadow-sm transition-all cursor-pointer"
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] shadow-sm transition-all cursor-pointer hover:scale-105"
                                   >
                                     Approve
                                   </button>
@@ -1487,13 +1492,13 @@ export default function AdminDashboard() {
                                     setEditingLogId(logKey);
                                     setEditingHours(log.hours || 8);
                                   }}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-[11px] cursor-pointer"
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-[11px] cursor-pointer transition-colors"
                                 >
                                   Edit Hours
                                 </button>
                                 <button
                                   onClick={() => handleDeleteAttendanceLog(logKey)}
-                                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2 py-1 rounded-lg text-[11px] border border-rose-200 cursor-pointer"
+                                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold p-2 rounded-xl text-[11px] border border-rose-200 cursor-pointer transition-colors"
                                   title="Delete this attendance entry"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
