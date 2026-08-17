@@ -847,6 +847,16 @@ export default function AdminDashboard() {
     }
   };
 
+  function formatDisplayId(rawId, prefix = 'TSK') {
+    if (!rawId) return `${prefix}-101`;
+    const str = String(rawId).trim();
+    const match = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
+    if (match && match[2].length > 4) {
+      return `${match[1].toUpperCase()}-${match[2].slice(-4)}`;
+    }
+    return str.toUpperCase();
+  }
+
   const cancelAppointment = async (appId) => {
     // Instant optimistic state update
     setAppointments(prev => prev.filter(a => a.id !== appId));
@@ -1245,7 +1255,7 @@ export default function AdminDashboard() {
                   <div key={task.id} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">{task.id} • @{task.assignedTo || 'intern'}</span>
+                        <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">{formatDisplayId(task.id, 'TSK')} • @{task.assignedTo || 'intern'}</span>
                         <span className={`px-2 py-0.5 rounded uppercase ${
                           task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
                           task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700 font-bold animate-pulse' :
@@ -1400,7 +1410,7 @@ export default function AdminDashboard() {
                         return (
                           <tr key={logKey} className="hover:bg-slate-50/60 transition-colors">
                             <td className="py-3.5 px-3 font-mono font-bold text-indigo-600 text-[11px]">
-                              {logKey}
+                              {formatDisplayId(logKey, 'ATT')}
                             </td>
                             <td className="py-3.5 px-3 font-bold text-slate-800">
                               @{log.username}

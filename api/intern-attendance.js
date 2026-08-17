@@ -38,7 +38,8 @@ export default async function handler(req, res) {
       const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
       const dateStr = date || now.toISOString().split('T')[0];
 
-      const logId = 'ATT-' + Date.now();
+      const totalCount = await attendanceCol.countDocuments();
+      const logId = `ATT-${100 + totalCount + 1}`;
       const newLogDoc = {
         logId,
         id: logId,

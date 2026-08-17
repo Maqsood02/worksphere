@@ -42,9 +42,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Task title is required' });
       }
 
-      const taskId = 'TSK-' + Date.now();
+      const totalCount = await tasksCol.countDocuments();
+      const taskId = `TSK-${100 + totalCount + 1}`;
       const newTaskDoc = {
         taskId,
+        id: taskId,
         assignedTo,
         title: title.trim(),
         description: description.trim(),
