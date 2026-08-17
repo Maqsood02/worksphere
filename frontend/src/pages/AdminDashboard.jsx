@@ -1144,7 +1144,7 @@ export default function AdminDashboard() {
                           <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-emerald-200/80 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved
                           </span>
-                        ) : (task.status === 'SUBMITTED' || task.status === 'PENDING_APPROVAL') ? (
+                        ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
                           <button
                             type="button"
                             onClick={() => handleApproveInternTask(task.id)}
