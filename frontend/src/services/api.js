@@ -1025,21 +1025,22 @@ export const api = {
     });
   },
   assignInternTask: async (username, payload) => {
+    const uKey = (username || 'intern').toLowerCase();
+    const newTask = {
+      id: 'TSK-' + Date.now(),
+      assignedTo: username,
+      title: payload.title || 'New Task',
+      description: payload.description || '',
+      deadline: payload.deadline || '2026-08-31',
+      priority: payload.priority || 'MEDIUM',
+      status: 'IN_PROGRESS',
+      submissionUrl: '',
+      submissionNotes: ''
+    };
+
     try {
-      const uKey = (username || 'intern').toLowerCase();
       const saved = localStorage.getItem(`worksphere_tasks_${uKey}`);
       let list = saved ? JSON.parse(saved) : [];
-      const newTask = {
-        id: 'TSK-' + Date.now(),
-        assignedTo: username,
-        title: payload.title || 'New Task',
-        description: payload.description || '',
-        deadline: payload.deadline || '2026-08-31',
-        priority: payload.priority || 'MEDIUM',
-        status: 'IN_PROGRESS',
-        submissionUrl: '',
-        submissionNotes: ''
-      };
       list.push(newTask);
       localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(list));
       localStorage.setItem('worksphere_tasks_intern', JSON.stringify(list));
@@ -1051,6 +1052,22 @@ export const api = {
       globalList.push(newTask);
       localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
     } catch(e) {}
+
+    // Dispatch email via Serverless Function / direct failover
+    try {
+      fetch('/api/send-task-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username,
+          taskTitle: payload.title,
+          description: payload.description,
+          deadline: payload.deadline,
+          priority: payload.priority
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
     return request(`/api/admin/interns/${username}/tasks`, {
       method: 'POST',
       body: JSON.stringify(payload)

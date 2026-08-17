@@ -4,5 +4,8 @@
   "private": true,
   "scripts": {
     "build": "cd frontend && npm install && npm run build"
+  },
+  "dependencies": {
+    "nodemailer": "^9.0.5"
   }
 }

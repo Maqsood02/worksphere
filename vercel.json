@@ -4,6 +4,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/send-task-email",
+      "destination": "/api/send-task-email"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
