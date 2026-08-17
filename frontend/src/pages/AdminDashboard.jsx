@@ -848,14 +848,24 @@ export default function AdminDashboard() {
   };
 
   const cancelAppointment = async (appId) => {
+    // Instant optimistic state update
+    setAppointments(prev => prev.filter(a => a.id !== appId));
+    setAppointmentsCount(prev => Math.max(0, prev - 1));
+    addToast("Appointment cancelled.");
+
     try {
-      const data = await api.cancelAppointment(appId);
-      if (data && data.success) {
-        addToast("Appointment cancelled.");
-        fetchData();
-      }
+      try {
+        const raw = localStorage.getItem('worksphere_appointments');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const updated = parsed.filter(a => a.id !== appId);
+          localStorage.setItem('worksphere_appointments', JSON.stringify(updated));
+        }
+      } catch (e) {}
+
+      await api.cancelAppointment(appId);
     } catch (err) {
-      console.error(err);
+      console.warn("Appointment cancel warning:", err);
     }
   };
 

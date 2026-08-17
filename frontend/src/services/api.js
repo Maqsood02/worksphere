@@ -383,12 +383,35 @@ function isValidEmailFormat(email) {
     return { success: true, invoices: sampleInvoices };
   }
 
-  // 9. Appointments
+  // 9. Appointments & Cancel Handler
+  if (url.includes('/appointments') && url.includes('/cancel')) {
+    let apps = [];
+    try {
+      const saved = localStorage.getItem('worksphere_appointments');
+      if (saved) apps = JSON.parse(saved);
+    } catch (e) {}
+    const parts = url.split('/');
+    const cancelIdx = parts.indexOf('admin');
+    const cancelId = cancelIdx !== -1 ? parts[cancelIdx + 1] : parts[parts.length - 2];
+    apps = apps.filter(a => a.id !== cancelId);
+    localStorage.setItem('worksphere_appointments', JSON.stringify(apps));
+    return { success: true, message: 'Appointment cancelled successfully!' };
+  }
+
   if (url.includes('/appointments')) {
-    const sampleAppointments = [
-      { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
-    ];
-    return { success: true, appointments: sampleAppointments };
+    let apps = [];
+    try {
+      const saved = localStorage.getItem('worksphere_appointments');
+      if (saved) {
+        apps = JSON.parse(saved);
+      } else {
+        apps = [
+          { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
+        ];
+        localStorage.setItem('worksphere_appointments', JSON.stringify(apps));
+      }
+    } catch (e) {}
+    return { success: true, appointments: apps };
   }
 
   // 10. Intern Overview & Management
