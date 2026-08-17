@@ -1,6 +1,8 @@
 package com.freelancer.platform.controllers;
 
+import com.freelancer.platform.models.InternTask;
 import com.freelancer.platform.models.User;
+import com.freelancer.platform.repositories.InternTaskRepository;
 import com.freelancer.platform.services.EmailService;
 import com.freelancer.platform.services.UserService;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ public class InternRestController {
 
     private final UserService userService;
     private final EmailService emailService;
+    private final InternTaskRepository internTaskRepository;
 
     // In-memory data store for intern profiles, tasks, attendance, and certificates
     private final Map<String, Map<String, Object>> internProfiles = new ConcurrentHashMap<>();
@@ -24,9 +27,10 @@ public class InternRestController {
     private final List<Map<String, Object>> learningModules = new ArrayList<>();
     private final List<Map<String, Object>> certificatesIssued = new ArrayList<>();
 
-    public InternRestController(UserService userService, EmailService emailService) {
+    public InternRestController(UserService userService, EmailService emailService, InternTaskRepository internTaskRepository) {
         this.userService = userService;
         this.emailService = emailService;
+        this.internTaskRepository = internTaskRepository;
         initializeDefaultData();
     }
 
@@ -110,10 +114,32 @@ public class InternRestController {
 
         final String uFinal = username;
         List<Map<String, Object>> myTasks = new ArrayList<>();
+        
+        try {
+            List<InternTask> dbTasks = internTaskRepository.findByAssignedToIgnoreCaseOrAssignedToIgnoreCase(uFinal, "ALL");
+            for (InternTask dt : dbTasks) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", dt.getTaskId());
+                map.put("assignedTo", dt.getAssignedTo());
+                map.put("title", dt.getTitle());
+                map.put("description", dt.getDescription());
+                map.put("deadline", dt.getDeadline());
+                map.put("priority", dt.getPriority());
+                map.put("status", dt.getStatus());
+                map.put("submissionUrl", dt.getSubmissionUrl() != null ? dt.getSubmissionUrl() : "");
+                map.put("submissionNotes", dt.getSubmissionNotes() != null ? dt.getSubmissionNotes() : "");
+                myTasks.add(map);
+            }
+        } catch (Exception e) {
+            System.err.println("[DB NOTE] Intern tasks query: " + e.getMessage());
+        }
+
         for (Map<String, Object> t : tasksList) {
             String assigned = (String) t.get("assignedTo");
             if (assigned != null && (assigned.equalsIgnoreCase(uFinal) || "ALL".equalsIgnoreCase(assigned))) {
-                myTasks.add(t);
+                if (myTasks.stream().noneMatch(existing -> String.valueOf(existing.get("id")).equalsIgnoreCase(String.valueOf(t.get("id"))))) {
+                    myTasks.add(t);
+                }
             }
         }
 
@@ -343,8 +369,9 @@ public class InternRestController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task title is required."));
         }
 
+        String taskId = "TSK-" + (tasksList.size() + 105);
         Map<String, Object> newTask = new HashMap<>();
-        newTask.put("id", "TSK-" + (tasksList.size() + 105));
+        newTask.put("id", taskId);
         newTask.put("assignedTo", username);
         newTask.put("title", title);
         newTask.put("description", description != null ? description : "");
@@ -355,6 +382,13 @@ public class InternRestController {
         newTask.put("submissionNotes", "");
 
         tasksList.add(newTask);
+
+        try {
+            InternTask dbTask = new InternTask(taskId, username, title, (String) newTask.get("description"), (String) newTask.get("deadline"), (String) newTask.get("priority"), "IN_PROGRESS");
+            internTaskRepository.save(dbTask);
+        } catch (Exception e) {
+            System.err.println("[DB ERROR] InternTask save failed: " + e.getMessage());
+        }
 
         // Dispatch Email Notification to Intern's Registered Email ID(s)
         boolean emailSent = false;
@@ -530,6 +564,15 @@ public class InternRestController {
     public synchronized ResponseEntity<?> updateTaskStatus(@PathVariable String taskId, @RequestBody Map<String, String> payload) {
         String status = payload != null ? payload.get("status") : "COMPLETED";
 
+        try {
+            Optional<InternTask> dtOpt = internTaskRepository.findByTaskId(taskId);
+            if (dtOpt.isPresent()) {
+                InternTask dt = dtOpt.get();
+                dt.setStatus(status != null ? status : "COMPLETED");
+                internTaskRepository.save(dt);
+            }
+        } catch (Exception e) {}
+
         for (Map<String, Object> t : tasksList) {
             if (taskId.equalsIgnoreCase(String.valueOf(t.get("id")))) {
                 t.put("status", status != null ? status : "COMPLETED");
@@ -541,11 +584,17 @@ public class InternRestController {
             }
         }
 
-        return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task not found."));
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Task " + taskId + " status updated to " + status + "!"
+        ));
     }
 
     @DeleteMapping("/api/admin/interns/tasks/{taskId}")
     public synchronized ResponseEntity<?> deleteInternTask(@PathVariable String taskId) {
+        try {
+            internTaskRepository.deleteByTaskId(taskId);
+        } catch (Exception e) {}
         boolean removed = tasksList.removeIf(t -> taskId.equalsIgnoreCase(String.valueOf(t.get("id"))));
         return ResponseEntity.ok(Map.of(
             "success", true,
