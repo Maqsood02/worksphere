@@ -75,30 +75,34 @@ export default function FloatingChat() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+    <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-[100] flex flex-col items-end pointer-events-auto">
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="bg-white w-[350px] sm:w-[380px] h-[500px] rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden mb-4"
+            className="bg-white w-[calc(100vw-2.5rem)] sm:w-[370px] max-w-[370px] h-[450px] max-h-[calc(100vh-6.5rem)] rounded-3xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden mb-3.5 z-[100]"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-primary to-accent p-4 text-white flex items-center justify-between">
+            <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-4 text-white flex items-center justify-between shadow-sm relative z-10 select-none">
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold">
                     <Bot className="w-5 h-5 text-white animate-pulse" />
                   </div>
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-indigo-700 rounded-full"></span>
                 </div>
                 <div>
-                  <h3 className="font-poppins font-semibold text-sm">AI Co-Pilot</h3>
-                  <p className="text-[10px] text-white/80">Online • Intelligent Assistant</p>
+                  <h3 className="font-poppins font-bold text-sm tracking-tight text-white">AI Co-Pilot</h3>
+                  <p className="text-[10px] text-indigo-100 font-medium">Online • Intelligent Assistant</p>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 rounded-xl transition-colors cursor-pointer"
+                title="Close Chat"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
