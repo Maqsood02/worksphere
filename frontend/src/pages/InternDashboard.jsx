@@ -876,7 +876,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
             <div className="flex flex-wrap items-center gap-4 relative z-10">
               <div className="bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl text-center">
                 <span className="text-[10px] text-slate-300 font-semibold block uppercase tracking-wider">Total Verified</span>
-                <span className="text-lg font-poppins font-black text-indigo-300">{hoursLogged} hrs</span>
+                <span className="text-lg font-poppins font-black text-indigo-300">{stats?.hoursLogged || 0} hrs</span>
               </div>
 
               <button
