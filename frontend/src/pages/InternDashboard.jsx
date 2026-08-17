@@ -148,8 +148,14 @@ export default function InternDashboard() {
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
       const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
 
-      // Extract and merge tasks from backend + localStorage
-      let rawTasks = Array.isArray(baseData.tasks) ? [...baseData.tasks] : [];
+      // Extract and filter tasks strictly for this intern (or ALL)
+      let rawTasks = [];
+      if (Array.isArray(baseData.tasks)) {
+        rawTasks = baseData.tasks.filter(t => {
+          const a = (t.assignedTo || '').toLowerCase().trim();
+          return a === uKey || a === 'all';
+        });
+      }
 
       try {
         const savedUserTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
@@ -169,8 +175,8 @@ export default function InternDashboard() {
         if (globalSaved) {
           const parsedGlobal = JSON.parse(globalSaved);
           for (const t of parsedGlobal) {
-            const assignedLower = (t.assignedTo || '').toLowerCase();
-            if (assignedLower === uKey || assignedLower === 'all' || assignedLower === '' || uKey === 'intern') {
+            const assignedLower = (t.assignedTo || '').toLowerCase().trim();
+            if (assignedLower === uKey || assignedLower === 'all') {
               const idx = rawTasks.findIndex(existing => existing.id === t.id);
               if (idx >= 0) {
                 rawTasks[idx] = { ...rawTasks[idx], ...t };
@@ -189,8 +195,11 @@ export default function InternDashboard() {
         }
       } catch(e) {}
 
-      // Attendance logs merging
-      let rawLogs = Array.isArray(baseData.attendanceLogs) ? [...baseData.attendanceLogs] : [];
+      // Attendance logs strictly for this intern
+      let rawLogs = [];
+      if (Array.isArray(baseData.attendanceLogs)) {
+        rawLogs = baseData.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
+      }
       try {
         const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
         if (savedLogs) {

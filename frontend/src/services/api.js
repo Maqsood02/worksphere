@@ -732,7 +732,7 @@ export const api = {
     let res = await request(`/api/intern/overview?username=${defaultUKey}`);
     if (!res || typeof res !== 'object') res = {};
 
-    const p = res.profile || res.intern || {
+    const cleanDefaultProfile = {
       username: currentUser?.username || defaultUKey,
       name: currentUser?.name || defaultUKey,
       email: currentUser?.email || `${defaultUKey}@worksphere.ac.in`,
@@ -748,21 +748,29 @@ export const api = {
       certificateStatus: 'NOT_ISSUED'
     };
 
-    const uKey = (p.username || defaultUKey).toLowerCase();
+    let p = cleanDefaultProfile;
+    const uKey = defaultUKey;
 
     try {
       const storedProfiles = getStoredInternProfiles();
       if (storedProfiles[uKey]) {
-        res.profile = { ...p, ...storedProfiles[uKey] };
-      } else {
-        res.profile = p;
+        p = { ...cleanDefaultProfile, ...storedProfiles[uKey] };
+      } else if (res.profile && res.profile.username && res.profile.username.toLowerCase() === uKey) {
+        p = { ...cleanDefaultProfile, ...res.profile };
       }
     } catch (e) {
-      res.profile = p;
+      p = cleanDefaultProfile;
     }
+    res.profile = p;
 
-    // Comprehensive tasks merging: backend tasks + localStorage + global tasks
-    let realTasks = Array.isArray(res.tasks) ? [...res.tasks] : [];
+    // Filter tasks strictly for this intern (or ALL)
+    let realTasks = [];
+    if (Array.isArray(res.tasks)) {
+      realTasks = res.tasks.filter(t => {
+        const a = (t.assignedTo || '').toLowerCase().trim();
+        return a === uKey || a === 'all';
+      });
+    }
 
     try {
       const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
@@ -783,12 +791,8 @@ export const api = {
         const globalList = JSON.parse(globalSaved);
         const matched = globalList.filter(t => {
           if (!t.assignedTo) return true;
-          const assignedLower = t.assignedTo.toLowerCase();
-          return assignedLower === uKey || 
-                 assignedLower.includes(uKey) || 
-                 uKey.includes(assignedLower) || 
-                 assignedLower === 'all' ||
-                 uKey === 'intern';
+          const assignedLower = t.assignedTo.toLowerCase().trim();
+          return assignedLower === uKey || assignedLower === 'all';
         });
         for (const gTask of matched) {
           const idx = realTasks.findIndex(existing => existing.id === gTask.id);
@@ -810,7 +814,11 @@ export const api = {
 
     res.tasks = realTasks;
 
-    let realLogs = Array.isArray(res.attendanceLogs) ? [...res.attendanceLogs] : [];
+    // Strictly user's own attendance logs
+    let realLogs = [];
+    if (Array.isArray(res.attendanceLogs)) {
+      realLogs = res.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
+    }
     try {
       const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
       if (savedLogs) {
@@ -825,9 +833,8 @@ export const api = {
 
     res.attendanceLogs = realLogs;
 
-    // Clean stats to strictly reflect real user tasks and attendance logs
+    // Clean stats dynamically computed from the user's actual tasks and logs
     res.stats = {
-      ...(res.stats || {}),
       tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
       tasksTotal: realTasks.length,
       hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
