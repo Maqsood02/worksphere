@@ -3,22 +3,18 @@
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8088' : 'https://worksphere-k6h8.onrender.com');
 
-// Auto-purge stale demo mock cache on first load
+// Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v9');
-  if (currentCacheVer !== 'v9') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v10');
+  if (currentCacheVer !== 'v10') {
+    localStorage.removeItem('worksphere_attendance_intern');
+    localStorage.removeItem('worksphere_attendance_maqsood');
+    localStorage.removeItem('worksphere_attendance_chinmaykv');
     localStorage.removeItem('worksphere_tasks_intern');
     localStorage.removeItem('worksphere_tasks_maqsood');
     localStorage.removeItem('worksphere_tasks_chinmaykv');
     localStorage.removeItem('worksphere_global_tasks');
-    localStorage.removeItem('worksphere_attendance_intern');
-    localStorage.removeItem('worksphere_attendance_maqsood');
-    localStorage.removeItem('worksphere_attendance_chinmaykv');
-    localStorage.removeItem('worksphere_intern_profiles');
-    localStorage.removeItem('worksphere_active_intern_profile');
-    localStorage.removeItem('worksphere_profile_maqsood');
-    localStorage.removeItem('worksphere_profile_chinmaykv');
-    localStorage.setItem('worksphere_clean_cache_v9', 'v9');
+    localStorage.setItem('worksphere_clean_cache_v10', 'v10');
   }
 }
 
@@ -834,22 +830,19 @@ export const api = {
 
     res.tasks = realTasks;
 
-    // Strictly user's own attendance logs
+    // Strictly user's own attendance logs from MongoDB Atlas
     let realLogs = [];
     if (Array.isArray(res.attendanceLogs)) {
       realLogs = res.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
+      try {
+        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(realLogs));
+      } catch (e) {}
+    } else {
+      try {
+        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        if (savedLogs) realLogs = JSON.parse(savedLogs);
+      } catch(e) {}
     }
-    try {
-      const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-      if (savedLogs) {
-        const parsedLogs = JSON.parse(savedLogs);
-        for (const l of parsedLogs) {
-          if (!realLogs.some(existing => existing.id === l.id)) {
-            realLogs.unshift(l);
-          }
-        }
-      }
-    } catch(e) {}
 
     res.attendanceLogs = realLogs;
 

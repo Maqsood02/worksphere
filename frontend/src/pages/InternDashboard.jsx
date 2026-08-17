@@ -206,22 +206,19 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
         }
       } catch(e) {}
 
-      // Attendance logs strictly for this intern
+      // Attendance logs strictly for this intern from MongoDB Atlas
       let rawLogs = [];
       if (Array.isArray(baseData.attendanceLogs)) {
         rawLogs = baseData.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
+        try {
+          localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(rawLogs));
+        } catch(e) {}
+      } else {
+        try {
+          const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+          if (savedLogs) rawLogs = JSON.parse(savedLogs);
+        } catch(e) {}
       }
-      try {
-        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-        if (savedLogs) {
-          const parsedLogs = JSON.parse(savedLogs);
-          for (const l of parsedLogs) {
-            if (!rawLogs.some(existing => existing.id === l.id)) {
-              rawLogs.unshift(l);
-            }
-          }
-        }
-      } catch(e) {}
 
       const normalized = {
         ...baseData,
