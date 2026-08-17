@@ -414,6 +414,45 @@ function isValidEmailFormat(email) {
     return { success: true, appointments: apps };
   }
 
+  // 9.1 Chat History & Send
+  if (url.includes('/api/chat/history')) {
+    let history = [];
+    try {
+      const uParts = url.split('withUser=');
+      const withUser = uParts[1] ? uParts[1].split('&')[0] : 'ai';
+      const saved = localStorage.getItem(`worksphere_chat_${withUser}`);
+      if (saved) history = JSON.parse(saved);
+      else if (withUser === 'ai') {
+        history = [
+          { id: 'm1', senderId: 'ai', content: '👋 Hi there! I am your AI Co-Pilot assistant. How can I help you today with projects, internships, or tasks?', timestamp: 'Just now' }
+        ];
+      }
+    } catch (e) {}
+    return { success: true, history: Array.isArray(history) ? history : [] };
+  }
+
+  if (url.includes('/api/chat/send')) {
+    const receiverId = body?.receiverId || 'ai';
+    const content = body?.content || '';
+    let history = [];
+    try {
+      const saved = localStorage.getItem(`worksphere_chat_${receiverId}`);
+      if (saved) history = JSON.parse(saved);
+      const userMsg = { id: 'm_' + Date.now(), senderId: 'user', content, timestamp: 'Just now' };
+      history.push(userMsg);
+      if (receiverId === 'ai') {
+        const aiMsg = { id: 'ai_' + Date.now(), senderId: 'ai', content: `🤖 AI Assistant: Received your message "${content}". All systems and services are operating normally!`, timestamp: 'Just now' };
+        history.push(aiMsg);
+      }
+      localStorage.setItem(`worksphere_chat_${receiverId}`, JSON.stringify(history));
+    } catch (e) {}
+    return { success: true, message: 'Message sent!' };
+  }
+
+  if (url.includes('/api/chat/unread')) {
+    return { success: true, unreadCount: 0 };
+  }
+
   // 10. Intern Overview & Management
   if (url.includes('/api/admin/interns/') && url.includes('/update')) {
     const parts = url.split('/');

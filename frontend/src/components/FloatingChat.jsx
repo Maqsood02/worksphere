@@ -17,11 +17,16 @@ export default function FloatingChat() {
     if (!user) return;
     try {
       const data = await api.getChatHistory('ai');
-      if (data && data.success) {
+      if (data && data.success && Array.isArray(data.history)) {
         setMessages(data.history);
+      } else if (Array.isArray(data)) {
+        setMessages(data);
+      } else {
+        setMessages([]);
       }
     } catch (err) {
-      console.error(err);
+      console.warn("Chat history fallback note:", err);
+      setMessages([]);
     }
   };
 
@@ -109,7 +114,7 @@ export default function FloatingChat() {
                 </div>
               </div>
 
-              {messages.map((msg, idx) => {
+              {(messages || []).map((msg, idx) => {
                 const isAi = msg.senderId === 'ai';
                 return (
                   <div key={idx} className={`flex items-start space-x-2 ${!isAi ? 'justify-end text-right' : ''}`}>
