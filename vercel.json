@@ -4,23 +4,11 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/send-task-email",
-      "destination": "/api/send-task-email"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
-      "source": "/api/intern-overview",
-      "destination": "/api/intern-overview"
-    },
-    {
-      "source": "/api/intern-tasks",
-      "destination": "/api/intern-tasks"
-    },
-    {
-      "source": "/api/intern-attendance",
-      "destination": "/api/intern-attendance"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api/|assets/|favicon.ico|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
