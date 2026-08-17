@@ -1,11 +1,19 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "npm install && cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
   "rewrites": [
     {
       "source": "/api/send-task-email",
       "destination": "/api/send-task-email"
+    },
+    {
+      "source": "/api/intern-overview",
+      "destination": "/api/intern-overview"
+    },
+    {
+      "source": "/api/intern-tasks",
+      "destination": "/api/intern-tasks"
     },
     {
       "source": "/(.*)",

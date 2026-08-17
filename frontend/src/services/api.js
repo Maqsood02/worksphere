@@ -721,7 +721,6 @@ export const api = {
   getAdminInvoices: () => request('/api/admin/invoices'),
   getAdminAppointments: () => request('/api/admin/appointments'),
 
-  // Intern Dashboard Data & Actions
   getInternOverview: async (customUsername) => {
     let currentUser = null;
     try {
@@ -730,7 +729,22 @@ export const api = {
     } catch (e) {}
     const defaultUKey = (customUsername || currentUser?.username || 'intern').toLowerCase();
 
-    let res = await request(`/api/intern/overview?username=${defaultUKey}`);
+    // 1. First fetch directly from Vercel Serverless MongoDB Atlas endpoint
+    let res = null;
+    try {
+      const serverlessRes = await fetch(`/api/intern-overview?username=${defaultUKey}`);
+      if (serverlessRes.ok) {
+        const sData = await serverlessRes.json();
+        if (sData && sData.success) {
+          res = sData;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Fallback to Java backend candidate endpoints
+    if (!res || !res.success) {
+      res = await request(`/api/intern/overview?username=${defaultUKey}`);
+    }
     if (!res || typeof res !== 'object') res = {};
 
     const cleanDefaultProfile = {
@@ -1045,11 +1059,26 @@ export const api = {
       title: payload.title || 'New Task',
       description: payload.description || '',
       deadline: payload.deadline || '2026-08-31',
-      priority: payload.priority || 'MEDIUM',
+      priority: payload.priority || 'HIGH',
       status: 'IN_PROGRESS',
       submissionUrl: '',
       submissionNotes: ''
     };
+
+    // 1. Direct Vercel Serverless MongoDB Atlas persist
+    try {
+      await fetch('/api/intern-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedTo: username,
+          title: payload.title,
+          description: payload.description,
+          deadline: payload.deadline,
+          priority: payload.priority
+        })
+      });
+    } catch (e) {}
 
     try {
       const saved = localStorage.getItem(`worksphere_tasks_${uKey}`);

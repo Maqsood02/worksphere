@@ -7,6 +7,7 @@
     "build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
+    "mongodb": "^7.5.0",
     "nodemailer": "^9.0.5"
   }
 }
