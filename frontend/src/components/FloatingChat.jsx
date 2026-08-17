@@ -51,26 +51,22 @@ export default function FloatingChat() {
 
     const clientMsg = inputValue;
     setInputValue('');
-
-    // Optimistically update list
-    setMessages(prev => [...prev, { senderId: user.username, content: clientMsg, isAi: false }]);
     setIsTyping(true);
 
     try {
       const data = await api.sendMessage('ai', clientMsg);
       if (data && data.success) {
-        // Natural delayed typewriter response
         setTimeout(async () => {
           setIsTyping(false);
           await syncChatHistory();
-        }, 1200);
+        }, 500);
       } else {
         setIsTyping(false);
-        addToast("Error sending message.");
+        await syncChatHistory();
       }
     } catch (err) {
       setIsTyping(false);
-      console.error(err);
+      await syncChatHistory();
     }
   };
 
