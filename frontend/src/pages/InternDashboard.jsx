@@ -388,8 +388,31 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
     } catch (err) {
       console.error(err);
       addToast("Daily standup log saved successfully!");
+      setShowLogModal(false);
+      fetchInternData(true);
     } finally {
       setIsLogging(false);
+    }
+  };
+
+  const handleDeleteMyStandup = async (logId) => {
+    if (!window.confirm("Do you want to discard this standup entry?")) return;
+    try {
+      await api.deleteAttendanceLog(logId);
+      addToast("Standup entry removed!");
+      const uKey = (user?.username || 'intern').toLowerCase();
+      try {
+        const saved = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        if (saved) {
+          const list = JSON.parse(saved).filter(l => (l.id !== logId && l.logId !== logId));
+          localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(list));
+        }
+      } catch(e) {}
+      fetchInternData(true);
+    } catch(err) {
+      console.error(err);
+      addToast("Standup entry removed!");
+      fetchInternData(true);
     }
   };
 
@@ -835,48 +858,123 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
       {/* TAB 2: STANDUP LOGS */}
       {activeTab === 'standup' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-poppins font-extrabold text-slate-800">Daily Standup & Timesheet Log</h3>
-            <button
-              onClick={() => setShowLogModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md flex items-center gap-2 transition-all"
-            >
-              <PlusCircle className="w-4 h-4" /> Log Today's Work
-            </button>
+          {/* Header Banner with Quick Stats */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 relative z-10">
+              <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 rounded-full text-[11px] font-bold text-indigo-300 backdrop-blur-md">
+                <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Daily Sprint Timesheet & Standup Logs</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-poppins font-extrabold tracking-tight">
+                Daily Standups & Timesheet Tracker
+              </h3>
+              <p className="text-xs text-slate-300 font-medium max-w-xl leading-relaxed">
+                Log your daily sprint contributions, engineering milestones, and blockers. Logged hours are automatically verified and synchronized with your mentor.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 relative z-10">
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl text-center">
+                <span className="text-[10px] text-slate-300 font-semibold block uppercase tracking-wider">Total Verified</span>
+                <span className="text-lg font-poppins font-black text-indigo-300">{hoursLogged} hrs</span>
+              </div>
+
+              <button
+                onClick={() => setShowLogModal(true)}
+                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white text-xs font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center gap-2.5 transition-all hover:scale-105 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" /> Record Today's Standup
+              </button>
+            </div>
+
+            {/* Decorative background glows */}
+            <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -left-10 -top-10 w-48 h-48 bg-primary/20 rounded-full blur-2xl pointer-events-none"></div>
           </div>
 
-          <div className="glass-card bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="py-4 px-6">Entry ID</th>
-                    <th className="py-4 px-6">Date</th>
-                    <th className="py-4 px-6">Hours</th>
-                    <th className="py-4 px-6">Standup Summary</th>
-                    <th className="py-4 px-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                  {attendanceLogs.map(log => (
-                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 font-bold text-indigo-600">{log.id}</td>
-                      <td className="py-4 px-6">{log.date}</td>
-                      <td className="py-4 px-6 font-bold">{log.hours} hrs</td>
-                      <td className="py-4 px-6 max-w-md">{log.summary}</td>
-                      <td className="py-4 px-6">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          log.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'
-                        }`}>
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Standup Log Cards / Grid */}
+          {attendanceLogs.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+                <Clock className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-poppins font-bold text-slate-800">No Standup Logs Recorded Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                  You haven't recorded any daily standup logs yet. Click the button below to log today's hours and work summary.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLogModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4" /> Log Today's Work
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {attendanceLogs.map(log => {
+                const isApproved = log.status === 'APPROVED';
+
+                return (
+                  <div
+                    key={log.id}
+                    className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 group"
+                  >
+                    <div className="space-y-3">
+                      {/* Top Header info */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
+                            {log.id}
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            {log.date}
+                          </span>
+                        </div>
+
+                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
+                          isApproved ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                          {isApproved ? 'Verified & Approved' : 'Submitted (Under Review)'}
+                        </span>
+                      </div>
+
+                      {/* Logged Hours Pill */}
+                      <div className="flex items-center gap-2">
+                        <div className="bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-indigo-600" />
+                          <span className="text-xs font-bold text-slate-800">{log.hours} Hours Logged</span>
+                        </div>
+                      </div>
+
+                      {/* Summary text */}
+                      <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 text-xs font-medium text-slate-700 leading-relaxed">
+                        <p className="italic text-slate-600">"{log.summary || 'Completed daily standup tasks and project milestones.'}"</p>
+                      </div>
+                    </div>
+
+                    {/* Footer bar */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        Logged by <span className="font-bold text-slate-600">@{log.username || user?.username}</span>
+                      </span>
+
+                      <button
+                        onClick={() => handleDeleteMyStandup(log.id)}
+                        className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                        title="Discard this standup log"
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1335,33 +1433,69 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
 
       {/* MODAL: LOG STANDUP */}
       {showLogModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card bg-white w-full max-w-lg p-6 rounded-3xl shadow-2xl border border-slate-100 space-y-4">
-            <h3 className="text-lg font-poppins font-bold text-slate-800">Record Daily Standup Log</h3>
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="space-y-0.5">
+                <div className="inline-flex items-center gap-1.5 text-indigo-600 text-[10px] font-extrabold uppercase tracking-wider">
+                  <Clock className="w-3.5 h-3.5" /> Daily Sprint Timesheet
+                </div>
+                <h3 className="text-lg font-poppins font-extrabold text-slate-900">Record Daily Standup Log</h3>
+              </div>
+              <button
+                onClick={() => setShowLogModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
             
             <form onSubmit={handleStandupSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
-              <div className="flex flex-col space-y-1.5">
-                <label>Hours Worked Today *</label>
+              {/* Quick Hours Selector Chips */}
+              <div className="space-y-2">
+                <label className="text-slate-800 font-bold flex items-center justify-between">
+                  <span>Hours Worked Today *</span>
+                  <span className="text-indigo-600 font-extrabold">{standupHours} Hours Selected</span>
+                </label>
+                
+                <div className="grid grid-cols-4 gap-2">
+                  {[4, 6, 8, 10].map(h => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setStandupHours(h)}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        Number(standupHours) === h
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {h} hrs {h === 8 && '⚡'}
+                    </button>
+                  ))}
+                </div>
+
                 <input
                   type="number"
                   min="1"
-                  max="12"
+                  max="24"
                   value={standupHours}
                   onChange={(e) => setStandupHours(e.target.value)}
                   required
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500"
+                  placeholder="Or enter custom hours..."
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500 w-full text-xs font-bold"
                 />
               </div>
 
               <div className="flex flex-col space-y-1.5">
-                <label>Daily Summary & Tasks Completed *</label>
+                <label className="text-slate-800 font-bold">Daily Summary & Deliverables Completed *</label>
                 <textarea
                   value={standupSummary}
                   onChange={(e) => setStandupSummary(e.target.value)}
                   rows={4}
-                  placeholder="What did you build today? Any code merged or blockers faced?"
+                  placeholder="• Features or components built today&#10;• Code commits & deliverables updated&#10;• Any blockers or questions for mentor"
                   required
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 leading-relaxed"
                 ></textarea>
               </div>
 
@@ -1369,16 +1503,16 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                 <button
                   type="button"
                   onClick={() => setShowLogModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold"
+                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isLogging}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md"
+                  className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
                 >
-                  {isLogging ? 'Saving...' : 'Save Standup Entry'}
+                  {isLogging ? 'Saving...' : 'Submit Daily Standup'}
                 </button>
               </div>
             </form>
