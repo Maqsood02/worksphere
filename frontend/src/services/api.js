@@ -641,23 +641,29 @@ async function request(url, options = {}) {
     credentials: 'include', 
   };
 
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const candidateUrls = url.startsWith('http') ? [url] : [
+    `${API_BASE_URL}${url}`,
+    `http://localhost:8088${url}`,
+    `https://worksphere-k6h8.onrender.com${url}`
+  ];
 
-  try {
-    const response = await fetch(fullUrl, config);
-    
-    // Check if response is HTML or 404/405/401/403/500
-    const contentType = response.headers.get('content-type') || '';
-    if (!response.ok || contentType.includes('text/html') || response.status === 404 || response.status === 405 || response.status === 401 || response.status === 403) {
-      return getMockFallbackResponse(url, options);
+  // Remove duplicate URLs
+  const uniqueUrls = [...new Set(candidateUrls)];
+
+  for (const targetUrl of uniqueUrls) {
+    try {
+      const response = await fetch(targetUrl, config);
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok && !contentType.includes('text/html')) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (error) {
+      // Try next backend URL
     }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.warn(`Backend connection pending on ${url}. Using Cloud Demo Fallback Mode.`);
-    return getMockFallbackResponse(url, options);
   }
+
+  return getMockFallbackResponse(url, options);
 }
 
 export const api = {
