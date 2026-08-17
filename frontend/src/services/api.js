@@ -299,6 +299,32 @@ function isValidEmailFormat(email) {
     return { success: true, message: `HTML Credentials email dispatched successfully to ${emailToUse}!` };
   }
 
+  // 6d. Delete Task Handler
+  if (url.includes('/api/admin/interns/tasks/') && (method === 'DELETE' || url.includes('/delete'))) {
+    const parts = url.split('/');
+    let taskId = parts[parts.length - 1];
+    if (taskId === 'delete') taskId = parts[parts.length - 2];
+    
+    try {
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        let globalList = JSON.parse(globalSaved);
+        globalList = globalList.filter(t => t.id !== taskId);
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
+      }
+      ['intern', 'maqsood', 'chinmaykv'].forEach(k => {
+        const saved = localStorage.getItem(`worksphere_tasks_${k}`);
+        if (saved) {
+          let list = JSON.parse(saved);
+          list = list.filter(t => t.id !== taskId);
+          localStorage.setItem(`worksphere_tasks_${k}`, JSON.stringify(list));
+        }
+      });
+    } catch(e) {}
+
+    return { success: true, message: `Assigned task ${taskId} deleted successfully!` };
+  }
+
   // 6d. Create User (POST /api/admin/users)
   if (method === 'POST' && url.endsWith('/api/admin/users')) {
     const inputEmail = (body.email || '').trim().toLowerCase();
@@ -1048,9 +1074,13 @@ export const api = {
         }
       });
     } catch(e) {}
-    return request(`/api/admin/interns/tasks/${taskId}`, {
-      method: 'DELETE'
-    });
+
+    try {
+      const res = await request(`/api/admin/interns/tasks/${taskId}`, { method: 'DELETE' });
+      if (res && res.success) return res;
+    } catch(e) {}
+
+    return request(`/api/admin/interns/tasks/${taskId}/delete`, { method: 'POST' });
   },
   // Admin User Directory & Role Management
   getAdminUsers: () => request('/api/admin/users'),
