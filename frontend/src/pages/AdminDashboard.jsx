@@ -259,7 +259,16 @@ export default function AdminDashboard() {
         interns = res;
       } else if (res && res.success && Array.isArray(res.interns)) {
         interns = res.interns;
-        setAllInternTasks(res.allTasks || []);
+        
+        let deletedTaskIds = [];
+        try {
+          const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+          if (savedDel) deletedTaskIds = JSON.parse(savedDel);
+        } catch(e) {}
+
+        const rawTasks = res.allTasks || [];
+        const filteredTasks = rawTasks.filter(t => !deletedTaskIds.includes(t.id));
+        setAllInternTasks(filteredTasks);
       } else if (res && Array.isArray(res.interns)) {
         interns = res.interns;
       }
@@ -522,6 +531,21 @@ export default function AdminDashboard() {
 
   const handleDeleteInternTask = async (taskId) => {
     if (!window.confirm("Are you sure you want to delete this assigned deliverable task?")) return;
+    
+    // 1. Immediately filter out task from React state for instant UI removal
+    setAllInternTasks(prev => prev.filter(t => t.id !== taskId));
+
+    // 2. Persist deleted task ID in localStorage to prevent re-fetching
+    try {
+      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+      let deletedList = savedDel ? JSON.parse(savedDel) : [];
+      if (!deletedList.includes(taskId)) {
+        deletedList.push(taskId);
+        localStorage.setItem('worksphere_deleted_tasks', JSON.stringify(deletedList));
+      }
+    } catch (e) {}
+
+    // 3. Dispatch deletion API call
     try {
       const res = await api.deleteInternTask(taskId);
       if (res && res.success) {
