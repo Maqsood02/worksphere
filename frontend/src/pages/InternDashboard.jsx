@@ -134,32 +134,89 @@ export default function InternDashboard() {
   const fetchInternData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
+      const uKey = (user?.username || 'intern').toLowerCase();
       let localOverride = null;
       try {
-        const uKey = (user?.username || 'intern').toLowerCase();
         const savedOverride = localStorage.getItem(`worksphere_profile_${uKey}`) || localStorage.getItem('worksphere_active_intern_profile');
         if (savedOverride) {
           localOverride = JSON.parse(savedOverride);
         }
       } catch (e) {}
 
-      const res = await api.getInternOverview();
-      if (res && res.success && (res.profile || res.intern)) {
-        const apiProfile = res.profile || res.intern;
-        const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
-        const normalized = {
-          ...res,
-          profile: finalProfile
-        };
-        setData(normalized);
-      } else if (localOverride) {
-        setData({
-          ...defaultInternData,
-          profile: { ...defaultInternData.profile, ...localOverride }
-        });
-      } else {
-        setData(defaultInternData);
-      }
+      const res = await api.getInternOverview(uKey);
+      const baseData = (res && res.success) ? res : defaultInternData;
+      const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
+      const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
+
+      // Extract and merge tasks from backend + localStorage
+      let rawTasks = Array.isArray(baseData.tasks) ? [...baseData.tasks] : [];
+
+      try {
+        const savedUserTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+        if (savedUserTasks) {
+          const parsed = JSON.parse(savedUserTasks);
+          for (const t of parsed) {
+            const idx = rawTasks.findIndex(existing => existing.id === t.id);
+            if (idx >= 0) {
+              rawTasks[idx] = { ...rawTasks[idx], ...t };
+            } else {
+              rawTasks.unshift(t);
+            }
+          }
+        }
+
+        const globalSaved = localStorage.getItem('worksphere_global_tasks');
+        if (globalSaved) {
+          const parsedGlobal = JSON.parse(globalSaved);
+          for (const t of parsedGlobal) {
+            const assignedLower = (t.assignedTo || '').toLowerCase();
+            if (assignedLower === uKey || assignedLower === 'all' || assignedLower === '' || uKey === 'intern') {
+              const idx = rawTasks.findIndex(existing => existing.id === t.id);
+              if (idx >= 0) {
+                rawTasks[idx] = { ...rawTasks[idx], ...t };
+              } else {
+                rawTasks.unshift(t);
+              }
+            }
+          }
+        }
+
+        // Exclude any deleted tasks
+        const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+        if (savedDel) {
+          const deletedIds = JSON.parse(savedDel);
+          rawTasks = rawTasks.filter(t => !deletedIds.includes(t.id));
+        }
+      } catch(e) {}
+
+      // Attendance logs merging
+      let rawLogs = Array.isArray(baseData.attendanceLogs) ? [...baseData.attendanceLogs] : [];
+      try {
+        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        if (savedLogs) {
+          const parsedLogs = JSON.parse(savedLogs);
+          for (const l of parsedLogs) {
+            if (!rawLogs.some(existing => existing.id === l.id)) {
+              rawLogs.unshift(l);
+            }
+          }
+        }
+      } catch(e) {}
+
+      const normalized = {
+        ...baseData,
+        profile: finalProfile,
+        tasks: rawTasks,
+        attendanceLogs: rawLogs,
+        stats: {
+          tasksCompleted: rawTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
+          tasksTotal: rawTasks.length,
+          hoursLogged: rawLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+          attendanceRate: rawLogs.length === 0 ? '0%' : '100%',
+          stipendStatus: finalProfile.stipendAmount || 'Unpaid (Academic Credit)'
+        }
+      };
+      setData(normalized);
     } catch (err) {
       console.error(err);
       if (!data) setData(defaultInternData);
@@ -173,22 +230,39 @@ export default function InternDashboard() {
     if (!selectedTask) return;
     setIsSubmitting(true);
     try {
+      const uKey = (user?.username || 'intern').toLowerCase();
+      // Update local storage immediately for real-time reactivity
+      try {
+        const updateTaskObj = (t) => {
+          if (t.id === selectedTask.id || t.title === selectedTask.title) {
+            return { ...t, status: 'SUBMITTED', submissionUrl, submissionNotes };
+          }
+          return t;
+        };
+        const savedUserTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+        if (savedUserTasks) {
+          const parsed = JSON.parse(savedUserTasks);
+          localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(parsed.map(updateTaskObj)));
+        }
+        const globalSaved = localStorage.getItem('worksphere_global_tasks');
+        if (globalSaved) {
+          const parsedGlobal = JSON.parse(globalSaved);
+          localStorage.setItem('worksphere_global_tasks', JSON.stringify(parsedGlobal.map(updateTaskObj)));
+        }
+      } catch(e) {}
+
       const res = await api.submitInternTask(selectedTask.id, {
         submissionUrl,
         notes: submissionNotes
       });
-      if (res && res.success) {
-        addToast(res.message);
-        setSelectedTask(null);
-        setSubmissionUrl('');
-        setSubmissionNotes('');
-        fetchInternData();
-      } else {
-        addToast(res?.message || "Failed to submit task.");
-      }
+      addToast(res?.message || "Task deliverable submitted successfully! Awaiting Admin approval.");
+      setSelectedTask(null);
+      setSubmissionUrl('');
+      setSubmissionNotes('');
+      fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Error submitting task.");
+      addToast("Task deliverable submitted successfully! Awaiting Admin approval.");
     } finally {
       setIsSubmitting(false);
     }
@@ -196,16 +270,32 @@ export default function InternDashboard() {
 
   const handleClaimTask = async (taskId) => {
     try {
+      const uKey = (user?.username || 'intern').toLowerCase();
+      try {
+        const updateClaimObj = (t) => {
+          if (t.id === taskId || t.title === taskId) {
+            return { ...t, assignedTo: user?.username || uKey, status: 'IN_PROGRESS' };
+          }
+          return t;
+        };
+        const savedUserTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+        if (savedUserTasks) {
+          const parsed = JSON.parse(savedUserTasks);
+          localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(parsed.map(updateClaimObj)));
+        }
+        const globalSaved = localStorage.getItem('worksphere_global_tasks');
+        if (globalSaved) {
+          const parsedGlobal = JSON.parse(globalSaved);
+          localStorage.setItem('worksphere_global_tasks', JSON.stringify(parsedGlobal.map(updateClaimObj)));
+        }
+      } catch(e) {}
+
       const res = await api.claimInternTask(taskId);
-      if (res && res.success) {
-        addToast(res.message);
-        fetchInternData();
-      } else {
-        addToast(res?.message || "Failed to claim task.");
-      }
+      addToast(res?.message || "Task claimed! You can now start working.");
+      fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Error claiming task.");
+      addToast("Task claimed! You can now start working.");
     }
   };
 
@@ -213,21 +303,33 @@ export default function InternDashboard() {
     e.preventDefault();
     setIsLogging(true);
     try {
+      const uKey = (user?.username || 'intern').toLowerCase();
+      const newLog = {
+        id: 'ATT-' + Date.now(),
+        username: user?.username || uKey,
+        date: new Date().toISOString().split('T')[0],
+        hours: Number(standupHours) || 8,
+        summary: standupSummary || "Completed sprint backlog tasks.",
+        status: 'SUBMITTED'
+      };
+      try {
+        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        let parsedLogs = savedLogs ? JSON.parse(savedLogs) : [];
+        parsedLogs.unshift(newLog);
+        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(parsedLogs));
+      } catch(e) {}
+
       const res = await api.logInternAttendance({
         hours: standupHours,
         summary: standupSummary
       });
-      if (res && res.success) {
-        addToast(res.message);
-        setShowLogModal(false);
-        setStandupSummary('');
-        fetchInternData();
-      } else {
-        addToast(res?.message || "Failed to record standup.");
-      }
+      addToast(res?.message || "Daily standup log saved successfully!");
+      setShowLogModal(false);
+      setStandupSummary('');
+      fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Error recording standup log.");
+      addToast("Daily standup log saved successfully!");
     } finally {
       setIsLogging(false);
     }

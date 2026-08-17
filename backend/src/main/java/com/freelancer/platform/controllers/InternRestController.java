@@ -95,8 +95,10 @@ public class InternRestController {
     // -------------------------------------------------------------
 
     @GetMapping("/api/intern/overview")
-    public ResponseEntity<?> getOverview(Principal principal) {
-        String username = principal != null ? principal.getName() : "intern";
+    public ResponseEntity<?> getOverview(@RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
+        String username = (paramUsername != null && !paramUsername.isBlank()) 
+            ? paramUsername.trim() 
+            : (principal != null ? principal.getName() : "intern");
         Map<String, Object> profile = getOrCreateProfile(username);
 
         List<Map<String, Object>> myAttendance = new ArrayList<>();
@@ -143,8 +145,10 @@ public class InternRestController {
     }
 
     @PostMapping("/api/intern/tasks/{taskId}/claim")
-    public synchronized ResponseEntity<?> claimTask(@PathVariable String taskId, Principal principal) {
-        String username = principal != null ? principal.getName() : "intern";
+    public synchronized ResponseEntity<?> claimTask(@PathVariable String taskId, @RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
+        String username = (paramUsername != null && !paramUsername.isBlank()) 
+            ? paramUsername.trim() 
+            : (principal != null ? principal.getName() : "intern");
         for (Map<String, Object> task : tasksList) {
             if (taskId.equals(task.get("id")) || taskId.equals(task.get("title"))) {
                 task.put("assignedTo", username);
@@ -181,8 +185,10 @@ public class InternRestController {
     }
 
     @PostMapping("/api/intern/attendance/log")
-    public synchronized ResponseEntity<?> logAttendance(@RequestBody Map<String, Object> payload, Principal principal) {
-        String username = principal != null ? principal.getName() : "intern";
+    public synchronized ResponseEntity<?> logAttendance(@RequestBody Map<String, Object> payload, @RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
+        String username = (paramUsername != null && !paramUsername.isBlank()) 
+            ? paramUsername.trim() 
+            : (principal != null ? principal.getName() : "intern");
         Object hoursObj = payload.get("hours");
         String summary = (String) payload.get("summary");
 
@@ -213,8 +219,10 @@ public class InternRestController {
     }
 
     @PostMapping("/api/intern/certificate/request")
-    public synchronized ResponseEntity<?> requestCertificate(Principal principal) {
-        String username = principal != null ? principal.getName() : "intern";
+    public synchronized ResponseEntity<?> requestCertificate(@RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
+        String username = (paramUsername != null && !paramUsername.isBlank()) 
+            ? paramUsername.trim() 
+            : (principal != null ? principal.getName() : "intern");
         Map<String, Object> profile = getOrCreateProfile(username);
         profile.put("certificateStatus", "PENDING_APPROVAL");
 

@@ -721,15 +721,15 @@ export const api = {
   getAdminAppointments: () => request('/api/admin/appointments'),
 
   // Intern Dashboard Data & Actions
-  getInternOverview: async () => {
+  getInternOverview: async (customUsername) => {
     let currentUser = null;
     try {
       const savedUser = localStorage.getItem('worksphere_user');
       if (savedUser) currentUser = JSON.parse(savedUser);
     } catch (e) {}
-    const defaultUKey = (currentUser?.username || 'intern').toLowerCase();
+    const defaultUKey = (customUsername || currentUser?.username || 'intern').toLowerCase();
 
-    let res = await request('/api/intern/overview');
+    let res = await request(`/api/intern/overview?username=${defaultUKey}`);
     if (!res || typeof res !== 'object') res = {};
 
     const p = res.profile || res.intern || {
@@ -761,14 +761,23 @@ export const api = {
       res.profile = p;
     }
 
-    // User-specific tasks & logs from localStorage + worksphere_global_tasks
-    let realTasks = [];
-    const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
-    if (savedTasks) {
-      try { realTasks = JSON.parse(savedTasks); } catch(e) {}
-    }
+    // Comprehensive tasks merging: backend tasks + localStorage + global tasks
+    let realTasks = Array.isArray(res.tasks) ? [...res.tasks] : [];
 
     try {
+      const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
+      if (savedTasks) {
+        const parsed = JSON.parse(savedTasks);
+        for (const t of parsed) {
+          const idx = realTasks.findIndex(existing => existing.id === t.id);
+          if (idx >= 0) {
+            realTasks[idx] = { ...realTasks[idx], ...t };
+          } else {
+            realTasks.unshift(t);
+          }
+        }
+      }
+
       const globalSaved = localStorage.getItem('worksphere_global_tasks');
       if (globalSaved) {
         const globalList = JSON.parse(globalSaved);
@@ -781,28 +790,45 @@ export const api = {
                  assignedLower === 'all' ||
                  uKey === 'intern';
         });
-        const existingIds = new Set(realTasks.map(t => t.id));
         for (const gTask of matched) {
-          if (!existingIds.has(gTask.id)) {
-            realTasks.push(gTask);
+          const idx = realTasks.findIndex(existing => existing.id === gTask.id);
+          if (idx >= 0) {
+            realTasks[idx] = { ...realTasks[idx], ...gTask };
+          } else {
+            realTasks.unshift(gTask);
           }
         }
+      }
+
+      // Filter out deleted tasks
+      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+      if (savedDel) {
+        const deletedIds = JSON.parse(savedDel);
+        realTasks = realTasks.filter(t => !deletedIds.includes(t.id));
       }
     } catch(e) {}
 
     res.tasks = realTasks;
 
-    let realLogs = [];
-    const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-    if (savedLogs) {
-      try { realLogs = JSON.parse(savedLogs); } catch(e) {}
-    }
+    let realLogs = Array.isArray(res.attendanceLogs) ? [...res.attendanceLogs] : [];
+    try {
+      const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+      if (savedLogs) {
+        const parsedLogs = JSON.parse(savedLogs);
+        for (const l of parsedLogs) {
+          if (!realLogs.some(existing => existing.id === l.id)) {
+            realLogs.unshift(l);
+          }
+        }
+      }
+    } catch(e) {}
+
     res.attendanceLogs = realLogs;
 
     // Clean stats to strictly reflect real user tasks and attendance logs
     res.stats = {
       ...(res.stats || {}),
-      tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED' || t.status === 'APPROVED').length,
+      tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
       tasksTotal: realTasks.length,
       hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
       attendanceRate: realLogs.length === 0 ? '0%' : '100%',
