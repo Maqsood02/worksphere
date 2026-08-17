@@ -15,10 +15,11 @@ export default function InternDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Submit Task Modal State
+  // Task Submission Modal State
   const [selectedTask, setSelectedTask] = useState(null);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [submissionNotes, setSubmissionNotes] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Log Standup Modal State
@@ -247,14 +248,22 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTask) return;
+    if (!submissionUrl && !uploadedFileName) {
+      addToast("Please provide a deliverable URL or upload your report file.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
+      const finalSubmissionUrl = uploadedFileName 
+        ? `${submissionUrl || ''} ${submissionUrl ? '|' : ''} Report File: ${uploadedFileName}`.trim() 
+        : submissionUrl;
+
       // Update local storage immediately for real-time reactivity
       try {
         const updateTaskObj = (t) => {
           if (t.id === selectedTask.id || t.title === selectedTask.title) {
-            return { ...t, status: 'SUBMITTED', submissionUrl, submissionNotes };
+            return { ...t, status: 'SUBMITTED', submissionUrl: finalSubmissionUrl, submissionNotes };
           }
           return t;
         };
@@ -270,18 +279,35 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
         }
       } catch(e) {}
 
+      // Direct Serverless MongoDB Atlas submit patch
+      try {
+        await fetch('/api/intern-tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: selectedTask.id,
+            status: 'SUBMITTED',
+            submissionUrl: finalSubmissionUrl,
+            submissionNotes: submissionNotes
+          })
+        });
+      } catch(e) {}
+
       const res = await api.submitInternTask(selectedTask.id, {
-        submissionUrl,
+        submissionUrl: finalSubmissionUrl,
         notes: submissionNotes
       });
-      addToast(res?.message || "Task deliverable submitted successfully! Awaiting Admin approval.");
+      addToast(res?.message || "Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
       setSubmissionUrl('');
       setSubmissionNotes('');
+      setUploadedFileName('');
       fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Task deliverable submitted successfully! Awaiting Admin approval.");
+      addToast("Task deliverable & report submitted successfully! Awaiting Admin approval.");
+      setSelectedTask(null);
+      fetchInternData(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -290,10 +316,12 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
   const handleClaimTask = async (taskId) => {
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
+      const uname = user?.username || uKey;
+
       try {
         const updateClaimObj = (t) => {
           if (t.id === taskId || t.title === taskId) {
-            return { ...t, assignedTo: user?.username || uKey, status: 'IN_PROGRESS' };
+            return { ...t, assignedTo: uname, status: 'IN_PROGRESS' };
           }
           return t;
         };
@@ -309,12 +337,26 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
         }
       } catch(e) {}
 
-      const res = await api.claimInternTask(taskId);
-      addToast(res?.message || "Task claimed! You can now start working.");
+      // Direct Vercel Serverless MongoDB Atlas patch
+      try {
+        await fetch('/api/intern-tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: taskId,
+            status: 'IN_PROGRESS',
+            assignedTo: uname
+          })
+        });
+      } catch (e) {}
+
+      await api.claimInternTask(taskId);
+      addToast("Task claimed! You can now start working and submit deliverables.");
       fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Task claimed! You can now start working.");
+      addToast("Task claimed! You can now start working and submit deliverables.");
+      fetchInternData(true);
     }
   };
 
@@ -1212,15 +1254,54 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
 
             <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
               <div className="flex flex-col space-y-1.5">
-                <label>GitHub PR / Live Demo URL *</label>
+                <label>GitHub PR / Demo / Drive Folder URL</label>
                 <input
                   type="url"
                   value={submissionUrl}
                   onChange={(e) => setSubmissionUrl(e.target.value)}
-                  placeholder="https://github.com/org/repo/pull/12"
-                  required
+                  placeholder="https://github.com/org/repo/pull/12 or Google Drive folder"
                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500"
                 />
+              </div>
+
+              {/* Upload Report / Project Folder (ZIP, PDF, DOCX) */}
+              <div className="flex flex-col space-y-1.5">
+                <label>Upload Report Document / Deliverable Folder (ZIP, PDF, DOCX)</label>
+                <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/40 rounded-2xl p-4 text-center transition-colors cursor-pointer relative">
+                  <input
+                    type="file"
+                    accept=".zip,.rar,.pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.tar.gz"
+                    onChange={(e) => {
+                      const f = e.target.files[0];
+                      if (f) setUploadedFileName(`${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`);
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  {uploadedFileName ? (
+                    <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-indigo-200 shadow-sm">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <span className="font-bold text-slate-800 truncate text-[11px]">{uploadedFileName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedFileName('');
+                        }}
+                        className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 py-1">
+                      <Upload className="w-6 h-6 text-indigo-500 mx-auto" />
+                      <p className="font-bold text-indigo-700 text-xs">Click to browse or drag & drop reports / zip folders</p>
+                      <p className="text-[10px] text-slate-400">Supports PDF, Word Doc, ZIP, TAR, Images (up to 50MB)</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col space-y-1.5">
@@ -1238,16 +1319,16 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                 <button
                   type="button"
                   onClick={() => setSelectedTask(null)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold"
+                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit to Mentor'}
+                  {isSubmitting ? 'Submitting...' : 'Submit Deliverable & Report'}
                 </button>
               </div>
             </form>
