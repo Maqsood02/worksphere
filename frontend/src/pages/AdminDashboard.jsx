@@ -141,8 +141,8 @@ export default function AdminDashboard() {
   ];
 
   const defaultInterns = [
-    { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'PAID', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' },
-    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'PAID', stipendAmount: '₹15,000 / mo', certificateStatus: 'ISSUED' }
+    { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' },
+    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' }
   ];
 
   const fetchData = async () => {
@@ -515,13 +515,10 @@ export default function AdminDashboard() {
       try {
         const uKey = targetIntern.username.toLowerCase();
         localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(updatedPayload));
-        localStorage.setItem('worksphere_active_intern_profile', JSON.stringify(updatedPayload));
         
         const profilesSaved = localStorage.getItem('worksphere_intern_profiles');
         let profilesMap = profilesSaved ? JSON.parse(profilesSaved) : {};
         profilesMap[uKey] = { ...(profilesMap[uKey] || {}), ...updatedPayload };
-        profilesMap['intern'] = { ...(profilesMap['intern'] || {}), ...updatedPayload };
-        profilesMap['maqsood'] = { ...(profilesMap['maqsood'] || {}), ...updatedPayload };
         localStorage.setItem('worksphere_intern_profiles', JSON.stringify(profilesMap));
       } catch (e) {}
 
@@ -978,7 +975,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
                     {internsList.map(intern => {
-                      const isPaid = intern.stipendType !== 'UNPAID';
+                      const isUnpaid = (intern.stipendType || '').toUpperCase() === 'UNPAID' || (intern.stipendAmount || '').toLowerCase().includes('unpaid');
+                      const isPaid = !isUnpaid;
                       const isCertIssued = intern.certificateStatus === 'ISSUED';
                       return (
                         <tr key={intern.username} className="hover:bg-slate-50/60 transition-colors">
@@ -1026,12 +1024,13 @@ export default function AdminDashboard() {
                               <button
                                 onClick={() => {
                                   setTargetIntern(intern);
-                                  setEditStipendType(intern.stipendType || 'PAID');
+                                  const isInternUnpaid = (intern.stipendType || '').toUpperCase() === 'UNPAID' || (intern.stipendAmount || '').toLowerCase().includes('unpaid');
+                                  setEditStipendType(isInternUnpaid ? 'UNPAID' : 'PAID');
                                   setEditStipendCurrency(intern.stipendCurrency || (intern.stipendAmount?.includes('$') ? 'USD' : 'INR'));
                                   setEditStipendAmount(
-                                    (intern.stipendAmount && intern.stipendAmount !== 'Pending Admin Setup') 
+                                    (intern.stipendAmount && intern.stipendAmount !== 'Pending Admin Setup' && !isInternUnpaid) 
                                       ? intern.stipendAmount 
-                                      : (intern.stipendCurrency === 'USD' ? '$1,500 / mo' : '₹15,000 / mo')
+                                      : (isInternUnpaid ? 'Unpaid (Academic Credit)' : (intern.stipendCurrency === 'USD' ? '$1,500 / mo' : '₹15,000 / mo'))
                                   );
                                   setEditMentorName(intern.mentorName || 'Dr. Sarah Jenkins');
                                   setEditMentorEmail(intern.mentorEmail || 's.jenkins@worksphere.ac.in');

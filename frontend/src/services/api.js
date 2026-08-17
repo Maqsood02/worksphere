@@ -380,24 +380,22 @@ function isValidEmailFormat(email) {
     const targetUsername = (parts[parts.length - 2] || 'intern').toLowerCase();
     const profiles = getStoredInternProfiles();
 
-    // Update target profile and sync across demo intern keys
-    Object.keys(profiles).forEach(k => {
-      if (k === targetUsername || k === 'intern' || k === 'maqsood' || targetUsername.includes('intern')) {
-        const current = profiles[k] || {};
-        profiles[k] = {
-          ...current,
-          ...body,
-          stipendType: body.stipendType || current.stipendType || 'PAID',
-          stipendAmount: body.stipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : (body.stipendAmount || current.stipendAmount || '₹15,000 / mo')
-        };
-      }
-    });
+    const current = profiles[targetUsername] || {};
+    const newStipendType = body.stipendType || current.stipendType || 'UNPAID';
+    const newStipendAmount = newStipendType === 'UNPAID' ? 'Unpaid (Academic Credit)' : (body.stipendAmount || current.stipendAmount || '₹15,000 / mo');
+
+    profiles[targetUsername] = {
+      ...current,
+      ...body,
+      stipendType: newStipendType,
+      stipendAmount: newStipendAmount
+    };
 
     saveStoredInternProfiles(profiles);
     return {
       success: true,
       message: `Intern profile & stipend settings updated for @${targetUsername}!`,
-      profile: profiles[targetUsername] || Object.values(profiles)[0]
+      profile: profiles[targetUsername]
     };
   }
 
@@ -922,11 +920,8 @@ export const api = {
       const uKey = (username || 'intern').toLowerCase();
       const storedProfiles = getStoredInternProfiles();
       storedProfiles[uKey] = { ...(storedProfiles[uKey] || {}), ...payload, username };
-      storedProfiles['intern'] = { ...(storedProfiles['intern'] || {}), ...payload };
-      storedProfiles['maqsood'] = { ...(storedProfiles['maqsood'] || {}), ...payload };
       saveStoredInternProfiles(storedProfiles);
       localStorage.setItem(`worksphere_profile_${uKey}`, JSON.stringify(payload));
-      localStorage.setItem('worksphere_active_intern_profile', JSON.stringify(payload));
     } catch (e) {}
     return request(`/api/admin/interns/${username}/update`, {
       method: 'POST',
