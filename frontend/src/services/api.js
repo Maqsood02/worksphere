@@ -5,16 +5,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v10');
-  if (currentCacheVer !== 'v10') {
-    localStorage.removeItem('worksphere_attendance_intern');
-    localStorage.removeItem('worksphere_attendance_maqsood');
-    localStorage.removeItem('worksphere_attendance_chinmaykv');
-    localStorage.removeItem('worksphere_tasks_intern');
-    localStorage.removeItem('worksphere_tasks_maqsood');
-    localStorage.removeItem('worksphere_tasks_chinmaykv');
-    localStorage.removeItem('worksphere_global_tasks');
-    localStorage.setItem('worksphere_clean_cache_v10', 'v10');
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v11');
+  if (currentCacheVer !== 'v11') {
+    localStorage.removeItem('worksphere_users_list');
+    localStorage.setItem('worksphere_clean_cache_v11', 'v11');
   }
 }
 
@@ -32,6 +26,7 @@ function getStoredUsersList() {
     try {
       let parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed = parsed.filter(u => (u.username || '').toLowerCase() !== 'workshpere');
         parsed = parsed.map(u => {
           const uname = (u.username || '').toLowerCase();
           if (uname === 'maqsood' && (u.role === 'ROLE_INTERN' || u.role === 'INTERN')) {

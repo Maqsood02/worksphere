@@ -241,11 +241,12 @@ export default function AdminDashboard() {
         rawUsers = defaultUsersList;
       }
 
-      // Deduplicate users strictly by lowercase username
+      // Filter out duplicate typo alias 'workshpere' and deduplicate users strictly by lowercase username
       const seenUsernames = new Set();
       const uniqueUsers = [];
       for (const u of rawUsers) {
         const uKey = (u.username || '').trim().toLowerCase();
+        if (uKey === 'workshpere') continue; // Filter out duplicate typo variant
         if (uKey && !seenUsernames.has(uKey)) {
           seenUsernames.add(uKey);
           uniqueUsers.push(u);
