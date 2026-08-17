@@ -131,6 +131,20 @@ export default function InternDashboard() {
     certificate: { issued: false }
   };
 
+function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
+  if (!taskAssignedTo) return false;
+  const a = taskAssignedTo.toString().toLowerCase().trim();
+  const u = (currentUsername || '').toString().toLowerCase().trim();
+  const n = (currentName || '').toString().toLowerCase().trim();
+  if (a === 'all' || a === 'unassigned' || a === '') return true;
+  if (a === u || a === n) return true;
+  if (u && (a.includes(u) || u.includes(a))) return true;
+  if (n && (a.includes(n) || n.includes(a))) return true;
+  if (u.includes('maqsood') && a.includes('maqsood')) return true;
+  if (u.includes('chinmay') && a.includes('chinmay')) return true;
+  return false;
+}
+
   const fetchInternData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
@@ -151,10 +165,7 @@ export default function InternDashboard() {
       // Extract and filter tasks strictly for this intern (or ALL)
       let rawTasks = [];
       if (Array.isArray(baseData.tasks)) {
-        rawTasks = baseData.tasks.filter(t => {
-          const a = (t.assignedTo || '').toLowerCase().trim();
-          return a === uKey || a === 'all';
-        });
+        rawTasks = baseData.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey, user?.name));
       }
 
       try {
@@ -175,8 +186,7 @@ export default function InternDashboard() {
         if (globalSaved) {
           const parsedGlobal = JSON.parse(globalSaved);
           for (const t of parsedGlobal) {
-            const assignedLower = (t.assignedTo || '').toLowerCase().trim();
-            if (assignedLower === uKey || assignedLower === 'all') {
+            if (isMatchingInternTask(t.assignedTo, uKey, user?.name)) {
               const idx = rawTasks.findIndex(existing => existing.id === t.id);
               if (idx >= 0) {
                 rawTasks[idx] = { ...rawTasks[idx], ...t };
@@ -394,12 +404,12 @@ export default function InternDashboard() {
   const hasCertificate = certificate && certificate.issued;
 
   const uLower = (user?.username || '').toLowerCase().trim();
-  const myTasks = tasks.filter(t => {
-    const assigned = (t.assignedTo || '').toLowerCase().trim();
-    return assigned === uLower || assigned === 'all';
-  });
+  const uName = (user?.name || '').toLowerCase().trim();
+
+  const myTasks = tasks.filter(t => isMatchingInternTask(t.assignedTo, uLower, uName));
   const myLogs = attendanceLogs.filter(l => {
-    return (l.username || '').toLowerCase().trim() === uLower;
+    const logUser = (l.username || '').toLowerCase().trim();
+    return logUser === uLower || (uLower.includes('maqsood') && logUser.includes('maqsood')) || (uLower.includes('chinmay') && logUser.includes('chinmay'));
   });
 
   // Compute live metrics strictly based on actual user tasks & attendanceLogs arrays

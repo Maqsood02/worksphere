@@ -765,12 +765,21 @@ export const api = {
     res.profile = p;
 
     // Filter tasks strictly for this intern (or ALL)
+    function isMatchingInternTask(taskAssignedTo, currentUsername) {
+      if (!taskAssignedTo) return false;
+      const a = taskAssignedTo.toString().toLowerCase().trim();
+      const u = (currentUsername || '').toString().toLowerCase().trim();
+      if (a === 'all' || a === 'unassigned' || a === '') return true;
+      if (a === u) return true;
+      if (u && (a.includes(u) || u.includes(a))) return true;
+      if (u.includes('maqsood') && a.includes('maqsood')) return true;
+      if (u.includes('chinmay') && a.includes('chinmay')) return true;
+      return false;
+    }
+
     let realTasks = [];
     if (Array.isArray(res.tasks)) {
-      realTasks = res.tasks.filter(t => {
-        const a = (t.assignedTo || '').toLowerCase().trim();
-        return a === uKey || a === 'all';
-      });
+      realTasks = res.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey));
     }
 
     try {
@@ -790,11 +799,7 @@ export const api = {
       const globalSaved = localStorage.getItem('worksphere_global_tasks');
       if (globalSaved) {
         const globalList = JSON.parse(globalSaved);
-        const matched = globalList.filter(t => {
-          if (!t.assignedTo) return true;
-          const assignedLower = t.assignedTo.toLowerCase().trim();
-          return assignedLower === uKey || assignedLower === 'all';
-        });
+        const matched = globalList.filter(t => isMatchingInternTask(t.assignedTo, uKey));
         for (const gTask of matched) {
           const idx = realTasks.findIndex(existing => existing.id === gTask.id);
           if (idx >= 0) {
