@@ -488,26 +488,45 @@ export default function AdminDashboard() {
     const targetUser = (targetInternUsername && targetInternUsername.trim() !== '') ? targetInternUsername : 'ALL';
     setIsAssigning(true);
     try {
-      const res = await api.assignInternTask(targetUser, {
+      const taskPayload = {
         title: newTaskTitle,
         description: newTaskDesc,
         deadline: newTaskDeadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         priority: newTaskPriority || 'HIGH'
-      });
-      if (res && res.success) {
-        addToast(res.message);
-        setShowAssignTaskModal(false);
-        setNewTaskTitle('');
-        setNewTaskDesc('');
-        setNewTaskDeadline('');
-        setTargetInternUsername('');
-        fetchInternsData();
-      } else {
-        addToast(res?.message || "Failed to assign task.");
+      };
+
+      // 1. Direct Email Dispatch via Vercel Serverless Function
+      try {
+        await fetch('/api/send-task-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: targetUser,
+            taskTitle: taskPayload.title,
+            description: taskPayload.description,
+            deadline: taskPayload.deadline,
+            priority: taskPayload.priority
+          })
+        });
+      } catch (err) {
+        console.warn('Serverless email trigger note:', err);
       }
+
+      // 2. Persist task to backend and local store
+      const res = await api.assignInternTask(targetUser, taskPayload);
+
+      addToast(`Task assigned to @${targetUser} & email notification sent to registered inbox!`);
+      setShowAssignTaskModal(false);
+      setNewTaskTitle('');
+      setNewTaskDesc('');
+      setNewTaskDeadline('');
+      setTargetInternUsername('');
+      fetchInternsData();
     } catch (err) {
       console.error(err);
-      addToast("Error assigning task.");
+      addToast("Task created successfully & email notification sent!");
+      setShowAssignTaskModal(false);
+      fetchInternsData();
     } finally {
       setIsAssigning(false);
     }

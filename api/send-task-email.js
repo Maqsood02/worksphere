@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
-  // Allow CORS for Vercel Serverless API
+  // Allow CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   try {
     const { toEmail, internName, username, taskTitle, description, deadline, priority } = req.body || {};
 
-    const uLower = (username || '').toLowerCase();
+    const uLower = (username || '').toLowerCase().trim();
     const recipients = [];
     
     if (toEmail && toEmail.includes('@')) {
@@ -36,7 +36,9 @@ export default async function handler(req, res) {
     }
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: 'worksphere.ac.in@gmail.com',
         pass: 'mbtfgehiiejzwtzk'
