@@ -108,15 +108,23 @@ public class InternRestController {
             }
         }
 
-        long completedCount = tasksList.stream().filter(t -> 
-            (username.equalsIgnoreCase((String) t.get("assignedTo")) || "ALL".equalsIgnoreCase((String) t.get("assignedTo"))) &&
-            ("COMPLETED".equals(t.get("status")) || "APPROVED".equals(t.get("status")))
+        final String uFinal = username;
+        List<Map<String, Object>> myTasks = new ArrayList<>();
+        for (Map<String, Object> t : tasksList) {
+            String assigned = (String) t.get("assignedTo");
+            if (assigned != null && (assigned.equalsIgnoreCase(uFinal) || "ALL".equalsIgnoreCase(assigned))) {
+                myTasks.add(t);
+            }
+        }
+
+        long completedCount = myTasks.stream().filter(t -> 
+            "COMPLETED".equals(t.get("status")) || "APPROVED".equals(t.get("status"))
         ).count();
         int totalLoggedHours = myAttendance.stream().mapToInt(a -> (int) a.get("hours")).sum();
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("tasksCompleted", completedCount);
-        stats.put("tasksTotal", tasksList.size());
+        stats.put("tasksTotal", myTasks.size());
         stats.put("hoursLogged", totalLoggedHours);
         stats.put("attendanceRate", myAttendance.isEmpty() ? "0%" : "100%");
         
@@ -137,7 +145,7 @@ public class InternRestController {
             "success", true,
             "profile", profile,
             "stats", stats,
-            "tasks", tasksList,
+            "tasks", myTasks,
             "attendanceLogs", myAttendance,
             "learningModules", learningModules,
             "certificate", certificate != null ? certificate : Map.of("issued", false)
