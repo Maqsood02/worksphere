@@ -953,13 +953,9 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                         Logged by <span className="font-bold text-slate-600">@{log.username || user?.username}</span>
                       </span>
 
-                      <button
-                        onClick={() => handleDeleteMyStandup(log.id)}
-                        className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                        title="Discard this standup log"
-                      >
-                        Discard
-                      </button>
+                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Synced with Admin
+                      </span>
                     </div>
                   </div>
                 );
