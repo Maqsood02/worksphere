@@ -43,11 +43,13 @@ export default async function handler(req, res) {
     // Query Attendance
     const allLogs = await attendanceCol.find({}).sort({ createdAt: -1 }).toArray();
     const myLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey).map(l => ({
-      id: l.logId || l._id.toString(),
+      id: l.logId || l.id || l._id.toString(),
+      logId: l.logId || l.id || l._id.toString(),
       username: l.username,
       date: l.date,
       hours: Number(l.hours) || 8,
-      summary: l.summary || ''
+      summary: l.summary || '',
+      status: l.status || 'SUBMITTED'
     }));
 
     const completedCount = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
