@@ -1320,11 +1320,11 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Reset to Zero Action Group */}
-                <div className="flex flex-wrap items-center gap-2.5 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-2 bg-slate-50/90 p-2 rounded-2xl border border-slate-200 shadow-sm shrink-0">
                   <select
                     value={resetTargetUsername}
                     onChange={(e) => setResetTargetUsername(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-500"
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-500 shadow-xs cursor-pointer h-9"
                   >
                     <option value="all">🌐 All Interns</option>
                     {usersList.filter(u => (u.role || '').toUpperCase().includes('INTERN')).map(u => (
@@ -1335,7 +1335,7 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => handleResetAttendanceToZero(resetTargetUsername)}
-                    className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap hover:scale-105"
+                    className="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap h-9"
                     title="Reset all logged attendance hours to 0"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Reset to Zero
