@@ -358,7 +358,7 @@ public class InternRestController {
                     }
                     try {
                         System.out.println("[SMTP DISPATCH] Task assigned email to registered intern: " + email + " (@" + u.getUsername() + ")");
-                        emailService.sendTaskAssignedEmail(email, internName, u.getUsername(), title, description, deadline, priority);
+                        emailService.sendTaskAssignedEmailSync(email, internName, u.getUsername(), title, description, deadline, priority);
                         sentCount++;
                     } catch (Exception e) {
                         System.err.println("[SMTP ERROR] Task email trigger failed for @" + u.getUsername() + ": " + e.getMessage());
@@ -368,10 +368,12 @@ public class InternRestController {
             // Fallback default emails if db search returned 0
             if (sentCount == 0) {
                 try {
-                    emailService.sendTaskAssignedEmail("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", title, description, deadline, priority);
-                    emailService.sendTaskAssignedEmail("chinmaykv555@gmail.com", "Chinmay K V", "Chinmaykv", title, description, deadline, priority);
+                    emailService.sendTaskAssignedEmailSync("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", title, description, deadline, priority);
+                    emailService.sendTaskAssignedEmailSync("chinmaykv555@gmail.com", "Chinmay K V", "Chinmaykv", title, description, deadline, priority);
                     sentCount = 2;
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    System.err.println("[SMTP ERROR] Fallback task email failed: " + e.getMessage());
+                }
             }
             emailSent = sentCount > 0;
             noticeMsg = "New task assigned to ALL Interns & email notifications dispatched to " + sentCount + " registered intern email(s)!";
@@ -391,12 +393,13 @@ public class InternRestController {
 
             try {
                 System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + username);
-                emailService.sendTaskAssignedEmail(email, internName, username, title, description, deadline, priority);
+                emailService.sendTaskAssignedEmailSync(email, internName, username, title, description, deadline, priority);
                 emailSent = true;
+                noticeMsg = "New task assigned to @" + username + " & notification email dispatched to registered email " + email + "!";
             } catch (Exception e) {
                 System.err.println("[SMTP ERROR] Task email trigger failed: " + e.getMessage());
+                noticeMsg = "New task assigned to @" + username + "! (SMTP Note: " + e.getMessage() + ")";
             }
-            noticeMsg = "New task assigned to @" + username + " & notification email dispatched to registered email " + email + "!";
         }
 
         return ResponseEntity.ok(Map.of(
