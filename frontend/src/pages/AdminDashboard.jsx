@@ -48,6 +48,12 @@ export default function AdminDashboard() {
   const [newTaskPriority, setNewTaskPriority] = useState('HIGH');
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // Attendance Management States
+  const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editingHours, setEditingHours] = useState(8);
+  const [resetTargetUsername, setResetTargetUsername] = useState('all');
+
   // Edit Stipend & Mentor Modal
   const [showEditStipendModal, setShowEditStipendModal] = useState(false);
   const [targetIntern, setTargetIntern] = useState(null);
@@ -100,6 +106,7 @@ export default function AdminDashboard() {
     fetchData();
     fetchUsersData();
     fetchInternsData();
+    fetchAttendanceData();
     fetchLearningModules();
   }, [user]);
 
@@ -596,6 +603,65 @@ export default function AdminDashboard() {
       addToast("Task deleted successfully.");
     } finally {
       fetchInternsData();
+    }
+  };
+
+  const fetchAttendanceData = async () => {
+    try {
+      const logs = await api.getAdminAttendance();
+      setAllAttendanceLogs(Array.isArray(logs) ? logs : []);
+    } catch(e) {}
+  };
+
+  const handleDeleteAttendanceLog = async (logId) => {
+    if (!window.confirm(`Delete attendance log ${logId}?`)) return;
+    try {
+      await api.deleteAttendanceLog(logId);
+      addToast(`Attendance entry ${logId} deleted!`);
+      setAllAttendanceLogs(prev => prev.filter(l => (l.logId || l.id) !== logId));
+      fetchInternsData();
+    } catch(e) {
+      addToast("Failed deleting attendance log.");
+    }
+  };
+
+  const handleApproveAttendanceLog = async (logId) => {
+    try {
+      await api.updateAttendanceLog(logId, { status: 'APPROVED' });
+      addToast(`Attendance log ${logId} approved!`);
+      setAllAttendanceLogs(prev => prev.map(l => (l.logId || l.id) === logId ? { ...l, status: 'APPROVED' } : l));
+    } catch(e) {
+      addToast("Failed updating status.");
+    }
+  };
+
+  const handleSaveEditHours = async (logId) => {
+    try {
+      await api.updateAttendanceLog(logId, { hours: Number(editingHours) });
+      addToast(`Attendance log updated to ${editingHours} hrs!`);
+      setAllAttendanceLogs(prev => prev.map(l => (l.logId || l.id) === logId ? { ...l, hours: Number(editingHours) } : l));
+      setEditingLogId(null);
+      fetchInternsData();
+    } catch(e) {
+      addToast("Failed editing hours.");
+    }
+  };
+
+  const handleResetAttendanceToZero = async (username = '') => {
+    const targetLabel = (username && username !== 'all') ? `@${username}` : 'ALL Registered Interns';
+    if (!window.confirm(`⚠️ Are you sure you want to reset attendance hours and delete all logs to ZERO for ${targetLabel}?`)) return;
+    try {
+      const uParam = (username && username !== 'all') ? username : '';
+      await api.resetInternAttendance(uParam);
+      addToast(`Attendance logs reset to ZERO for ${targetLabel}!`);
+      if (uParam) {
+        setAllAttendanceLogs(prev => prev.filter(l => (l.username || '').toLowerCase() !== uParam.toLowerCase()));
+      } else {
+        setAllAttendanceLogs([]);
+      }
+      fetchInternsData();
+    } catch(e) {
+      addToast("Failed resetting attendance logs.");
     }
   };
 
@@ -1224,6 +1290,152 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Attendance & Timesheet Logs Management */}
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="font-poppins font-bold text-base text-slate-800 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-indigo-600" /> Intern Daily Standups & Attendance Management ({allAttendanceLogs.length})
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Review logged hours, edit records, approve timesheets, or reset attendance hours to zero.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={resetTargetUsername}
+                    onChange={(e) => setResetTargetUsername(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none"
+                  >
+                    <option value="all">🌐 All Interns</option>
+                    {usersList.filter(u => (u.role || '').toUpperCase().includes('INTERN')).map(u => (
+                      <option key={u.username} value={u.username}>@{u.username} ({u.name})</option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => handleResetAttendanceToZero(resetTargetUsername)}
+                    className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                    title="Reset all logged attendance hours to 0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Reset to Zero
+                  </button>
+                </div>
+              </div>
+
+              {allAttendanceLogs.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs font-semibold">
+                  No attendance records logged yet. Logs submitted by interns will appear here.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 font-extrabold text-[10px] uppercase tracking-wider">
+                        <th className="py-2.5 px-3">Entry ID</th>
+                        <th className="py-2.5 px-3">Intern</th>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Hours</th>
+                        <th className="py-2.5 px-3">Standup Summary</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {allAttendanceLogs.map(log => {
+                        const logKey = log.logId || log.id;
+                        const isEditing = editingLogId === logKey;
+
+                        return (
+                          <tr key={logKey} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-indigo-600 text-[11px]">
+                              {logKey}
+                            </td>
+                            <td className="py-3 px-3 font-bold text-slate-800">
+                              @{log.username}
+                            </td>
+                            <td className="py-3 px-3 text-slate-500">
+                              {log.date || '2026-08-17'}
+                            </td>
+                            <td className="py-3 px-3 font-bold">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="24"
+                                    value={editingHours}
+                                    onChange={(e) => setEditingHours(e.target.value)}
+                                    className="w-14 bg-white border border-indigo-300 rounded px-1.5 py-0.5 text-xs font-bold"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveEditHours(logKey)}
+                                    className="bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingLogId(null)}
+                                    className="text-slate-400 text-[10px]"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-100">
+                                  {log.hours || 8} hrs
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 max-w-xs truncate text-slate-600 text-xs">
+                              {log.summary || 'Daily standup recorded'}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                log.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {log.status || 'SUBMITTED'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {log.status !== 'APPROVED' && (
+                                  <button
+                                    onClick={() => handleApproveAttendanceLog(logKey)}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-emerald-200 cursor-pointer"
+                                  >
+                                    Approve
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setEditingLogId(logKey);
+                                    setEditingHours(log.hours || 8);
+                                  }}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer"
+                                >
+                                  Edit Hours
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAttendanceLog(logKey)}
+                                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2 py-1 rounded-lg text-[11px] border border-rose-200 cursor-pointer"
+                                  title="Delete this attendance entry"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

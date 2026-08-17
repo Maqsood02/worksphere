@@ -16,6 +16,10 @@
       "destination": "/api/intern-tasks"
     },
     {
+      "source": "/api/intern-attendance",
+      "destination": "/api/intern-attendance"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

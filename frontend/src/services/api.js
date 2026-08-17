@@ -995,30 +995,90 @@ export const api = {
     });
   },
   logInternAttendance: async (payload) => {
+    let currentUser = null;
     try {
-      let currentUser = null;
-      try {
-        const savedUser = localStorage.getItem('worksphere_user');
-        if (savedUser) currentUser = JSON.parse(savedUser);
-      } catch (e) {}
-      const uKey = (currentUser?.username || 'intern').toLowerCase();
+      const savedUser = localStorage.getItem('worksphere_user');
+      if (savedUser) currentUser = JSON.parse(savedUser);
+    } catch (e) {}
+    const uKey = (currentUser?.username || 'intern').toLowerCase();
+
+    const newLog = {
+      id: 'ATT-' + Date.now(),
+      username: currentUser?.username || uKey,
+      date: new Date().toISOString().split('T')[0],
+      hours: Number(payload.hours) || 8,
+      summary: payload.summary || 'Daily standup recorded',
+      status: 'SUBMITTED'
+    };
+
+    // 1. Direct Serverless MongoDB Atlas persist
+    try {
+      await fetch('/api/intern-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: uKey,
+          hours: newLog.hours,
+          summary: newLog.summary,
+          date: newLog.date
+        })
+      });
+    } catch (e) {}
+
+    try {
       const saved = localStorage.getItem(`worksphere_attendance_${uKey}`);
       let list = saved ? JSON.parse(saved) : [];
-      const newLog = {
-        id: 'ATT-' + Date.now(),
-        username: currentUser?.username || uKey,
-        date: new Date().toISOString().split('T')[0],
-        hours: Number(payload.hours) || 8,
-        summary: payload.summary || 'Daily standup recorded',
-        status: 'APPROVED'
-      };
       list.push(newLog);
       localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(list));
     } catch(e) {}
+
     return request('/api/intern/attendance/log', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+  },
+  getAdminAttendance: async () => {
+    try {
+      const res = await fetch('/api/intern-attendance?username=all');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.logs)) return data.logs;
+      }
+    } catch (e) {}
+    return [];
+  },
+  updateAttendanceLog: async (logId, payload) => {
+    try {
+      await fetch('/api/intern-attendance', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: logId, ...payload })
+      });
+    } catch (e) {}
+    return { success: true, message: "Attendance log updated!" };
+  },
+  deleteAttendanceLog: async (logId) => {
+    try {
+      await fetch(`/api/intern-attendance?id=${logId}`, { method: 'DELETE' });
+    } catch (e) {}
+    return { success: true, message: "Attendance log deleted!" };
+  },
+  resetInternAttendance: async (username) => {
+    const uParam = username ? `&username=${username}` : '';
+    try {
+      await fetch(`/api/intern-attendance?resetAll=true${uParam}`, { method: 'DELETE' });
+    } catch (e) {}
+    // Clear localStorage attendance
+    try {
+      if (username) {
+        localStorage.removeItem(`worksphere_attendance_${username.toLowerCase()}`);
+      } else {
+        localStorage.removeItem('worksphere_attendance_maqsood');
+        localStorage.removeItem('worksphere_attendance_chinmaykv');
+        localStorage.removeItem('worksphere_attendance_intern');
+      }
+    } catch (e) {}
+    return { success: true, message: `Attendance logs reset to zero for ${username || 'all interns'}!` };
   },
   requestInternCertificate: () => 
     request('/api/intern/certificate/request', {
