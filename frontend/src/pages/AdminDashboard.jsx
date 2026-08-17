@@ -255,23 +255,42 @@ export default function AdminDashboard() {
     try {
       const res = await api.getAdminInterns();
       let interns = [];
-      if (Array.isArray(res)) {
+      if (res && res.success && Array.isArray(res.interns)) {
+        interns = res.interns;
+      } else if (Array.isArray(res)) {
         interns = res;
-      } else if (res && res.success && Array.isArray(res.interns)) {
-        interns = res.interns;
-        
-        let deletedTaskIds = [];
-        try {
-          const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-          if (savedDel) deletedTaskIds = JSON.parse(savedDel);
-        } catch(e) {}
-
-        const rawTasks = res.allTasks || [];
-        const filteredTasks = rawTasks.filter(t => !deletedTaskIds.includes(t.id));
-        setAllInternTasks(filteredTasks);
-      } else if (res && Array.isArray(res.interns)) {
-        interns = res.interns;
       }
+      
+      let deletedTaskIds = [];
+      try {
+        const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+        if (savedDel) deletedTaskIds = JSON.parse(savedDel);
+      } catch(e) {}
+
+      let rawTasks = (res && Array.isArray(res.allTasks)) ? res.allTasks : [];
+      try {
+        const sRes = await fetch('/api/intern-tasks?username=all');
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          if (sData && Array.isArray(sData.tasks)) {
+            rawTasks = sData.tasks.map(t => ({
+              id: t.taskId || t.id || t._id,
+              taskId: t.taskId || t.id || t._id,
+              assignedTo: (t.assignedTo || '').replace(/^@+/, ''),
+              title: t.title,
+              description: t.description,
+              deadline: t.deadline,
+              priority: t.priority,
+              status: t.status,
+              submissionUrl: t.submissionUrl || '',
+              submissionNotes: t.submissionNotes || ''
+            }));
+          }
+        }
+      } catch (e) {}
+
+      const filteredTasks = rawTasks.filter(t => !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t.taskId));
+      setAllInternTasks(filteredTasks);
 
       // Deduplicate interns by lowercase username & merge local profile overrides
       const seen = new Set();

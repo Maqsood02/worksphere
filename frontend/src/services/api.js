@@ -1026,7 +1026,56 @@ export const api = {
     }),
 
   // Admin Intern Management
-  getAdminInterns: () => request('/api/admin/interns'),
+  getAdminInterns: async () => {
+    let allTasks = [];
+    // 1. Fetch all tasks directly from MongoDB Atlas serverless endpoint
+    try {
+      const taskRes = await fetch('/api/intern-tasks?username=all');
+      if (taskRes.ok) {
+        const taskData = await taskRes.json();
+        if (taskData && Array.isArray(taskData.tasks)) {
+          allTasks = taskData.tasks.map(t => ({
+            id: t.taskId || t.id || t._id,
+            taskId: t.taskId || t.id || t._id,
+            assignedTo: t.assignedTo,
+            title: t.title,
+            description: t.description,
+            deadline: t.deadline,
+            priority: t.priority,
+            status: t.status,
+            submissionUrl: t.submissionUrl || '',
+            submissionNotes: t.submissionNotes || ''
+          }));
+        }
+      }
+    } catch(e) {}
+
+    // Fallback or merge with localStorage
+    try {
+      const gSaved = localStorage.getItem('worksphere_global_tasks');
+      if (gSaved) {
+        const gList = JSON.parse(gSaved);
+        for (const gt of gList) {
+          if (!allTasks.some(t => (t.id && t.id === gt.id) || (t.taskId && t.taskId === gt.taskId))) {
+            allTasks.push(gt);
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Also call backend
+    let res = null;
+    try {
+      res = await request('/api/admin/interns');
+    } catch (e) {}
+
+    if (!res || !res.success || !Array.isArray(res.interns)) {
+      res = getMockFallbackResponse('/api/admin/interns');
+    }
+
+    res.allTasks = allTasks;
+    return res;
+  },
   updateAdminIntern: async (username, payload) => {
     try {
       const uKey = (username || 'intern').toLowerCase();
