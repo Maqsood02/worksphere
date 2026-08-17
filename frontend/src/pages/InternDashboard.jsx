@@ -685,8 +685,17 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {filteredTasks.map(task => {
-                const isAssignedToMe = (task.assignedTo || '').toLowerCase() === (user?.username || 'intern').toLowerCase();
-                const isAllTask = !task.assignedTo || task.assignedTo.toUpperCase() === 'ALL' || task.assignedTo.toLowerCase() === 'unassigned';
+                const cleanAssignedTo = (task.assignedTo || '').replace(/^@+/, '').toLowerCase().trim();
+                const myUsernameClean = (user?.username || 'intern').replace(/^@+/, '').toLowerCase().trim();
+                const myNameClean = (user?.name || '').toLowerCase().trim();
+
+                const isAllTask = !task.assignedTo || cleanAssignedTo === 'all' || cleanAssignedTo === 'unassigned';
+                const isAssignedToMe = !isAllTask && (
+                  cleanAssignedTo === myUsernameClean || 
+                  (myUsernameClean && cleanAssignedTo.includes(myUsernameClean)) || 
+                  (myUsernameClean && myUsernameClean.includes(cleanAssignedTo)) ||
+                  (myNameClean && cleanAssignedTo.includes(myNameClean))
+                );
                 const isCompleted = task.status === 'COMPLETED' || task.status === 'APPROVED';
                 const isSubmitted = task.status === 'SUBMITTED';
                 const isInProgress = task.status === 'IN_PROGRESS';
@@ -700,7 +709,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
                             {task.id}
                           </span>
                           <span className="text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                            👤 {isAllTask ? 'ALL Interns' : `@${task.assignedTo}`}
+                            👤 {isAllTask ? 'ALL Interns' : `@${cleanAssignedTo}`}
                           </span>
                         </div>
                         <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${

@@ -116,17 +116,18 @@ export default async function handler(req, res) {
 
     // 3. UPDATE STATUS OR SUBMISSION (PATCH)
     if (req.method === 'PATCH') {
-      const { taskId, status, submissionUrl, submissionNotes } = req.body || {};
+      const { taskId, status, submissionUrl, submissionNotes, assignedTo } = req.body || {};
       if (!taskId) {
         return res.status(400).json({ success: false, message: 'TaskId is required' });
       }
 
       const updateFields = { updatedAt: new Date() };
       if (status) updateFields.status = status;
+      if (assignedTo) updateFields.assignedTo = assignedTo.replace(/^@+/, '').trim();
       if (submissionUrl !== undefined) updateFields.submissionUrl = submissionUrl;
       if (submissionNotes !== undefined) updateFields.submissionNotes = submissionNotes;
 
-      await tasksCol.updateOne({ taskId }, { $set: updateFields });
+      await tasksCol.updateOne({ $or: [{ taskId: taskId }, { id: taskId }] }, { $set: updateFields });
       return res.status(200).json({ success: true, message: `Task ${taskId} updated successfully!` });
     }
 
