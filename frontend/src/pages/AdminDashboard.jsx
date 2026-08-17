@@ -927,29 +927,29 @@ export default function AdminDashboard() {
       <div className="lg:col-span-9 space-y-8">
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
-            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-500"><Users className="w-5 h-5" /></div>
+          <div onClick={() => setActiveTab('users')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Users className="w-5 h-5" /></div>
             <div>
               <span className="text-[10px] text-text-light block uppercase font-bold">Total Accounts</span>
               <span className="font-poppins font-extrabold text-xl text-text-dark">{usersList.length}</span>
             </div>
           </div>
-          <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-lg">₹</div>
+          <div onClick={() => setActiveTab('analytics')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group">
+            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">₹</div>
             <div>
               <span className="text-[10px] text-text-light block uppercase font-bold">Total Revenue</span>
               <span className="font-poppins font-extrabold text-xl text-text-dark">₹{revenue.toLocaleString('en-IN')}</span>
             </div>
           </div>
-          <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
-            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-600"><GraduationCap className="w-5 h-5" /></div>
+          <div onClick={() => setActiveTab('interns')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><GraduationCap className="w-5 h-5" /></div>
             <div>
               <span className="text-[10px] text-text-light block uppercase font-bold">Active Interns</span>
               <span className="font-poppins font-extrabold text-xl text-text-dark">{usersList.filter(u => u.role === 'ROLE_INTERN').length}</span>
             </div>
           </div>
-          <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4">
-            <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500"><Calendar className="w-5 h-5" /></div>
+          <div onClick={() => setActiveTab('appointments')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group">
+            <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Calendar className="w-5 h-5" /></div>
             <div>
               <span className="text-[10px] text-text-light block uppercase font-bold">Appointments</span>
               <span className="font-poppins font-extrabold text-xl text-text-dark">{appointmentsCount}</span>
@@ -1664,21 +1664,82 @@ export default function AdminDashboard() {
 
         {/* TAB: APPOINTMENTS */}
         {activeTab === 'appointments' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-            <h3 className="font-poppins font-bold text-lg text-text-dark">Scheduled Client Sync Meetings</h3>
-            <div className="space-y-3">
-              {appointments.map(a => (
-                <div key={a.id} className="border border-slate-100 p-4 rounded-2xl flex items-center justify-between text-xs bg-slate-50">
-                  <div>
-                    <h4 className="font-bold text-slate-800">{a.name} ({a.email})</h4>
-                    <p className="text-text-light">{a.date} at {a.time} • Topic: {a.topic}</p>
-                  </div>
-                  <button onClick={() => cancelAppointment(a.id)} className="text-rose-600 hover:underline font-bold">
-                    Cancel
-                  </button>
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
+                    Client Sync Schedule
+                  </span>
+                  <span className="text-xs text-slate-500 font-semibold">• {appointments.length} Upcoming</span>
                 </div>
-              ))}
+                <h3 className="font-poppins font-extrabold text-xl text-slate-900 flex items-center gap-2.5 mt-1">
+                  <Calendar className="w-6 h-6 text-amber-600" /> Scheduled Client Meetings & Consultations
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Live calendar and consultation schedule booked by clients and partners.
+                </p>
+              </div>
             </div>
+
+            {appointments.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs font-semibold bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                No client meetings scheduled at this time.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {appointments.map(a => (
+                  <div key={a.id} className="border border-slate-200/80 p-5 rounded-3xl bg-slate-50/60 hover:bg-white hover:border-amber-200 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span> {a.clientName || a.name || 'Alex Johnson'}
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {a.status || 'CONFIRMED'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-500 font-medium">
+                        {a.email || 'client@worksphere.ac.in'}
+                      </p>
+
+                      <div className="bg-white border border-slate-200/70 p-3 rounded-2xl space-y-1.5 text-xs">
+                        <div className="flex items-center gap-2 text-slate-700 font-bold">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>{a.date || '2026-08-12'}</span>
+                          <span className="text-slate-300">•</span>
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>{a.time || '10:00 AM'}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 font-medium pt-0.5">
+                          <span className="font-bold text-slate-700">Topic:</span> {a.serviceType || a.topic || 'Architecture Review & Project Sync'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <a
+                        href="https://meet.google.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Join Room
+                      </a>
+
+                      <button
+                        onClick={() => cancelAppointment(a.id)}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition-colors cursor-pointer"
+                      >
+                        Cancel Sync
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
