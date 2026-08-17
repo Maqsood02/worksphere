@@ -264,14 +264,25 @@ export default function AdminDashboard() {
         interns = res.interns;
       }
 
-      // Deduplicate interns by lowercase username & remove sample intern key
+      // Deduplicate interns by lowercase username & merge local profile overrides
       const seen = new Set();
       const uniqueInterns = [];
       (interns || []).forEach(i => {
         const uKey = (i.username || '').trim().toLowerCase();
         if (uKey && uKey !== 'intern' && !seen.has(uKey)) {
           seen.add(uKey);
-          uniqueInterns.push({ ...i, username: uKey });
+          let localOv = null;
+          try {
+            const ov = localStorage.getItem(`worksphere_profile_${uKey}`);
+            if (ov) localOv = JSON.parse(ov);
+          } catch(e) {}
+
+          const merged = { ...i, username: uKey, ...(localOv || {}) };
+          if (merged.stipendType === 'UNPAID' || (merged.stipendAmount || '').toLowerCase().includes('unpaid')) {
+            merged.stipendType = 'UNPAID';
+            merged.stipendAmount = 'Unpaid (Academic Credit)';
+          }
+          uniqueInterns.push(merged);
         }
       });
 

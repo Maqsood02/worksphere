@@ -409,15 +409,33 @@ function isValidEmailFormat(email) {
     Object.keys(profiles).forEach(k => {
       const lower = k.toLowerCase();
       if (lower !== 'intern') {
-        uniqueMap[lower] = { ...profiles[k], username: lower };
+        let userOverride = null;
+        try {
+          const ov = localStorage.getItem(`worksphere_profile_${lower}`);
+          if (ov) userOverride = JSON.parse(ov);
+        } catch(e) {}
+
+        const merged = { ...profiles[k], username: lower, ...(userOverride || {}) };
+        if (merged.stipendType === 'UNPAID' || (merged.stipendAmount || '').toLowerCase().includes('unpaid')) {
+          merged.stipendType = 'UNPAID';
+          merged.stipendAmount = 'Unpaid (Academic Credit)';
+        }
+        uniqueMap[lower] = merged;
       }
     });
 
     users.forEach(u => {
       const r = (u.role || '').toUpperCase();
       const uname = (u.username || '').toLowerCase();
-      if ((r.includes('INTERN')) && uname !== 'intern' && !uniqueMap[uname]) {
-        uniqueMap[uname] = {
+      if ((r.includes('INTERN')) && uname !== 'intern') {
+        let userOverride = null;
+        try {
+          const ov = localStorage.getItem(`worksphere_profile_${uname}`);
+          if (ov) userOverride = JSON.parse(ov);
+        } catch(e) {}
+
+        const existing = uniqueMap[uname] || {};
+        const merged = {
           username: uname,
           name: u.name || u.username,
           email: u.email || `${uname}@worksphere.ac.in`,
@@ -428,8 +446,15 @@ function isValidEmailFormat(email) {
           stipendCurrency: 'INR',
           stipendAmount: 'Unpaid (Academic Credit)',
           performanceRating: 'New Intern',
-          certificateStatus: 'NOT_ISSUED'
+          certificateStatus: 'NOT_ISSUED',
+          ...existing,
+          ...(userOverride || {})
         };
+        if (merged.stipendType === 'UNPAID' || (merged.stipendAmount || '').toLowerCase().includes('unpaid')) {
+          merged.stipendType = 'UNPAID';
+          merged.stipendAmount = 'Unpaid (Academic Credit)';
+        }
+        uniqueMap[uname] = merged;
       }
     });
 
