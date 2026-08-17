@@ -810,6 +810,42 @@ export const api = {
       body: JSON.stringify({ progressPct, completed })
     });
   },
+  claimInternTask: async (taskId) => {
+    try {
+      let currentUser = null;
+      try {
+        const savedUser = localStorage.getItem('worksphere_user');
+        if (savedUser) currentUser = JSON.parse(savedUser);
+      } catch (e) {}
+      const uKey = (currentUser?.username || 'intern').toLowerCase();
+      
+      const updateList = (list) => {
+        return list.map(t => {
+          if (t.id === taskId || t.title === taskId) {
+            return {
+              ...t,
+              assignedTo: currentUser?.username || uKey,
+              status: 'IN_PROGRESS'
+            };
+          }
+          return t;
+        });
+      };
+
+      const userSaved = localStorage.getItem(`worksphere_tasks_${uKey}`);
+      if (userSaved) {
+        localStorage.setItem(`worksphere_tasks_${uKey}`, JSON.stringify(updateList(JSON.parse(userSaved))));
+      }
+
+      const globalSaved = localStorage.getItem('worksphere_global_tasks');
+      if (globalSaved) {
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(updateList(JSON.parse(globalSaved))));
+      }
+    } catch(e) {}
+    return request(`/api/intern/tasks/${taskId}/claim`, {
+      method: 'POST'
+    });
+  },
   submitInternTask: async (taskId, payload) => {
     try {
       let currentUser = null;

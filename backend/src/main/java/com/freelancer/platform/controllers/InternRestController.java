@@ -85,13 +85,6 @@ public class InternRestController {
         String username = principal != null ? principal.getName() : "intern";
         Map<String, Object> profile = getOrCreateProfile(username);
 
-        List<Map<String, Object>> myTasks = new ArrayList<>();
-        for (Map<String, Object> t : tasksList) {
-            if (username.equalsIgnoreCase((String) t.get("assignedTo"))) {
-                myTasks.add(t);
-            }
-        }
-
         List<Map<String, Object>> myAttendance = new ArrayList<>();
         for (Map<String, Object> a : attendanceLogs) {
             if (username.equalsIgnoreCase((String) a.get("username"))) {
@@ -99,12 +92,15 @@ public class InternRestController {
             }
         }
 
-        long completedCount = myTasks.stream().filter(t -> "COMPLETED".equals(t.get("status")) || "SUBMITTED".equals(t.get("status"))).count();
+        long completedCount = tasksList.stream().filter(t -> 
+            (username.equalsIgnoreCase((String) t.get("assignedTo")) || "ALL".equalsIgnoreCase((String) t.get("assignedTo"))) &&
+            ("COMPLETED".equals(t.get("status")) || "APPROVED".equals(t.get("status")))
+        ).count();
         int totalLoggedHours = myAttendance.stream().mapToInt(a -> (int) a.get("hours")).sum();
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("tasksCompleted", completedCount);
-        stats.put("tasksTotal", myTasks.size());
+        stats.put("tasksTotal", tasksList.size());
         stats.put("hoursLogged", totalLoggedHours);
         stats.put("attendanceRate", myAttendance.isEmpty() ? "0%" : "100%");
         
@@ -125,11 +121,28 @@ public class InternRestController {
             "success", true,
             "profile", profile,
             "stats", stats,
-            "tasks", myTasks,
+            "tasks", tasksList,
             "attendanceLogs", myAttendance,
             "learningModules", learningModules,
             "certificate", certificate != null ? certificate : Map.of("issued", false)
         ));
+    }
+
+    @PostMapping("/api/intern/tasks/{taskId}/claim")
+    public synchronized ResponseEntity<?> claimTask(@PathVariable String taskId, Principal principal) {
+        String username = principal != null ? principal.getName() : "intern";
+        for (Map<String, Object> task : tasksList) {
+            if (taskId.equals(task.get("id")) || taskId.equals(task.get("title"))) {
+                task.put("assignedTo", username);
+                task.put("status", "IN_PROGRESS");
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Task claimed successfully! You are now assigned to @" + username + " and can start working.",
+                    "task", task
+                ));
+            }
+        }
+        return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task ID not found."));
     }
 
     @PostMapping("/api/intern/tasks/{taskId}/submit")
@@ -138,13 +151,13 @@ public class InternRestController {
         String notes = payload.get("notes");
 
         for (Map<String, Object> task : tasksList) {
-            if (taskId.equals(task.get("id"))) {
+            if (taskId.equals(task.get("id")) || taskId.equals(task.get("title"))) {
                 task.put("status", "SUBMITTED");
                 task.put("submissionUrl", url != null ? url : "");
                 task.put("submissionNotes", notes != null ? notes : "");
                 return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", "Task " + taskId + " submitted successfully for mentor evaluation!",
+                    "message", "Task deliverable submitted successfully! Awaiting Admin review & approval.",
                     "task", task
                 ));
             }
@@ -304,33 +317,69 @@ public class InternRestController {
 
         tasksList.add(newTask);
 
-        // Dispatch Email Notification to Intern's Registered Email ID
-        Optional<User> userOpt = userService.findByUsername(username);
-        Map<String, Object> profile = getOrCreateProfile(username);
-
-        String internName = userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", username));
-        String email = userOpt.map(User::getEmail).filter(e -> e != null && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
-
-        if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
-            String lower = username.toLowerCase();
-            if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
-            else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
-            else email = "maqsoodmd.ac.in@gmail.com";
-        }
-
+        // Dispatch Email Notification to Intern's Registered Email ID(s)
         boolean emailSent = false;
-        try {
-            System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + username);
-            emailService.sendTaskAssignedEmail(email, internName, username, title, description, deadline, priority);
-            emailSent = true;
-        } catch (Exception e) {
-            System.err.println("[SMTP ERROR] Task email trigger failed: " + e.getMessage());
+        String noticeMsg = "";
+
+        if ("ALL".equalsIgnoreCase(username)) {
+            List<User> allUsers = userService.findAllUsers();
+            int sentCount = 0;
+            for (User u : allUsers) {
+                if (u.getRole() != null && u.getRole().toUpperCase().contains("INTERN")) {
+                    String internName = u.getName() != null ? u.getName() : u.getUsername();
+                    String email = u.getEmail();
+                    if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+                        String lower = u.getUsername().toLowerCase();
+                        if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+                        else email = "maqsoodmd.ac.in@gmail.com";
+                    }
+                    try {
+                        System.out.println("[SMTP DISPATCH] Task assigned email to registered intern: " + email + " (@" + u.getUsername() + ")");
+                        emailService.sendTaskAssignedEmail(email, internName, u.getUsername(), title, description, deadline, priority);
+                        sentCount++;
+                    } catch (Exception e) {
+                        System.err.println("[SMTP ERROR] Task email trigger failed for @" + u.getUsername() + ": " + e.getMessage());
+                    }
+                }
+            }
+            // Fallback default emails if db search returned 0
+            if (sentCount == 0) {
+                try {
+                    emailService.sendTaskAssignedEmail("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", title, description, deadline, priority);
+                    emailService.sendTaskAssignedEmail("chinmaykv555@gmail.com", "Chinmay K V", "Chinmaykv", title, description, deadline, priority);
+                    sentCount = 2;
+                } catch (Exception ignored) {}
+            }
+            emailSent = sentCount > 0;
+            noticeMsg = "New task assigned to ALL Interns & email notifications dispatched to " + sentCount + " registered intern email(s)!";
+        } else {
+            Optional<User> userOpt = userService.findByUsername(username);
+            Map<String, Object> profile = getOrCreateProfile(username);
+
+            String internName = userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", username));
+            String email = userOpt.map(User::getEmail).filter(e -> e != null && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
+
+            if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+                String lower = username.toLowerCase();
+                if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+                else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
+                else email = "maqsoodmd.ac.in@gmail.com";
+            }
+
+            try {
+                System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + username);
+                emailService.sendTaskAssignedEmail(email, internName, username, title, description, deadline, priority);
+                emailSent = true;
+            } catch (Exception e) {
+                System.err.println("[SMTP ERROR] Task email trigger failed: " + e.getMessage());
+            }
+            noticeMsg = "New task assigned to @" + username + " & notification email dispatched to registered email " + email + "!";
         }
 
         return ResponseEntity.ok(Map.of(
             "success", true,
             "emailSent", emailSent,
-            "message", "New task assigned to @" + username + " & notification email dispatched to " + email + "!",
+            "message", noticeMsg,
             "task", newTask
         ));
     }

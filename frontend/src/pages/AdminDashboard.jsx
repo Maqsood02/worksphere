@@ -644,13 +644,14 @@ export default function AdminDashboard() {
     try {
       const res = await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
       if (res && res.success) {
-        addToast(res.message);
+        addToast(res.message || "Task approved! Marked as successfully completed.");
         fetchInternsData();
       } else {
         addToast(res?.message || "Failed to approve task.");
       }
     } catch (err) {
       console.error(err);
+      addToast("Error approving task.");
     }
   };
 
@@ -1477,6 +1478,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setTargetInternUsername(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary font-medium"
                 >
+                  <option value="ALL">🌐 ALL (All Registered Interns)</option>
                   {usersList.filter(u => u.role === 'ROLE_INTERN' || u.username === 'intern').map(i => (
                     <option key={i.username} value={i.username}>{i.name} (@{i.username})</option>
                   ))}

@@ -194,6 +194,21 @@ export default function InternDashboard() {
     }
   };
 
+  const handleClaimTask = async (taskId) => {
+    try {
+      const res = await api.claimInternTask(taskId);
+      if (res && res.success) {
+        addToast(res.message);
+        fetchInternData();
+      } else {
+        addToast(res?.message || "Failed to claim task.");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Error claiming task.");
+    }
+  };
+
   const handleStandupSubmit = async (e) => {
     e.preventDefault();
     setIsLogging(true);
@@ -541,53 +556,101 @@ export default function InternDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {filteredTasks.map(task => (
-                <div key={task.id} className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md">
-                        {task.id}
-                      </span>
-                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
-                        task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                        task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                        task.status === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {task.status.replace('_', ' ')}
-                      </span>
+              {filteredTasks.map(task => {
+                const isAssignedToMe = (task.assignedTo || '').toLowerCase() === (user?.username || 'intern').toLowerCase();
+                const isAllTask = !task.assignedTo || task.assignedTo.toUpperCase() === 'ALL' || task.assignedTo.toLowerCase() === 'unassigned';
+                const isCompleted = task.status === 'COMPLETED' || task.status === 'APPROVED';
+                const isSubmitted = task.status === 'SUBMITTED';
+                const isInProgress = task.status === 'IN_PROGRESS';
+
+                return (
+                  <div key={task.id} className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md">
+                            {task.id}
+                          </span>
+                          <span className="text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            👤 {isAllTask ? 'ALL Interns' : `@${task.assignedTo}`}
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
+                          isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                          isSubmitted ? 'bg-amber-50 text-amber-600 border border-amber-200 animate-pulse' :
+                          isInProgress ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {isCompleted ? '✓ Successfully Completed' : (isSubmitted ? '⏳ Pending Admin Approval' : task.status.replace('_', ' '))}
+                        </span>
+                      </div>
+
+                      <h4 className="text-base font-poppins font-bold text-slate-800">{task.title}</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">{task.description}</p>
                     </div>
 
-                    <h4 className="text-base font-poppins font-bold text-slate-800">{task.title}</h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">{task.description}</p>
-                  </div>
-
-                  {task.submissionUrl && (
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
-                      <span className="font-bold text-slate-700 block">Submitted Deliverable:</span>
-                      <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium flex items-center gap-1 text-[11px] truncate">
-                        <ExternalLink className="w-3 h-3 shrink-0" /> {task.submissionUrl}
-                      </a>
-                      {task.submissionNotes && <p className="text-[11px] text-slate-500 italic">"{task.submissionNotes}"</p>}
-                    </div>
-                  )}
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-semibold flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" /> Due: {task.deadline}
-                    </span>
-                    
-                    {task.status !== 'COMPLETED' && (
-                      <button
-                        onClick={() => setSelectedTask(task)}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
-                      >
-                        <Send className="w-3.5 h-3.5" /> {task.status === 'SUBMITTED' ? 'Update Submission' : 'Submit Deliverable'}
-                      </button>
+                    {task.submissionUrl && (
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                        <span className="font-bold text-slate-700 block">Submitted Deliverable:</span>
+                        <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium flex items-center gap-1 text-[11px] truncate">
+                          <ExternalLink className="w-3 h-3 shrink-0" /> {task.submissionUrl}
+                        </a>
+                        {task.submissionNotes && <p className="text-[11px] text-slate-500 italic">"{task.submissionNotes}"</p>}
+                      </div>
                     )}
+
+                    {isSubmitted && (
+                      <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 text-center text-xs font-semibold text-amber-800">
+                        ⏳ Work submitted! Awaiting Admin review & approval to confirm completion.
+                      </div>
+                    )}
+
+                    {isCompleted && (
+                      <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Successfully Completed & Approved by Admin!</span>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
+                      <span className="text-slate-500 font-semibold flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" /> Due: {task.deadline}
+                      </span>
+                      
+                      {!isCompleted && (
+                        <div className="flex items-center gap-2">
+                          {(isAllTask || !isAssignedToMe) && (
+                            <button
+                              onClick={() => handleClaimTask(task.id)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1 text-xs cursor-pointer"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5" /> Assign to Me & Start Work
+                            </button>
+                          )}
+
+                          {isAssignedToMe && isInProgress && (
+                            <button
+                              onClick={() => setSelectedTask(task)}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5" /> Mark as Completed & Submit Work
+                            </button>
+                          )}
+
+                          {isAssignedToMe && isSubmitted && (
+                            <button
+                              onClick={() => setSelectedTask(task)}
+                              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
+                            >
+                              <Send className="w-3 h-3" /> Update Submission
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
