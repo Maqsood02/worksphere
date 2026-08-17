@@ -3,6 +3,25 @@
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8088' : 'https://worksphere-k6h8.onrender.com');
 
+// Auto-purge stale demo mock cache on first load
+if (typeof window !== 'undefined') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v9');
+  if (currentCacheVer !== 'v9') {
+    localStorage.removeItem('worksphere_tasks_intern');
+    localStorage.removeItem('worksphere_tasks_maqsood');
+    localStorage.removeItem('worksphere_tasks_chinmaykv');
+    localStorage.removeItem('worksphere_global_tasks');
+    localStorage.removeItem('worksphere_attendance_intern');
+    localStorage.removeItem('worksphere_attendance_maqsood');
+    localStorage.removeItem('worksphere_attendance_chinmaykv');
+    localStorage.removeItem('worksphere_intern_profiles');
+    localStorage.removeItem('worksphere_active_intern_profile');
+    localStorage.removeItem('worksphere_profile_maqsood');
+    localStorage.removeItem('worksphere_profile_chinmaykv');
+    localStorage.setItem('worksphere_clean_cache_v9', 'v9');
+  }
+}
+
 // Persistent Users List for Standalone Cloud Demo Mode
 function getStoredUsersList() {
   const defaultList = [
@@ -48,13 +67,6 @@ function saveUsersList(users) {
 }
 
 function getStoredLearningModules() {
-  // Force cache bust to v5 to clear pre-seeded demo modules for clean admin publishing
-  const cacheVer = localStorage.getItem('worksphere_modules_version');
-  if (cacheVer !== 'v5') {
-    localStorage.removeItem('worksphere_learning_modules');
-    localStorage.setItem('worksphere_modules_version', 'v5');
-  }
-
   const saved = localStorage.getItem('worksphere_learning_modules');
   if (saved) {
     try {
@@ -62,7 +74,6 @@ function getStoredLearningModules() {
       if (Array.isArray(parsed)) return parsed;
     } catch(e) {}
   }
-
   return [];
 }
 
@@ -78,15 +89,15 @@ function getStoredInternProfiles() {
       email: 'maqsoodmd.ac.in@gmail.com',
       phone: '8792404950',
       track: 'Full-Stack Software Engineering',
-      mentorName: 'Dr. Sarah Jenkins',
+      mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
       stipendType: 'UNPAID',
       stipendCurrency: 'INR',
       stipendAmount: 'Unpaid (Academic Credit)',
-      performanceRating: '4.9 / 5.0',
-      certificateStatus: 'ISSUED'
+      performanceRating: 'Active Intern',
+      certificateStatus: 'NOT_ISSUED'
     },
     'chinmaykv': {
       username: 'chinmaykv',
@@ -94,27 +105,17 @@ function getStoredInternProfiles() {
       email: 'chinmaykv555@gmail.com',
       phone: '7760674555',
       track: 'AI & Automation Engineering',
-      mentorName: 'Dr. Sarah Jenkins',
+      mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
       endDate: '2026-08-31',
       stipendType: 'UNPAID',
       stipendCurrency: 'INR',
       stipendAmount: 'Unpaid (Academic Credit)',
-      performanceRating: '4.8 / 5.0',
-      certificateStatus: 'ISSUED'
+      performanceRating: 'Active Intern',
+      certificateStatus: 'NOT_ISSUED'
     }
   };
-
-  // Force cache bust v6 to reset stipend status to UNPAID by default and clear stale PAID caches
-  const cacheVer = localStorage.getItem('worksphere_profiles_version');
-  if (cacheVer !== 'v6') {
-    localStorage.removeItem('worksphere_intern_profiles');
-    localStorage.removeItem('worksphere_active_intern_profile');
-    localStorage.removeItem('worksphere_profile_maqsood');
-    localStorage.removeItem('worksphere_profile_chinmaykv');
-    localStorage.setItem('worksphere_profiles_version', 'v6');
-  }
 
   const saved = localStorage.getItem('worksphere_intern_profiles');
   if (saved) {

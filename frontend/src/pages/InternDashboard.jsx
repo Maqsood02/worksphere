@@ -393,14 +393,21 @@ export default function InternDashboard() {
 
   const hasCertificate = certificate && certificate.issued;
 
-  // Compute live metrics strictly based on actual tasks & attendanceLogs arrays
-  const completedTasksVal = tasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length;
-  const totalTasksVal = tasks.length;
-  const hoursLoggedVal = attendanceLogs.length > 0 
-    ? attendanceLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0) 
-    : 0;
+  const uLower = (user?.username || '').toLowerCase().trim();
+  const myTasks = tasks.filter(t => {
+    const assigned = (t.assignedTo || '').toLowerCase().trim();
+    return assigned === uLower || assigned === 'all';
+  });
+  const myLogs = attendanceLogs.filter(l => {
+    return (l.username || '').toLowerCase().trim() === uLower;
+  });
 
-  const filteredTasks = tasks.filter(t => {
+  // Compute live metrics strictly based on actual user tasks & attendanceLogs arrays
+  const completedTasksVal = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
+  const totalTasksVal = myTasks.length;
+  const hoursLoggedVal = myLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0);
+
+  const filteredTasks = myTasks.filter(t => {
     if (taskFilter === 'ALL') return true;
     return t.status === taskFilter;
   });
@@ -609,7 +616,7 @@ export default function InternDashboard() {
             activeTab === 'tasks' ? 'border-indigo-600 text-indigo-600 font-extrabold' : 'border-transparent hover:text-slate-800'
           }`}
         >
-          <FileText className="w-4 h-4" /> Assigned Tasks ({tasks.length})
+          <FileText className="w-4 h-4" /> Assigned Tasks ({myTasks.length})
         </button>
         <button
           onClick={() => setActiveTab('standup')}
@@ -617,7 +624,7 @@ export default function InternDashboard() {
             activeTab === 'standup' ? 'border-indigo-600 text-indigo-600 font-extrabold' : 'border-transparent hover:text-slate-800'
           }`}
         >
-          <Clock className="w-4 h-4" /> Standup & Attendance Logs
+          <Clock className="w-4 h-4" /> Standup & Attendance Logs ({myLogs.length})
         </button>
         <button
           onClick={() => setActiveTab('curriculum')}
