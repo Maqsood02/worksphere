@@ -13,6 +13,21 @@
 
 <body>
   <div id="root"></div>
+  <script>
+    window.addEventListener('vite:preloadError', () => {
+      window.location.reload();
+    });
+    window.addEventListener('error', (e) => {
+      if (e?.target?.tagName === 'SCRIPT' || (e?.message && e.message.includes('dynamically imported module'))) {
+        const lastReload = sessionStorage.getItem('last_bundle_reload');
+        const now = Date.now();
+        if (!lastReload || now - Number(lastReload) > 5000) {
+          sessionStorage.setItem('last_bundle_reload', String(now));
+          window.location.reload();
+        }
+      }
+    }, true);
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 
