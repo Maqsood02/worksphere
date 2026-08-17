@@ -465,9 +465,10 @@ export default function AdminDashboard() {
   const handleAssignTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
+    const targetUser = (targetInternUsername && targetInternUsername.trim() !== '') ? targetInternUsername : 'ALL';
     setIsAssigning(true);
     try {
-      const res = await api.assignInternTask(targetInternUsername, {
+      const res = await api.assignInternTask(targetUser, {
         title: newTaskTitle,
         description: newTaskDesc,
         deadline: newTaskDeadline,
@@ -479,6 +480,7 @@ export default function AdminDashboard() {
         setNewTaskTitle('');
         setNewTaskDesc('');
         setNewTaskDeadline('');
+        setTargetInternUsername('');
         fetchInternsData();
       } else {
         addToast(res?.message || "Failed to assign task.");
@@ -949,7 +951,7 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => {
-                  setTargetInternUsername(internsList[0]?.username || 'intern');
+                  setTargetInternUsername('');
                   setShowAssignTaskModal(true);
                 }}
                 className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0"
@@ -1478,6 +1480,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setTargetInternUsername(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary font-medium"
                 >
+                  <option value="">-- Select Target Intern --</option>
                   <option value="ALL">🌐 ALL (All Registered Interns)</option>
                   {usersList.filter(u => u.role === 'ROLE_INTERN' || u.username === 'intern').map(i => (
                     <option key={i.username} value={i.username}>{i.name} (@{i.username})</option>
