@@ -746,7 +746,7 @@ public class EmailService {
                     .task-title { font-size: 18px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; }
                     .task-badge { display: inline-block; background: #6366f1; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-bottom: 14px; }
                     .task-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #0f172a; padding: 14px; border-radius: 10px; border-left: 3px solid #3b82f6; margin-bottom: 16px; }
-                    .info-table { width: 100%; font-size: 12px; color: #94a3b8; }
+                    .info-table { width: 100%%; font-size: 12px; color: #94a3b8; }
                     .info-table td { padding: 6px 0; }
                     .info-table td.val { color: #f8fafc; font-weight: 700; text-align: right; }
                     .btn-box { text-align: center; margin: 32px 0 20px 0; }
