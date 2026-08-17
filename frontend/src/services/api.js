@@ -379,10 +379,7 @@ function isValidEmailFormat(email) {
 
   // 8. Invoices
   if (url.includes('/invoices')) {
-    const sampleInvoices = [
-      { id: 'INV-2026-001', projectTitle: 'WorkSphere Web Platform', amount: 1500, status: 'PAID', dueDate: '2026-08-15', paymentMethod: 'CARD' },
-      { id: 'INV-2026-002', projectTitle: 'AI Co-Pilot Assistant', amount: 2200, status: 'PENDING', dueDate: '2026-08-25', paymentMethod: null }
-    ];
+    const sampleInvoices = [];
     return { success: true, invoices: sampleInvoices };
   }
 

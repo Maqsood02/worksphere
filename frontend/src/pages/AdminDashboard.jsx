@@ -138,10 +138,7 @@ export default function AdminDashboard() {
     { id: 'proj_103', title: 'Mobile Client Workspace App', clientName: 'Innovate LLC', category: 'Frontend', status: 'PLANNING', progress: 25, budget: 150000, deadline: '2026-10-30' }
   ];
 
-  const defaultInvoices = [
-    { id: 'INV-2026-001', projectTitle: 'WorkSphere Web Platform', amount: 125000, status: 'PAID', dueDate: '2026-08-15', paymentMethod: 'CARD' },
-    { id: 'INV-2026-002', projectTitle: 'AI Co-Pilot Assistant', amount: 180000, status: 'PENDING', dueDate: '2026-08-25', paymentMethod: null }
-  ];
+  const defaultInvoices = [];
 
   const defaultAppointments = [
     { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
@@ -192,15 +189,13 @@ export default function AdminDashboard() {
       }
       setInvoices(invs);
       const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (i.amount || 0), 0);
-      const calculatedRevenue = totalPaid > 0 ? totalPaid : invs.reduce((sum, i) => sum + (i.amount || 0), 0);
-      const finalRevenue = calculatedRevenue > 0 ? calculatedRevenue : 125000;
-      setRevenue(finalRevenue);
+      setRevenue(totalPaid);
 
       setEarningsData([
-        { name: 'May', revenue: 45000 },
-        { name: 'Jun', revenue: 85000 },
-        { name: 'Jul', revenue: 110000 },
-        { name: 'Aug', revenue: finalRevenue },
+        { name: 'May', revenue: 0 },
+        { name: 'Jun', revenue: 0 },
+        { name: 'Jul', revenue: 0 },
+        { name: 'Aug', revenue: totalPaid },
       ]);
 
       // Appointments
@@ -219,8 +214,8 @@ export default function AdminDashboard() {
       console.error("Admin dashboard fetch error:", err);
       setProjects(defaultProjects);
       setProjectsCount(defaultProjects.length);
-      setInvoices(defaultInvoices);
-      setRevenue(125000);
+      setInvoices([]);
+      setRevenue(0);
       setAppointments(defaultAppointments);
       setAppointmentsCount(defaultAppointments.length);
     }
