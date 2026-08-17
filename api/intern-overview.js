@@ -40,6 +40,9 @@ export default async function handler(req, res) {
       submissionNotes: t.submissionNotes || ''
     }));
 
+    // Query Attendance
+    const allLogs = await attendanceCol.find({}).sort({ createdAt: -1 }).toArray();
+
     const myLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey).map(l => {
       let timeStr = l.time;
       if (!timeStr && l.createdAt) {

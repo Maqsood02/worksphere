@@ -1265,6 +1265,38 @@ export const api = {
       body: JSON.stringify({ status })
     });
   },
+  assignInternTask: async (targetUsername, payload) => {
+    try {
+      const serverlessRes = await fetch('/api/intern-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedTo: targetUsername,
+          title: payload.title,
+          description: payload.description,
+          deadline: payload.deadline,
+          priority: payload.priority
+        })
+      });
+      if (serverlessRes.ok) {
+        const sData = await serverlessRes.json();
+        if (sData && sData.success) {
+          return sData;
+        }
+      }
+    } catch (e) {}
+
+    return request('/api/admin/interns/assign-task', {
+      method: 'POST',
+      body: JSON.stringify({
+        targetUsername,
+        ...payload
+      })
+    });
+  },
+  createInternTask: (targetUsername, payload) => {
+    return api.assignInternTask(targetUsername, payload);
+  },
   deleteInternTask: async (taskId) => {
     try {
       const globalSaved = localStorage.getItem('worksphere_global_tasks');
