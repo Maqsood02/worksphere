@@ -24,8 +24,13 @@ export default async function handler(req, res) {
       if (!username || username === 'all' || username === 'admin') {
         return res.status(200).json({ success: true, logs: allLogs });
       }
-      const uKey = username.toLowerCase().trim();
-      const userLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
+      const uKey = username.toLowerCase().replace(/^@+/, '').trim();
+      const userLogs = allLogs.filter(l => {
+        const logU = (l.username || '').toLowerCase().replace(/^@+/, '').trim();
+        return logU === uKey || logU.includes(uKey) || uKey.includes(logU) ||
+          (uKey.includes('chinmay') && logU.includes('chinmay')) ||
+          (uKey.includes('maqsood') && logU.includes('maqsood'));
+      });
       return res.status(200).json({ success: true, logs: userLogs });
     }
 

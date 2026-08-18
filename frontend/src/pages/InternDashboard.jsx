@@ -167,8 +167,8 @@ export default function InternDashboard() {
 
 function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
   if (!taskAssignedTo) return false;
-  const a = taskAssignedTo.toString().toLowerCase().trim();
-  const u = (currentUsername || '').toString().toLowerCase().trim();
+  const a = taskAssignedTo.toString().toLowerCase().replace(/^@+/, '').trim();
+  const u = (currentUsername || '').toString().toLowerCase().replace(/^@+/, '').trim();
   const n = (currentName || '').toString().toLowerCase().trim();
   if (a === 'all' || a === 'unassigned' || a === '') return true;
   if (a === u || a === n) return true;
@@ -179,10 +179,23 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
   return false;
 }
 
+function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
+  if (!logUsername) return false;
+  const l = logUsername.toString().toLowerCase().replace(/^@+/, '').trim();
+  const u = (currentUsername || '').toString().toLowerCase().replace(/^@+/, '').trim();
+  const n = (currentName || '').toString().toLowerCase().trim();
+  if (l === u || l === n) return true;
+  if (u && (l.includes(u) || u.includes(l))) return true;
+  if (n && (l.includes(n) || n.includes(l))) return true;
+  if (u.includes('maqsood') && l.includes('maqsood')) return true;
+  if (u.includes('chinmay') && l.includes('chinmay')) return true;
+  return false;
+}
+
   const fetchInternData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const uKey = (user?.username || 'intern').toLowerCase();
+      const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
       let localOverride = null;
       try {
         const savedOverride = localStorage.getItem(`worksphere_profile_${uKey}`) || localStorage.getItem('worksphere_active_intern_profile');
@@ -191,8 +204,12 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
         }
       } catch (e) {}
 
-      const res = await api.getInternOverview(uKey);
-      const baseData = (res && res.success) ? res : defaultInternData;
+      const [res, directAtt] = await Promise.allSettled([
+        api.getInternOverview(uKey),
+        api.getInternAttendance ? api.getInternAttendance(uKey) : api.getAdminAttendance()
+      ]);
+
+      const baseData = (res.status === 'fulfilled' && res.value && res.value.success) ? res.value : defaultInternData;
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
       const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
 
@@ -242,16 +259,59 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
       // Attendance logs strictly for this intern from MongoDB Atlas
       let rawLogs = [];
       if (Array.isArray(baseData.attendanceLogs)) {
-        rawLogs = baseData.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
-        try {
-          localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(rawLogs));
-        } catch(e) {}
-      } else {
-        try {
-          const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-          if (savedLogs) rawLogs = JSON.parse(savedLogs);
-        } catch(e) {}
+        rawLogs = baseData.attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uKey, user?.name));
       }
+
+      // Merge direct attendance API logs from MongoDB Atlas
+      if (directAtt.status === 'fulfilled' && Array.isArray(directAtt.value)) {
+        const directFiltered = directAtt.value.filter(l => isMatchingInternAttendance(l.username, uKey, user?.name)).map(l => {
+          let timeStr = l.time;
+          if (!timeStr && l.createdAt) {
+            try {
+              timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            } catch (e) {}
+          }
+          return {
+            id: l.logId || l.id || l._id,
+            logId: l.logId || l.id || l._id,
+            username: l.username,
+            date: l.date || new Date().toISOString().split('T')[0],
+            time: timeStr || '10:00 AM',
+            hours: Number(l.hours) || 8,
+            summary: l.summary || '',
+            status: l.status || 'SUBMITTED',
+            createdAt: l.createdAt || new Date()
+          };
+        });
+
+        for (const dl of directFiltered) {
+          const key = dl.logId || dl.id;
+          const idx = rawLogs.findIndex(existing => (existing.logId === key || existing.id === key));
+          if (idx >= 0) {
+            rawLogs[idx] = { ...rawLogs[idx], ...dl };
+          } else {
+            rawLogs.push(dl);
+          }
+        }
+      }
+
+      try {
+        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+        if (savedLogs) {
+          const parsed = JSON.parse(savedLogs);
+          for (const pl of parsed) {
+            const key = pl.logId || pl.id;
+            if (!rawLogs.some(l => (l.logId === key || l.id === key))) {
+              rawLogs.push(pl);
+            }
+          }
+        }
+        if (rawLogs.length > 0) {
+          localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(rawLogs));
+        }
+      } catch(e) {}
+
+      const totalHours = rawLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0);
 
       const normalized = {
         ...baseData,
@@ -261,7 +321,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
         stats: {
           tasksCompleted: rawTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
           tasksTotal: rawTasks.length,
-          hoursLogged: rawLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+          hoursLogged: totalHours,
           attendanceRate: rawLogs.length === 0 ? '0%' : '100%',
           stipendStatus: finalProfile.stipendAmount || 'Unpaid (Academic Credit)'
         }
@@ -498,14 +558,11 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
 
   const hasCertificate = certificate && certificate.issued;
 
-  const uLower = (user?.username || '').toLowerCase().trim();
+  const uLower = (user?.username || '').toLowerCase().replace(/^@+/, '').trim();
   const uName = (user?.name || '').toLowerCase().trim();
 
   const myTasks = tasks.filter(t => isMatchingInternTask(t.assignedTo, uLower, uName));
-  const myLogs = attendanceLogs.filter(l => {
-    const logUser = (l.username || '').toLowerCase().trim();
-    return logUser === uLower || (uLower.includes('maqsood') && logUser.includes('maqsood')) || (uLower.includes('chinmay') && logUser.includes('chinmay'));
-  });
+  const myLogs = attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uLower, uName));
 
   // Compute live metrics strictly based on actual user tasks & attendanceLogs arrays
   const completedTasksVal = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
@@ -645,17 +702,17 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
             </div>
             <div className="flex items-baseline space-x-2">
               <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">
-                {attendanceLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
+                {myLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
               </span>
-              <span className={`text-xs font-bold ${attendanceLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
-                {attendanceLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
+              <span className={`text-xs font-bold ${myLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
+                {myLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
               </span>
             </div>
           </div>
           <p className="text-[11px] text-slate-400 font-semibold">
-            {attendanceLogs.length === 0 
+            {myLogs.length === 0 
               ? 'Log daily standup above to build streak' 
-              : `${attendanceLogs.length} standup log${attendanceLogs.length > 1 ? 's' : ''} recorded`}
+              : `${myLogs.length} standup log${myLogs.length > 1 ? 's' : ''} recorded`}
           </p>
         </div>
 
@@ -891,7 +948,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
       {/* TAB 2: STANDUP LOGS */}
       {activeTab === 'standup' && (() => {
         const todayDateStr = new Date().toISOString().split('T')[0];
-        const todayLog = attendanceLogs.find(l => l.date === todayDateStr);
+        const todayLog = myLogs.find(l => l.date === todayDateStr);
         const currentDateFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
         return (
@@ -937,7 +994,7 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
             </div>
 
             {/* Standup Log Cards / Grid */}
-            {attendanceLogs.length === 0 ? (
+            {myLogs.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
                 <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
                   <Clock className="w-8 h-8" />
@@ -957,12 +1014,12 @@ function isMatchingInternTask(taskAssignedTo, currentUsername, currentName) {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {attendanceLogs.map((log, idx) => {
+                {myLogs.map((log, idx) => {
                   const isApproved = log.status === 'APPROVED';
 
                   return (
                     <div
-                      key={log.id}
+                      key={log.id || log.logId || `att-${idx}`}
                       className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 group"
                     >
                       <div className="space-y-3">

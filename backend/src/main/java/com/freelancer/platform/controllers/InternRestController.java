@@ -1,7 +1,9 @@
 package com.freelancer.platform.controllers;
 
+import com.freelancer.platform.models.InternAttendance;
 import com.freelancer.platform.models.InternTask;
 import com.freelancer.platform.models.User;
+import com.freelancer.platform.repositories.InternAttendanceRepository;
 import com.freelancer.platform.repositories.InternTaskRepository;
 import com.freelancer.platform.services.EmailService;
 import com.freelancer.platform.services.UserService;
@@ -19,6 +21,7 @@ public class InternRestController {
     private final UserService userService;
     private final EmailService emailService;
     private final InternTaskRepository internTaskRepository;
+    private final InternAttendanceRepository internAttendanceRepository;
 
     // In-memory data store for intern profiles, tasks, attendance, and certificates
     private final Map<String, Map<String, Object>> internProfiles = new ConcurrentHashMap<>();
@@ -27,10 +30,11 @@ public class InternRestController {
     private final List<Map<String, Object>> learningModules = new ArrayList<>();
     private final List<Map<String, Object>> certificatesIssued = new ArrayList<>();
 
-    public InternRestController(UserService userService, EmailService emailService, InternTaskRepository internTaskRepository) {
+    public InternRestController(UserService userService, EmailService emailService, InternTaskRepository internTaskRepository, InternAttendanceRepository internAttendanceRepository) {
         this.userService = userService;
         this.emailService = emailService;
         this.internTaskRepository = internTaskRepository;
+        this.internAttendanceRepository = internAttendanceRepository;
         initializeDefaultData();
     }
 
@@ -98,21 +102,48 @@ public class InternRestController {
     // INTERN ENDPOINTS (/api/intern/...)
     // -------------------------------------------------------------
 
-    @GetMapping("/api/intern/overview")
+    @GetMapping({"/api/intern/overview", "/api/intern-overview"})
     public ResponseEntity<?> getOverview(@RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
         String username = (paramUsername != null && !paramUsername.isBlank()) 
             ? paramUsername.trim() 
             : (principal != null ? principal.getName() : "intern");
         Map<String, Object> profile = getOrCreateProfile(username);
+        final String uFinal = username.replaceAll("^@+", "").toLowerCase();
 
         List<Map<String, Object>> myAttendance = new ArrayList<>();
+        try {
+            List<InternAttendance> dbAttendance = internAttendanceRepository.findAll();
+            for (InternAttendance att : dbAttendance) {
+                String aUser = (att.getUsername() != null) ? att.getUsername().replaceAll("^@+", "").toLowerCase() : "";
+                if (aUser.equals(uFinal) || aUser.contains(uFinal) || uFinal.contains(aUser) ||
+                    (uFinal.contains("chinmay") && aUser.contains("chinmay")) ||
+                    (uFinal.contains("maqsood") && aUser.contains("maqsood"))) {
+                    Map<String, Object> aMap = new HashMap<>();
+                    aMap.put("id", att.getLogId() != null ? att.getLogId() : att.getId());
+                    aMap.put("logId", att.getLogId() != null ? att.getLogId() : att.getId());
+                    aMap.put("username", att.getUsername());
+                    aMap.put("date", att.getDate());
+                    aMap.put("time", att.getTime() != null ? att.getTime() : "10:00 AM");
+                    aMap.put("hours", att.getHours());
+                    aMap.put("summary", att.getSummary());
+                    aMap.put("status", att.getStatus());
+                    myAttendance.add(aMap);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[DB NOTE] Intern attendance query: " + e.getMessage());
+        }
+
         for (Map<String, Object> a : attendanceLogs) {
-            if (username.equalsIgnoreCase((String) a.get("username"))) {
-                myAttendance.add(a);
+            String aUser = String.valueOf(a.get("username")).replaceAll("^@+", "").toLowerCase();
+            if (aUser.equals(uFinal) || aUser.contains(uFinal) || uFinal.contains(aUser)) {
+                String aId = String.valueOf(a.get("id"));
+                if (myAttendance.stream().noneMatch(existing -> String.valueOf(existing.get("id")).equalsIgnoreCase(aId))) {
+                    myAttendance.add(a);
+                }
             }
         }
 
-        final String uFinal = username;
         List<Map<String, Object>> myTasks = new ArrayList<>();
         
         try {
@@ -146,7 +177,11 @@ public class InternRestController {
         long completedCount = myTasks.stream().filter(t -> 
             "COMPLETED".equals(t.get("status")) || "APPROVED".equals(t.get("status"))
         ).count();
-        int totalLoggedHours = myAttendance.stream().mapToInt(a -> (int) a.get("hours")).sum();
+        int totalLoggedHours = myAttendance.stream().mapToInt(a -> {
+            Object h = a.get("hours");
+            if (h instanceof Number) return ((Number) h).intValue();
+            return 8;
+        }).sum();
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("tasksCompleted", completedCount);
@@ -218,11 +253,11 @@ public class InternRestController {
         return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task ID not found."));
     }
 
-    @PostMapping("/api/intern/attendance/log")
+    @PostMapping({"/api/intern/attendance/log", "/api/intern-attendance"})
     public synchronized ResponseEntity<?> logAttendance(@RequestBody Map<String, Object> payload, @RequestParam(value = "username", required = false) String paramUsername, Principal principal) {
         String username = (paramUsername != null && !paramUsername.isBlank()) 
             ? paramUsername.trim() 
-            : (principal != null ? principal.getName() : "intern");
+            : (payload.containsKey("username") ? String.valueOf(payload.get("username")).trim() : (principal != null ? principal.getName() : "intern"));
         Object hoursObj = payload.get("hours");
         String summary = (String) payload.get("summary");
 
@@ -235,10 +270,21 @@ public class InternRestController {
             } catch (Exception ignored) {}
         }
 
+        String logId = "ATT-" + (System.currentTimeMillis() % 1000000);
+        String dateStr = payload.containsKey("date") ? String.valueOf(payload.get("date")) : LocalDate.now().toString();
+
+        InternAttendance dbDoc = new InternAttendance(logId, username.replaceAll("^@+", ""), dateStr, "10:00 AM", hours, summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.", "SUBMITTED");
+        try {
+            internAttendanceRepository.save(dbDoc);
+        } catch (Exception e) {
+            System.err.println("[DB ERROR] Intern attendance save: " + e.getMessage());
+        }
+
         Map<String, Object> newLog = new HashMap<>();
-        newLog.put("id", "ATT-" + (attendanceLogs.size() + 101));
+        newLog.put("id", logId);
+        newLog.put("logId", logId);
         newLog.put("username", username);
-        newLog.put("date", LocalDate.now().toString());
+        newLog.put("date", dateStr);
         newLog.put("hours", hours);
         newLog.put("summary", summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.");
         newLog.put("status", "SUBMITTED");
@@ -250,6 +296,32 @@ public class InternRestController {
             "message", "Daily standup log saved successfully!",
             "log", newLog
         ));
+    }
+
+    @GetMapping({"/api/admin/attendance", "/api/intern-attendance"})
+    public ResponseEntity<?> getAttendanceLogs(@RequestParam(value = "username", required = false) String username) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try {
+            List<InternAttendance> all = internAttendanceRepository.findAll();
+            for (InternAttendance att : all) {
+                if (username == null || username.equalsIgnoreCase("all") || username.equalsIgnoreCase("admin") ||
+                    att.getUsername().equalsIgnoreCase(username.replaceAll("^@+", ""))) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", att.getLogId() != null ? att.getLogId() : att.getId());
+                    m.put("logId", att.getLogId() != null ? att.getLogId() : att.getId());
+                    m.put("username", att.getUsername());
+                    m.put("date", att.getDate());
+                    m.put("time", att.getTime() != null ? att.getTime() : "10:00 AM");
+                    m.put("hours", att.getHours());
+                    m.put("summary", att.getSummary());
+                    m.put("status", att.getStatus());
+                    list.add(m);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[DB NOTE] Attendance logs query: " + e.getMessage());
+        }
+        return ResponseEntity.ok(Map.of("success", true, "logs", list));
     }
 
     @PostMapping("/api/intern/certificate/request")

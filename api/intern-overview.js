@@ -21,12 +21,16 @@ export default async function handler(req, res) {
     const tasksCol = db.collection('intern_tasks');
     const attendanceCol = db.collection('intern_attendance');
 
+    const cleanUKey = uKey.replace(/^@+/, '').trim();
+
     // Query MongoDB Atlas for matching tasks
     const allDbTasks = await tasksCol.find({}).sort({ createdAt: -1 }).toArray();
     
     const myTasks = allDbTasks.filter(t => {
-      const assigned = (t.assignedTo || '').toLowerCase().trim();
-      return assigned === uKey || assigned === 'all' || assigned.includes(uKey) || uKey.includes(assigned);
+      const assigned = (t.assignedTo || '').toLowerCase().replace(/^@+/, '').trim();
+      return assigned === cleanUKey || assigned === 'all' || assigned.includes(cleanUKey) || cleanUKey.includes(assigned) ||
+        (cleanUKey.includes('chinmay') && assigned.includes('chinmay')) ||
+        (cleanUKey.includes('maqsood') && assigned.includes('maqsood'));
     }).map(t => ({
       id: t.taskId || t.id || t._id.toString(),
       taskId: t.taskId || t.id || t._id.toString(),
@@ -43,7 +47,12 @@ export default async function handler(req, res) {
     // Query Attendance
     const allLogs = await attendanceCol.find({}).sort({ createdAt: -1 }).toArray();
 
-    const myLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey).map(l => {
+    const myLogs = allLogs.filter(l => {
+      const logU = (l.username || '').toLowerCase().replace(/^@+/, '').trim();
+      return logU === cleanUKey || logU.includes(cleanUKey) || cleanUKey.includes(logU) ||
+        (cleanUKey.includes('chinmay') && logU.includes('chinmay')) ||
+        (cleanUKey.includes('maqsood') && logU.includes('maqsood'));
+    }).map(l => {
       let timeStr = l.time;
       if (!timeStr && l.createdAt) {
         try {

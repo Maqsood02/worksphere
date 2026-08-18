@@ -776,27 +776,74 @@ export const api = {
   getAdminInvoices: () => request('/api/admin/invoices'),
   getAdminAppointments: () => request('/api/admin/appointments'),
 
+  getInternAttendance: async (username) => {
+    try {
+      const uParam = username ? `?username=${encodeURIComponent(username)}` : '?username=all';
+      const res = await fetch(`/api/intern-attendance${uParam}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.logs)) return data.logs;
+      }
+    } catch (e) {}
+    return [];
+  },
+
   getInternOverview: async (customUsername) => {
     let currentUser = null;
     try {
       const savedUser = localStorage.getItem('worksphere_user');
       if (savedUser) currentUser = JSON.parse(savedUser);
     } catch (e) {}
-    const defaultUKey = (customUsername || currentUser?.username || 'intern').toLowerCase();
+    const defaultUKey = (customUsername || currentUser?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
 
-    // 1. First fetch directly from Vercel Serverless MongoDB Atlas endpoint
-    let res = null;
+    function isMatchingInternTask(taskAssignedTo, currentUsername) {
+      if (!taskAssignedTo) return false;
+      const a = taskAssignedTo.toString().toLowerCase().replace(/^@+/, '').trim();
+      const u = (currentUsername || '').toString().toLowerCase().replace(/^@+/, '').trim();
+      if (a === 'all' || a === 'unassigned' || a === '') return true;
+      if (a === u) return true;
+      if (u && (a.includes(u) || u.includes(a))) return true;
+      if (u.includes('maqsood') && a.includes('maqsood')) return true;
+      if (u.includes('chinmay') && a.includes('chinmay')) return true;
+      return false;
+    }
+
+    function isMatchingInternAttendance(logUsername, currentUsername) {
+      if (!logUsername) return false;
+      const l = logUsername.toString().toLowerCase().replace(/^@+/, '').trim();
+      const u = (currentUsername || '').toString().toLowerCase().replace(/^@+/, '').trim();
+      if (l === u) return true;
+      if (u && (l.includes(u) || u.includes(l))) return true;
+      if (u.includes('maqsood') && l.includes('maqsood')) return true;
+      if (u.includes('chinmay') && l.includes('chinmay')) return true;
+      return false;
+    }
+
+    // 1. Fetch directly from MongoDB Atlas serverless endpoints in parallel
+    let serverlessOverview = null;
+    let serverlessAttendance = [];
+    let serverlessTasks = [];
+
     try {
-      const serverlessRes = await fetch(`/api/intern-overview?username=${defaultUKey}`);
-      if (serverlessRes.ok) {
-        const sData = await serverlessRes.json();
-        if (sData && sData.success) {
-          res = sData;
-        }
+      const [ovRes, attRes, taskRes] = await Promise.allSettled([
+        fetch(`/api/intern-overview?username=${defaultUKey}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/intern-attendance?username=all`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/intern-tasks?username=all`).then(r => r.ok ? r.json() : null)
+      ]);
+
+      if (ovRes.status === 'fulfilled' && ovRes.value && ovRes.value.success) {
+        serverlessOverview = ovRes.value;
+      }
+      if (attRes.status === 'fulfilled' && attRes.value && Array.isArray(attRes.value.logs)) {
+        serverlessAttendance = attRes.value.logs;
+      }
+      if (taskRes.status === 'fulfilled' && taskRes.value && Array.isArray(taskRes.value.tasks)) {
+        serverlessTasks = taskRes.value.tasks;
       }
     } catch (e) {}
 
     // 2. Fallback to Java backend candidate endpoints
+    let res = serverlessOverview;
     if (!res || !res.success) {
       res = await request(`/api/intern/overview?username=${defaultUKey}`);
     }
@@ -804,8 +851,8 @@ export const api = {
 
     const cleanDefaultProfile = {
       username: currentUser?.username || defaultUKey,
-      name: currentUser?.name || defaultUKey,
-      email: currentUser?.email || `${defaultUKey}@worksphere.ac.in`,
+      name: currentUser?.name || (defaultUKey.includes('chinmay') ? 'Chinmay K V' : (defaultUKey.includes('maqsood') ? 'Maqsood MD' : defaultUKey)),
+      email: currentUser?.email || (defaultUKey.includes('chinmay') ? 'chinmaykv555@gmail.com' : (defaultUKey.includes('maqsood') ? 'maqsoodmd.ac.in@gmail.com' : `${defaultUKey}@worksphere.ac.in`)),
       track: 'Full-Stack Software Engineering',
       mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
@@ -825,7 +872,7 @@ export const api = {
       const storedProfiles = getStoredInternProfiles();
       if (storedProfiles[uKey]) {
         p = { ...cleanDefaultProfile, ...storedProfiles[uKey] };
-      } else if (res.profile && res.profile.username && res.profile.username.toLowerCase() === uKey) {
+      } else if (res.profile && res.profile.username && isMatchingInternAttendance(res.profile.username, uKey)) {
         p = { ...cleanDefaultProfile, ...res.profile };
       }
     } catch (e) {
@@ -833,22 +880,32 @@ export const api = {
     }
     res.profile = p;
 
-    // Filter tasks strictly for this intern (or ALL)
-    function isMatchingInternTask(taskAssignedTo, currentUsername) {
-      if (!taskAssignedTo) return false;
-      const a = taskAssignedTo.toString().toLowerCase().trim();
-      const u = (currentUsername || '').toString().toLowerCase().trim();
-      if (a === 'all' || a === 'unassigned' || a === '') return true;
-      if (a === u) return true;
-      if (u && (a.includes(u) || u.includes(a))) return true;
-      if (u.includes('maqsood') && a.includes('maqsood')) return true;
-      if (u.includes('chinmay') && a.includes('chinmay')) return true;
-      return false;
-    }
-
+    // Merge tasks
     let realTasks = [];
     if (Array.isArray(res.tasks)) {
       realTasks = res.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey));
+    }
+    if (serverlessTasks.length > 0) {
+      const matchedSTasks = serverlessTasks.filter(t => isMatchingInternTask(t.assignedTo, uKey)).map(t => ({
+        id: t.taskId || t.id || t._id,
+        taskId: t.taskId || t.id || t._id,
+        assignedTo: t.assignedTo,
+        title: t.title,
+        description: t.description,
+        deadline: t.deadline,
+        priority: t.priority,
+        status: t.status,
+        submissionUrl: t.submissionUrl || '',
+        submissionNotes: t.submissionNotes || ''
+      }));
+      for (const st of matchedSTasks) {
+        const idx = realTasks.findIndex(existing => (existing.id === st.id || existing.taskId === st.taskId || existing.title === st.title));
+        if (idx >= 0) {
+          realTasks[idx] = { ...realTasks[idx], ...st };
+        } else {
+          realTasks.push(st);
+        }
+      }
     }
 
     try {
@@ -883,34 +940,74 @@ export const api = {
       const savedDel = localStorage.getItem('worksphere_deleted_tasks');
       if (savedDel) {
         const deletedIds = JSON.parse(savedDel);
-        realTasks = realTasks.filter(t => !deletedIds.includes(t.id));
+        realTasks = realTasks.filter(t => !deletedIds.includes(t.id) && !deletedIds.includes(t.taskId));
       }
     } catch(e) {}
 
     res.tasks = realTasks;
 
     // Strictly user's own attendance logs from MongoDB Atlas
-    let realLogs = [];
+    let rawLogs = [];
     if (Array.isArray(res.attendanceLogs)) {
-      realLogs = res.attendanceLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
-      try {
-        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(realLogs));
-      } catch (e) {}
-    } else {
-      try {
-        const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-        if (savedLogs) realLogs = JSON.parse(savedLogs);
-      } catch(e) {}
+      rawLogs = res.attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uKey));
     }
 
-    res.attendanceLogs = realLogs;
+    if (serverlessAttendance.length > 0) {
+      const matchedSLogs = serverlessAttendance.filter(l => isMatchingInternAttendance(l.username, uKey)).map(l => {
+        let timeStr = l.time;
+        if (!timeStr && l.createdAt) {
+          try {
+            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          } catch (e) {}
+        }
+        return {
+          id: l.logId || l.id || l._id,
+          logId: l.logId || l.id || l._id,
+          username: l.username,
+          date: l.date || new Date().toISOString().split('T')[0],
+          time: timeStr || '10:00 AM',
+          hours: Number(l.hours) || 8,
+          summary: l.summary || '',
+          status: l.status || 'SUBMITTED',
+          createdAt: l.createdAt || new Date()
+        };
+      });
+
+      for (const sl of matchedSLogs) {
+        const key = sl.logId || sl.id;
+        const idx = rawLogs.findIndex(existing => (existing.logId === key || existing.id === key));
+        if (idx >= 0) {
+          rawLogs[idx] = { ...rawLogs[idx], ...sl };
+        } else {
+          rawLogs.push(sl);
+        }
+      }
+    }
+
+    try {
+      const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
+      if (savedLogs) {
+        const parsed = JSON.parse(savedLogs);
+        for (const pl of parsed) {
+          const key = pl.logId || pl.id;
+          if (!rawLogs.some(l => (l.logId === key || l.id === key))) {
+            rawLogs.push(pl);
+          }
+        }
+      }
+      if (rawLogs.length > 0) {
+        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(rawLogs));
+      }
+    } catch(e) {}
+
+    res.attendanceLogs = rawLogs;
 
     // Clean stats dynamically computed from the user's actual tasks and logs
     res.stats = {
       tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
       tasksTotal: realTasks.length,
-      hoursLogged: realLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
-      attendanceRate: realLogs.length === 0 ? '0%' : '100%',
+      hoursLogged: rawLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+      attendanceRate: rawLogs.length === 0 ? '0%' : '100%',
       stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
     };
     res.learningModules = getStoredLearningModules();
