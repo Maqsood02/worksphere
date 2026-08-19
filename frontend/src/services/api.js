@@ -57,19 +57,47 @@ function saveUsersList(users) {
   localStorage.setItem('worksphere_users_list', JSON.stringify(users));
 }
 
+function deduplicateModulesList(list) {
+  if (!Array.isArray(list)) return [];
+  const map = new Map();
+  for (const m of list) {
+    if (!m) continue;
+    const titleKey = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}:::${(m.category || '').trim().toLowerCase()}`;
+    const idKey = (m.id || m.moduleId || '').trim();
+    
+    let matchKey = null;
+    for (const [k, v] of map.entries()) {
+      const vTitleKey = `${(v.title || '').trim().toLowerCase()}:::${(v.assignedTo || 'ALL').trim().toLowerCase()}:::${(v.category || '').trim().toLowerCase()}`;
+      const vIdKey = (v.id || v.moduleId || '').trim();
+      if ((idKey && vIdKey && idKey === vIdKey) || titleKey === vTitleKey) {
+        matchKey = k;
+        break;
+      }
+    }
+
+    if (matchKey) {
+      map.set(matchKey, { ...map.get(matchKey), ...m, id: map.get(matchKey).id || m.id });
+    } else {
+      map.set(idKey || titleKey, m);
+    }
+  }
+  return Array.from(map.values());
+}
+
 function getStoredLearningModules() {
   const saved = localStorage.getItem('worksphere_learning_modules');
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return deduplicateModulesList(parsed);
     } catch(e) {}
   }
   return [];
 }
 
 function saveStoredLearningModules(modules) {
-  localStorage.setItem('worksphere_learning_modules', JSON.stringify(modules));
+  const deduped = deduplicateModulesList(modules);
+  localStorage.setItem('worksphere_learning_modules', JSON.stringify(deduped));
 }
 
 function getStoredInternProfiles() {
@@ -1106,9 +1134,7 @@ export const api = {
         const json = await resp.json();
         if (json && json.success && Array.isArray(json.modules)) {
           const localMods = getStoredLearningModules();
-          const map = new Map();
-          [...localMods, ...json.modules].forEach(m => { if (m && (m.id || m.moduleId)) map.set(m.id || m.moduleId, m); });
-          const merged = Array.from(map.values());
+          const merged = deduplicateModulesList([...json.modules, ...localMods]);
           saveStoredLearningModules(merged);
           return { success: true, modules: merged };
         }

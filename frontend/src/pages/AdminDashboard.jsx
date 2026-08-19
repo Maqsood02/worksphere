@@ -324,6 +324,35 @@ export default function AdminDashboard() {
     }
   };
 
+  // Helper URL & YouTube Validators
+  const isValidYouTubeVideoInput = (str) => {
+    if (!str || !str.trim()) return true;
+    const val = str.trim();
+    if (/^[a-zA-Z0-9_-]{11}$/.test(val)) return true;
+    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)[\w-]{11}(\S*)?$/i;
+    if (ytRegex.test(val)) return true;
+    try {
+      const u = new URL(val.startsWith('http') ? val : `https://${val}`);
+      if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+        if (u.hostname.includes('youtu.be') && u.pathname.length > 1) return true;
+        if (u.searchParams.get('v') && u.searchParams.get('v').length === 11) return true;
+        if (u.pathname.includes('/embed/') || u.pathname.includes('/shorts/')) return true;
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const isValidHttpResourceUrl = (str) => {
+    if (!str || !str.trim()) return true;
+    const val = str.trim();
+    try {
+      const url = new URL(val);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (e) {
+      return false;
+    }
+  };
+
   // Learning Modules & Video Resources Handlers
   const [learningModules, setLearningModules] = useState([]);
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
@@ -341,7 +370,17 @@ export default function AdminDashboard() {
     try {
       const res = await api.getLearningModules();
       if (res && res.modules) {
-        setLearningModules(res.modules);
+        // Strict deduplication by title + target intern
+        const seen = new Set();
+        const unique = [];
+        for (const m of res.modules) {
+          const key = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}:::${(m.category || '').trim().toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(m);
+          }
+        }
+        setLearningModules(unique);
       }
     } catch (err) {
       console.error(err);
@@ -350,7 +389,21 @@ export default function AdminDashboard() {
 
   const handleAddModuleSubmit = async (e) => {
     e.preventDefault();
-    if (!newModTitle.trim()) return;
+    if (!newModTitle.trim()) {
+      addToast("Please enter a module title.");
+      return;
+    }
+
+    if (newModVideoUrl && !isValidYouTubeVideoInput(newModVideoUrl)) {
+      addToast("Please enter a valid YouTube video URL (e.g. https://www.youtube.com/watch?v=... or 11-character Video ID).");
+      return;
+    }
+
+    if (newModResourceUrl && !isValidHttpResourceUrl(newModResourceUrl)) {
+      addToast("Please enter a valid documentation link starting with https:// or http:// (e.g. https://react.dev)");
+      return;
+    }
+
     setIsAddingModule(true);
     try {
       const targetUserKey = (newModTargetIntern || 'ALL').trim();
@@ -373,15 +426,15 @@ export default function AdminDashboard() {
       }
 
       const res = await api.createLearningModule({
-        title: newModTitle,
+        title: newModTitle.trim(),
         category: newModCategory,
         track: newModTrack,
         assignedTo: targetUserKey,
         targetInternEmail: targetEmail,
         targetInternName: targetName,
-        description: newModDesc,
-        videoUrl: newModVideoUrl,
-        resourceUrl: newModResourceUrl,
+        description: newModDesc.trim(),
+        videoUrl: newModVideoUrl.trim(),
+        resourceUrl: newModResourceUrl.trim(),
         sendEmail: newModSendEmail
       });
 
@@ -1592,8 +1645,18 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                {learningModules.map(mod => (
-                  <div key={mod.id} className="bg-slate-50/90 border border-slate-200/90 p-6 rounded-2xl space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all">
+                {(() => {
+                  const seen = new Set();
+                  const dedupedList = [];
+                  for (const mod of learningModules) {
+                    const key = `${(mod.title || '').trim().toLowerCase()}:::${(mod.assignedTo || 'ALL').trim().toLowerCase()}:::${(mod.category || '').trim().toLowerCase()}`;
+                    if (!seen.has(key)) {
+                      seen.add(key);
+                      dedupedList.push(mod);
+                    }
+                  }
+                  return dedupedList.map(mod => (
+                  <div key={mod.id || mod.moduleId} className="bg-slate-50/90 border border-slate-200/90 p-6 rounded-2xl space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1616,7 +1679,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <button
-                          onClick={() => handleDeleteModule(mod.id)}
+                          onClick={() => handleDeleteModule(mod.id || mod.moduleId)}
                           className="text-slate-400 hover:text-rose-600 p-1.5 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
                           title="Remove Learning Module"
                         >
@@ -1645,7 +1708,8 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
-                ))}
+                  ));
+                })()}
               </div>
             )}
           </div>
@@ -2479,25 +2543,53 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-slate-700 font-bold block">YouTube Video URL / ID</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-700 font-bold block">YouTube Video URL / ID</label>
+                    {newModVideoUrl && (
+                      <span className={`text-[10px] font-bold ${isValidYouTubeVideoInput(newModVideoUrl) ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {isValidYouTubeVideoInput(newModVideoUrl) ? '✓ Valid YouTube' : '✗ Invalid Format'}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={newModVideoUrl}
                     onChange={(e) => setNewModVideoUrl(e.target.value)}
                     placeholder="https://youtube.com/watch?v=... or SqcY0GlETPk"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                    className={`w-full bg-slate-50 border ${newModVideoUrl && !isValidYouTubeVideoInput(newModVideoUrl) ? 'border-rose-400 focus:border-rose-500 bg-rose-50/40 text-rose-900' : 'border-slate-200 focus:border-indigo-500'} rounded-xl px-3 py-2 text-slate-800 font-mono outline-none focus:bg-white transition-all text-xs`}
                   />
+                  {newModVideoUrl && !isValidYouTubeVideoInput(newModVideoUrl) ? (
+                    <p className="text-[10px] text-rose-500 font-bold leading-tight">
+                      ⚠️ Invalid YouTube URL or ID. Use e.g. https://youtube.com/watch?v=... or 11-char ID
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">Embeds YouTube Video in Intern Portal.</p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-slate-700 font-bold block">Documentation / GitHub Link</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-700 font-bold block">Documentation / GitHub Link</label>
+                    {newModResourceUrl && (
+                      <span className={`text-[10px] font-bold ${isValidHttpResourceUrl(newModResourceUrl) ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {isValidHttpResourceUrl(newModResourceUrl) ? '✓ Valid URL' : '✗ Invalid Format'}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="url"
                     value={newModResourceUrl}
                     onChange={(e) => setNewModResourceUrl(e.target.value)}
                     placeholder="https://react.dev or https://github.com/..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                    className={`w-full bg-slate-50 border ${newModResourceUrl && !isValidHttpResourceUrl(newModResourceUrl) ? 'border-rose-400 focus:border-rose-500 bg-rose-50/40 text-rose-900' : 'border-slate-200 focus:border-indigo-500'} rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white transition-all text-xs`}
                   />
+                  {newModResourceUrl && !isValidHttpResourceUrl(newModResourceUrl) ? (
+                    <p className="text-[10px] text-rose-500 font-bold leading-tight">
+                      ⚠️ Must start with http:// or https:// (e.g. https://react.dev).
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">Direct documentation link for interns.</p>
+                  )}
                 </div>
               </div>
 
@@ -2526,7 +2618,7 @@ export default function AdminDashboard() {
                       <Mail className="w-3.5 h-3.5 text-indigo-600" /> Dispatch Instant Email Notification
                     </span>
                     <span className="text-[10px] text-slate-500 block mt-0.5">
-                      Sends an official HTML notification with video and documentation links.
+                      Sends an official notification with video and documentation links.
                     </span>
                   </div>
                 </label>

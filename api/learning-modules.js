@@ -35,10 +35,18 @@ export default async function handler(req, res) {
           (uKey.includes('maqsood') && a.includes('maqsood'));
         
         const matchesTrack = !m.track || m.track === 'ALL' || m.track === 'ALL Tracks' || (track && m.track.toLowerCase() === track.toLowerCase());
-        return matchesUser || matchesTrack;
-      });
+      // Deduplicate modules list
+      const seenKeys = new Set();
+      const deduplicated = [];
+      for (const m of filtered) {
+        const key = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}:::${(m.category || '').trim().toLowerCase()}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          deduplicated.push(m);
+        }
+      }
 
-      return res.status(200).json({ success: true, modules: filtered });
+      return res.status(200).json({ success: true, modules: deduplicated });
     }
 
     // 2. CREATE NEW LEARNING MODULE (POST) + DISPATCH EMAIL
@@ -61,8 +69,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Module title is required' });
       }
 
-      const totalCount = await modulesCol.countDocuments();
-      const modId = `MOD-${String(totalCount + 1).padStart(3, '0')}`;
+      const modId = (body.id || body.moduleId || '').trim() || `MOD-${Date.now()}`;
       const newModuleDoc = {
         id: modId,
         moduleId: modId,
@@ -81,6 +88,14 @@ export default async function handler(req, res) {
         updatedAt: new Date()
       };
 
+      // Check if already exists by id or title+assignedTo, and update/upsert to prevent duplicate cards
+      await modulesCol.deleteMany({
+        $or: [
+          { id: modId },
+          { moduleId: modId },
+          { title: title.trim(), assignedTo: assignedTo || 'ALL' }
+        ]
+      });
       await modulesCol.insertOne(newModuleDoc);
 
       // Optionally dispatch email directly
