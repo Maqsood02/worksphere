@@ -88,14 +88,12 @@ export function AppProvider({ children }) {
     return data;
   };
 
-  // Perform User logout
-  const logoutUser = async () => {
-    try {
-      await api.logout();
-    } catch (e) {}
+  // Perform User logout (Instant UI response)
+  const logoutUser = () => {
     saveUserSession(null);
     setUnreadCount(0);
     addToast("Logged out successfully.");
+    api.logout().catch(() => {});
   };
 
   // Verify OTP
