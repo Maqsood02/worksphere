@@ -2365,21 +2365,30 @@ export default function AdminDashboard() {
 
       {/* MODAL: ADD LEARNING MODULE & VIDEO RESOURCE */}
       {showAddModuleModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto max-h-[90vh] flex flex-col">
+            
+            {/* Header (Sticky / Fixed Top) */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
                   <GraduationCap className="w-5 h-5" />
                 </div>
-                <h3 className="font-poppins font-extrabold text-base text-slate-800">Upload Video & Learning Resource</h3>
+                <div>
+                  <h3 className="font-poppins font-extrabold text-base text-slate-900">Upload Video & Learning Resource</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Publish tutorials and curriculum to intern portal</p>
+                </div>
               </div>
-              <button onClick={() => setShowAddModuleModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
+              <button 
+                onClick={() => setShowAddModuleModal(false)} 
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddModuleSubmit} className="space-y-4 text-xs font-medium">
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleAddModuleSubmit} className="space-y-3 text-xs font-medium overflow-y-auto pr-1 flex-1 py-3">
               <div className="space-y-1">
                 <label className="text-slate-700 font-bold block">Module Title *</label>
                 <input
@@ -2388,17 +2397,17 @@ export default function AdminDashboard() {
                   onChange={(e) => setNewModTitle(e.target.value)}
                   placeholder="e.g. Modern React 19 & Next.js App Router Mastery"
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 font-bold outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-slate-700 font-bold block">Category</label>
                   <select
                     value={newModCategory}
                     onChange={(e) => setNewModCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500 text-xs"
                   >
                     <option value="Frontend">Frontend</option>
                     <option value="Backend">Backend</option>
@@ -2414,7 +2423,7 @@ export default function AdminDashboard() {
                   <select
                     value={newModTrack}
                     onChange={(e) => setNewModTrack(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500 text-xs"
                   >
                     <option value="ALL">ALL Tracks</option>
                     <option value="Full-Stack Software Engineering">Full-Stack Engineering</option>
@@ -2424,7 +2433,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* TARGET INTERN SELECTION */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-slate-700 font-bold block">Target Intern Assignment *</label>
                   <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
@@ -2434,7 +2443,7 @@ export default function AdminDashboard() {
                 <select
                   value={newModTargetIntern}
                   onChange={(e) => setNewModTargetIntern(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer text-xs"
                 >
                   <option value="ALL">🌐 ALL Interns (Broadcast to Everyone)</option>
                   {(internsList || []).map((intern) => {
@@ -2451,15 +2460,15 @@ export default function AdminDashboard() {
 
                 {/* Dynamic Email Dispatch Preview Helper */}
                 {newModSendEmail && (
-                  <div className={`p-2.5 rounded-xl border text-[11px] leading-relaxed flex items-center gap-2 ${
+                  <div className={`p-2 rounded-xl border text-[10px] leading-relaxed flex items-center gap-2 ${
                     newModTargetIntern === 'ALL' 
                       ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' 
                       : 'bg-amber-50/80 border-amber-200 text-amber-900'
                   }`}>
-                    <Mail className="w-4 h-4 shrink-0 text-indigo-600" />
+                    <Mail className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
                     <span>
                       {newModTargetIntern === 'ALL' ? (
-                        <><strong>Broadcast Delivery:</strong> Instant email notification will be sent to all active registered intern inboxes.</>
+                        <><strong>Broadcast Delivery:</strong> Instant notification email will be sent to all active registered intern inboxes.</>
                       ) : (
                         <><strong>Direct Assignment:</strong> Instant notification email will be dispatched directly to <strong>@{newModTargetIntern}</strong>'s registered inbox.</>
                       )}
@@ -2468,27 +2477,28 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold block">YouTube Video URL or Video ID</label>
-                <input
-                  type="text"
-                  value={newModVideoUrl}
-                  onChange={(e) => setNewModVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or SqcY0GlETPk"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                />
-                <p className="text-[10px] text-slate-400">Embeds an interactive YouTube Video Player inside the Intern Portal.</p>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">YouTube Video URL / ID</label>
+                  <input
+                    type="text"
+                    value={newModVideoUrl}
+                    onChange={(e) => setNewModVideoUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=... or SqcY0GlETPk"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold block">Documentation / GitHub Resource Link</label>
-                <input
-                  type="url"
-                  value={newModResourceUrl}
-                  onChange={(e) => setNewModResourceUrl(e.target.value)}
-                  placeholder="https://react.dev or https://github.com/..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                />
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Documentation / GitHub Link</label>
+                  <input
+                    type="url"
+                    value={newModResourceUrl}
+                    onChange={(e) => setNewModResourceUrl(e.target.value)}
+                    placeholder="https://react.dev or https://github.com/..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -2496,15 +2506,15 @@ export default function AdminDashboard() {
                 <textarea
                   value={newModDesc}
                   onChange={(e) => setNewModDesc(e.target.value)}
-                  rows="3"
+                  rows="2"
                   placeholder="Outline key learning outcomes, skills to master, or sprint tasks..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none text-xs"
                 ></textarea>
               </div>
 
               {/* EMAIL NOTIFICATION CHECKBOX */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={newModSendEmail}
@@ -2521,25 +2531,27 @@ export default function AdminDashboard() {
                   </div>
                 </label>
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModuleModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAddingModule}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>{isAddingModule ? 'Publishing...' : 'Publish to Intern Portal'}</span>
-                </button>
-              </div>
             </form>
+
+            {/* Footer (Sticky / Fixed Bottom) */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowAddModuleModal(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddModuleSubmit}
+                disabled={isAddingModule}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>{isAddingModule ? 'Publishing...' : 'Publish to Intern Portal'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
