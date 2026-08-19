@@ -680,4 +680,98 @@ public class InternRestController {
     public synchronized ResponseEntity<?> deleteInternTaskPost(@PathVariable String taskId) {
         return deleteInternTask(taskId);
     }
+
+    // LEARNING MODULES ENDPOINTS
+    @GetMapping("/api/admin/learning-modules")
+    public synchronized ResponseEntity<?> getLearningModules() {
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "modules", learningModules
+        ));
+    }
+
+    @PostMapping("/api/admin/learning-modules")
+    public synchronized ResponseEntity<?> createLearningModule(@RequestBody Map<String, Object> payload) {
+        String title = (String) payload.getOrDefault("title", "New Learning Module");
+        String category = (String) payload.getOrDefault("category", "Frontend");
+        String track = (String) payload.getOrDefault("track", "ALL Tracks");
+        String assignedTo = (String) payload.getOrDefault("assignedTo", "ALL");
+        String targetEmail = (String) payload.getOrDefault("targetInternEmail", "");
+        String targetName = (String) payload.getOrDefault("targetInternName", "");
+        String desc = (String) payload.getOrDefault("description", "");
+        String videoUrl = (String) payload.getOrDefault("videoUrl", "");
+        String resourceUrl = (String) payload.getOrDefault("resourceUrl", "");
+        Boolean sendEmail = (Boolean) payload.getOrDefault("sendEmail", true);
+
+        String modId = "MOD-" + System.currentTimeMillis();
+        Map<String, Object> mod = new HashMap<>();
+        mod.put("id", modId);
+        mod.put("moduleId", modId);
+        mod.put("title", title);
+        mod.put("category", category);
+        mod.put("track", track);
+        mod.put("assignedTo", assignedTo);
+        mod.put("targetInternEmail", targetEmail);
+        mod.put("targetInternName", targetName);
+        mod.put("description", desc);
+        mod.put("videoUrl", videoUrl);
+        mod.put("resourceUrl", resourceUrl);
+        mod.put("progressPct", 0);
+        mod.put("completed", false);
+        mod.put("createdAt", new Date().toString());
+
+        learningModules.add(0, mod);
+
+        // Send email notification via EmailService
+        if (Boolean.TRUE.equals(sendEmail)) {
+            try {
+                if (targetEmail != null && targetEmail.contains("@")) {
+                    emailService.sendLearningModuleAssignedEmail(targetEmail, targetName, assignedTo, title, category, track, desc, videoUrl, resourceUrl);
+                } else if ("ALL".equalsIgnoreCase(assignedTo)) {
+                    emailService.sendLearningModuleAssignedEmail("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", title, category, track, desc, videoUrl, resourceUrl);
+                    emailService.sendLearningModuleAssignedEmail("chinmaykv555@gmail.com", "Chinmay K V", "chinmaykv", title, category, track, desc, videoUrl, resourceUrl);
+                } else if (assignedTo.toLowerCase().contains("chinmay")) {
+                    emailService.sendLearningModuleAssignedEmail("chinmaykv555@gmail.com", "Chinmay K V", assignedTo, title, category, track, desc, videoUrl, resourceUrl);
+                } else {
+                    emailService.sendLearningModuleAssignedEmail("maqsoodmd.ac.in@gmail.com", "Maqsood MD", assignedTo, title, category, track, desc, videoUrl, resourceUrl);
+                }
+            } catch (Exception e) {
+                System.err.println("Backend Learning Module Email Dispatch Warning: " + e.getMessage());
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Learning module published and notification dispatched to " + assignedTo + "!",
+            "module", mod
+        ));
+    }
+
+    @DeleteMapping("/api/admin/learning-modules/{id}")
+    public synchronized ResponseEntity<?> deleteLearningModule(@PathVariable String id) {
+        learningModules.removeIf(m -> id.equalsIgnoreCase(String.valueOf(m.get("id"))) || id.equalsIgnoreCase(String.valueOf(m.get("moduleId"))));
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Learning module removed successfully!"
+        ));
+    }
+
+    @PostMapping("/api/intern/learning-modules/{id}/progress")
+    public synchronized ResponseEntity<?> updateLearningModuleProgress(@PathVariable String id, @RequestBody Map<String, Object> payload) {
+        Object pctObj = payload.get("progressPct");
+        Object compObj = payload.get("completed");
+
+        for (Map<String, Object> mod : learningModules) {
+            if (id.equalsIgnoreCase(String.valueOf(mod.get("id"))) || id.equalsIgnoreCase(String.valueOf(mod.get("moduleId")))) {
+                if (pctObj instanceof Number n) {
+                    mod.put("progressPct", n.intValue());
+                }
+                if (compObj instanceof Boolean b) {
+                    mod.put("completed", b);
+                }
+                return ResponseEntity.ok(Map.of("success", true, "module", mod));
+            }
+        }
+        return ResponseEntity.ok(Map.of("success", true));
+    }
 }

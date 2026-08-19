@@ -1083,41 +1083,113 @@ export const api = {
       attendanceRate: dynamicAttendanceRate,
       stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
     };
-    res.learningModules = getStoredLearningModules();
+    const allStoredModules = getStoredLearningModules();
+    const internFilteredModules = allStoredModules.filter(m => {
+      const a = (m.assignedTo || 'ALL').toLowerCase().replace(/^@+/, '').trim();
+      return a === 'all' || a === uKey || a.includes(uKey) || uKey.includes(a) ||
+        (uKey.includes('chinmay') && a.includes('chinmay')) ||
+        (uKey.includes('maqsood') && a.includes('maqsood'));
+    });
+    const serverModules = Array.isArray(res.learningModules) ? res.learningModules : [];
+    const modMap = new Map();
+    [...internFilteredModules, ...serverModules].forEach(m => {
+      if (m && (m.id || m.moduleId)) modMap.set(m.id || m.moduleId, m);
+    });
+    res.learningModules = Array.from(modMap.values());
     res.success = true;
     return res;
   },
-  getLearningModules: async () => {
+  getLearningModules: async (username) => {
+    try {
+      const resp = await fetch(`/api/learning-modules${username ? `?username=${username}` : ''}`);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json && json.success && Array.isArray(json.modules)) {
+          const localMods = getStoredLearningModules();
+          const map = new Map();
+          [...localMods, ...json.modules].forEach(m => { if (m && (m.id || m.moduleId)) map.set(m.id || m.moduleId, m); });
+          const merged = Array.from(map.values());
+          saveStoredLearningModules(merged);
+          return { success: true, modules: merged };
+        }
+      }
+    } catch (e) {}
     return { success: true, modules: getStoredLearningModules() };
   },
   createLearningModule: async (payload) => {
+    const modId = 'MOD-' + Date.now();
+    const newMod = {
+      id: modId,
+      moduleId: modId,
+      title: payload.title || 'New Learning Module',
+      category: payload.category || 'Frontend',
+      track: payload.track || 'ALL Tracks',
+      assignedTo: payload.assignedTo || 'ALL',
+      targetInternEmail: payload.targetInternEmail || '',
+      targetInternName: payload.targetInternName || '',
+      description: payload.description || '',
+      videoUrl: payload.videoUrl || '',
+      resourceUrl: payload.resourceUrl || '',
+      progressPct: 0,
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+
     try {
       const modules = getStoredLearningModules();
-      const newMod = {
-        id: 'MOD-' + Date.now(),
-        title: payload.title || 'New Learning Module',
-        category: payload.category || 'Engineering',
-        track: payload.track || 'ALL',
-        description: payload.description || '',
-        videoUrl: payload.videoUrl || '',
-        resourceUrl: payload.resourceUrl || '',
-        progressPct: 0,
-        completed: false
-      };
       modules.unshift(newMod);
       saveStoredLearningModules(modules);
     } catch (e) {}
+
+    // Dispatch email notification via serverless endpoint
+    if (payload.sendEmail !== false) {
+      try {
+        await fetch('/api/send-learning-module-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignedTo: newMod.assignedTo,
+            username: newMod.assignedTo,
+            toEmail: newMod.targetInternEmail,
+            internName: newMod.targetInternName,
+            moduleTitle: newMod.title,
+            category: newMod.category,
+            track: newMod.track,
+            description: newMod.description,
+            videoUrl: newMod.videoUrl,
+            resourceUrl: newMod.resourceUrl
+          })
+        });
+      } catch (err) {
+        console.warn('Learning module email trigger note:', err);
+      }
+    }
+
+    // Try posting to serverless MongoDB endpoint
+    try {
+      await fetch('/api/learning-modules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newMod, sendEmail: false })
+      });
+    } catch (e) {}
+
     return request('/api/admin/learning-modules', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(newMod)
     });
   },
   deleteLearningModule: async (id) => {
     try {
       let modules = getStoredLearningModules();
-      modules = modules.filter(m => m.id !== id);
+      modules = modules.filter(m => m.id !== id && m.moduleId !== id);
       saveStoredLearningModules(modules);
     } catch (e) {}
+
+    try {
+      await fetch(`/api/learning-modules?id=${id}`, { method: 'DELETE' });
+    } catch (e) {}
+
     return request(`/api/admin/learning-modules/${id}`, {
       method: 'DELETE'
     });
@@ -1126,7 +1198,7 @@ export const api = {
     try {
       let modules = getStoredLearningModules();
       modules = modules.map(m => {
-        if (m.id === id) {
+        if (m.id === id || m.moduleId === id) {
           return {
             ...m,
             progressPct: typeof progressPct === 'number' ? progressPct : m.progressPct,
@@ -1137,6 +1209,15 @@ export const api = {
       });
       saveStoredLearningModules(modules);
     } catch (e) {}
+
+    try {
+      await fetch('/api/learning-modules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, progressPct, completed })
+      });
+    } catch (e) {}
+
     return request(`/api/intern/learning-modules/${id}/progress`, {
       method: 'POST',
       body: JSON.stringify({ progressPct, completed })

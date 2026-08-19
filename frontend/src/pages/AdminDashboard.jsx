@@ -330,6 +330,8 @@ export default function AdminDashboard() {
   const [newModTitle, setNewModTitle] = useState('');
   const [newModCategory, setNewModCategory] = useState('Frontend');
   const [newModTrack, setNewModTrack] = useState('ALL');
+  const [newModTargetIntern, setNewModTargetIntern] = useState('ALL');
+  const [newModSendEmail, setNewModSendEmail] = useState(true);
   const [newModDesc, setNewModDesc] = useState('');
   const [newModVideoUrl, setNewModVideoUrl] = useState('');
   const [newModResourceUrl, setNewModResourceUrl] = useState('');
@@ -348,24 +350,54 @@ export default function AdminDashboard() {
 
   const handleAddModuleSubmit = async (e) => {
     e.preventDefault();
-    if (!newModTitle) return;
+    if (!newModTitle.trim()) return;
     setIsAddingModule(true);
     try {
+      const targetUserKey = (newModTargetIntern || 'ALL').trim();
+      let targetEmail = '';
+      let targetName = '';
+
+      if (targetUserKey !== 'ALL') {
+        const found = (internsList || []).find(i => (i.username || '').toLowerCase() === targetUserKey.toLowerCase()) ||
+                      (usersList || []).find(u => (u.username || '').toLowerCase() === targetUserKey.toLowerCase());
+        if (found) {
+          targetEmail = found.email || '';
+          targetName = found.name || found.username || '';
+        } else if (targetUserKey.toLowerCase().includes('chinmay')) {
+          targetEmail = 'chinmaykv555@gmail.com';
+          targetName = 'Chinmay K V';
+        } else if (targetUserKey.toLowerCase().includes('maqsood')) {
+          targetEmail = 'maqsoodmd.ac.in@gmail.com';
+          targetName = 'Maqsood MD';
+        }
+      }
+
       const res = await api.createLearningModule({
         title: newModTitle,
         category: newModCategory,
         track: newModTrack,
+        assignedTo: targetUserKey,
+        targetInternEmail: targetEmail,
+        targetInternName: targetName,
         description: newModDesc,
         videoUrl: newModVideoUrl,
-        resourceUrl: newModResourceUrl
+        resourceUrl: newModResourceUrl,
+        sendEmail: newModSendEmail
       });
+
+      const targetSummary = targetUserKey === 'ALL' 
+        ? 'All Interns' 
+        : `@${targetUserKey}${targetEmail ? ` (${targetEmail})` : ''}`;
+
       if (res && res.success !== false) {
-        addToast("Learning Module & Video Resource published to Intern Portal!");
+        addToast(`Learning Module published & email notification sent to ${targetSummary}!`);
         setShowAddModuleModal(false);
         setNewModTitle('');
         setNewModDesc('');
         setNewModVideoUrl('');
         setNewModResourceUrl('');
+        setNewModTargetIntern('ALL');
+        setNewModSendEmail(true);
         fetchLearningModules();
       } else {
         addToast(res?.message || "Failed to publish learning module.");
@@ -1563,10 +1595,26 @@ export default function AdminDashboard() {
                 {learningModules.map(mod => (
                   <div key={mod.id} className="bg-slate-50/90 border border-slate-200/90 p-6 rounded-2xl space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all">
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                          {mod.category || 'Engineering'}
-                        </span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                            {mod.category || 'Engineering'}
+                          </span>
+                          {mod.assignedTo && mod.assignedTo !== 'ALL' ? (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              🎯 @{mod.assignedTo}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+                              🌐 All Interns
+                            </span>
+                          )}
+                          {mod.track && mod.track !== 'ALL' && (
+                            <span className="text-[10px] font-bold text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-md">
+                              {mod.track}
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={() => handleDeleteModule(mod.id)}
                           className="text-slate-400 hover:text-rose-600 p-1.5 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
@@ -2375,6 +2423,51 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* TARGET INTERN SELECTION */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-700 font-bold block">Target Intern Assignment *</label>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                    {newModTargetIntern === 'ALL' ? '🌐 Broadcast to All' : `👤 Direct to @${newModTargetIntern}`}
+                  </span>
+                </div>
+                <select
+                  value={newModTargetIntern}
+                  onChange={(e) => setNewModTargetIntern(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                >
+                  <option value="ALL">🌐 ALL Interns (Broadcast to Everyone)</option>
+                  {(internsList || []).map((intern) => {
+                    const u = intern.username || intern.id;
+                    const name = intern.name || u;
+                    const email = intern.email || `${u}@worksphere.ac.in`;
+                    return (
+                      <option key={u} value={u}>
+                        👤 {name} (@{u} &bull; {email})
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Dynamic Email Dispatch Preview Helper */}
+                {newModSendEmail && (
+                  <div className={`p-2.5 rounded-xl border text-[11px] leading-relaxed flex items-center gap-2 ${
+                    newModTargetIntern === 'ALL' 
+                      ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' 
+                      : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                  }`}>
+                    <Mail className="w-4 h-4 shrink-0 text-indigo-600" />
+                    <span>
+                      {newModTargetIntern === 'ALL' ? (
+                        <><strong>Broadcast Delivery:</strong> Instant email notification will be sent to all active registered intern inboxes.</>
+                      ) : (
+                        <><strong>Direct Assignment:</strong> Instant notification email will be dispatched directly to <strong>@{newModTargetIntern}</strong>'s registered inbox.</>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <label className="text-slate-700 font-bold block">YouTube Video URL or Video ID</label>
                 <input
@@ -2407,6 +2500,26 @@ export default function AdminDashboard() {
                   placeholder="Outline key learning outcomes, skills to master, or sprint tasks..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none"
                 ></textarea>
+              </div>
+
+              {/* EMAIL NOTIFICATION CHECKBOX */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={newModSendEmail}
+                    onChange={(e) => setNewModSendEmail(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                  />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-indigo-600" /> Dispatch Instant Email Notification
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">
+                      Sends an official HTML notification with video and documentation links.
+                    </span>
+                  </div>
+                </label>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">

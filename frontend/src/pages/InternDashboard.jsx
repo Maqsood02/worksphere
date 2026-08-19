@@ -682,6 +682,16 @@ function getAttendanceTimelineAndRate(logs) {
 
   const myTasks = tasks.filter(t => isMatchingInternTask(t.assignedTo, uLower, uName));
   const myLogs = attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uLower, uName));
+  const myLearningModules = learningModules.filter(m => {
+    const a = (m.assignedTo || 'ALL').toString().toLowerCase().replace(/^@+/, '').trim();
+    if (a === 'all' || a === 'unassigned' || a === '') return true;
+    if (a === uLower || a === uName) return true;
+    if (uLower && (a.includes(uLower) || uLower.includes(a))) return true;
+    if (uName && (a.includes(uName) || uName.includes(a))) return true;
+    if (uLower.includes('maqsood') && a.includes('maqsood')) return true;
+    if (uLower.includes('chinmay') && a.includes('chinmay')) return true;
+    return false;
+  });
 
   // Compute live metrics strictly based on actual user tasks & attendanceLogs arrays
   const completedTasksVal = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
@@ -1273,7 +1283,7 @@ function getAttendanceTimelineAndRate(logs) {
             </div>
           </div>
 
-          {learningModules.length === 0 ? (
+          {myLearningModules.length === 0 ? (
             <div className="bg-white p-12 rounded-3xl border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
               <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
                 <GraduationCap className="w-8 h-8" />
@@ -1287,17 +1297,26 @@ function getAttendanceTimelineAndRate(logs) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {learningModules.map(mod => (
+              {myLearningModules.map(mod => {
+                const isPersonalAssignment = mod.assignedTo && mod.assignedTo.toLowerCase() !== 'all';
+                return (
                 <div
                   key={mod.id}
                   onClick={() => setSelectedModule(mod)}
-                  className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
+                  className={`glass-card bg-white p-6 rounded-2xl border ${isPersonalAssignment ? 'border-amber-300 ring-1 ring-amber-200/60 shadow-amber-50' : 'border-slate-200/80'} shadow-sm space-y-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group`}
                 >
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-indigo-700 uppercase bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md tracking-wider">
-                        {mod.category}
-                      </span>
+                    <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-indigo-700 uppercase bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md tracking-wider">
+                          {mod.category}
+                        </span>
+                        {isPersonalAssignment && (
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                            ⭐ Assigned to You
+                          </span>
+                        )}
+                      </div>
                       {mod.completed ? (
                         <span className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Completed
@@ -1344,7 +1363,8 @@ function getAttendanceTimelineAndRate(logs) {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

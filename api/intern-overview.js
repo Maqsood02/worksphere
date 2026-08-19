@@ -130,6 +130,34 @@ export default async function handler(req, res) {
       certificateStatus: 'NOT_ISSUED'
     };
 
+    // Query Learning Modules
+    let myModules = [];
+    try {
+      const modulesCol = db.collection('learning_modules');
+      const allDbModules = await modulesCol.find({}).sort({ createdAt: -1 }).toArray();
+      myModules = allDbModules.filter(m => {
+        const a = (m.assignedTo || 'ALL').toLowerCase().replace(/^@+/, '').trim();
+        return a === 'all' || a === cleanUKey || a.includes(cleanUKey) || cleanUKey.includes(a) ||
+          (cleanUKey.includes('chinmay') && a.includes('chinmay')) ||
+          (cleanUKey.includes('maqsood') && a.includes('maqsood'));
+      }).map(m => ({
+        id: m.id || m.moduleId || m._id.toString(),
+        moduleId: m.id || m.moduleId || m._id.toString(),
+        title: m.title,
+        category: m.category || 'Engineering',
+        track: m.track || 'ALL Tracks',
+        assignedTo: m.assignedTo || 'ALL',
+        description: m.description || '',
+        videoUrl: m.videoUrl || '',
+        resourceUrl: m.resourceUrl || '',
+        progressPct: typeof m.progressPct === 'number' ? m.progressPct : 0,
+        completed: Boolean(m.completed),
+        createdAt: m.createdAt
+      }));
+    } catch (modErr) {
+      console.warn('[SERVERLESS MODULES WARN]:', modErr.message);
+    }
+
     return res.status(200).json({
       success: true,
       profile,
@@ -142,7 +170,7 @@ export default async function handler(req, res) {
       },
       tasks: myTasks,
       attendanceLogs: myLogs,
-      learningModules: [],
+      learningModules: myModules,
       certificate: { issued: false }
     });
   } catch (error) {

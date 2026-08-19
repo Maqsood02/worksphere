@@ -809,4 +809,92 @@ public class EmailService {
         System.out.println("[EMAIL SUCCESS] Task assignment notification delivered to: " + toEmail);
         return true;
     }
+
+    /**
+     * Send Learning Module Assignment Email Notification to Intern
+     */
+    @Async
+    public void sendLearningModuleAssignedEmail(String toEmail, String internName, String username, String moduleTitle, String category, String track, String description, String videoUrl, String resourceUrl) {
+        System.out.println("=================================================");
+        System.out.println("⚡ [LEARNING MODULE DISPATCH] To: " + toEmail + " | Intern: " + internName + " | Module: " + moduleTitle);
+        System.out.println("=================================================");
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(senderEmail, "WorkSphere Learning Curriculum");
+            helper.setTo(toEmail);
+            helper.setSubject("🎓 [WorkSphere] New Learning Module Assigned: " + moduleTitle);
+
+            String targetLabel = (username != null && !username.equalsIgnoreCase("ALL")) ? "@" + username : "All Interns";
+
+            String htmlContent = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; margin: 0; padding: 40px 15px; color: #f8fafc; }
+                        .container { max-width: 580px; margin: 0 auto; background: #131c2e; border-radius: 24px; border: 1px solid #283654; padding: 36px 28px; }
+                        .logo-box { text-align: center; margin-bottom: 24px; }
+                        .logo-title { font-size: 28px; font-weight: 800; color: #38bdf8; letter-spacing: -0.5px; }
+                        .tagline { font-size: 10px; font-weight: 700; color: #06b6d4; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+                        .greeting { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+                        .text { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+                        .mod-card { background: #090e1a; border: 1px solid #3b82f6; border-radius: 18px; padding: 22px; margin: 20px 0; }
+                        .badge { display: inline-block; background: #1e3a8a; color: #93c5fd; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-right: 6px; }
+                        .mod-title { font-size: 18px; font-weight: 800; color: #38bdf8; margin: 12px 0 8px 0; }
+                        .mod-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #131c2e; padding: 14px; border-radius: 10px; border-left: 3px solid #6366f1; margin: 14px 0; }
+                        .btn-box { text-align: center; margin: 28px 0 16px 0; }
+                        .btn { display: inline-block; background: linear-gradient(135deg, #6366f1, #3b82f6); color: #ffffff !important; font-weight: 800; font-size: 14px; text-decoration: none; padding: 14px 32px; border-radius: 14px; }
+                        .footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #283654; font-size: 11px; color: #64748b; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="logo-box">
+                            <div class="logo-title">WorkSphere</div>
+                            <div class="tagline">NEW LEARNING MODULE & VIDEO RESOURCE</div>
+                        </div>
+                        <div class="greeting">Hello %s,</div>
+                        <div class="text">Your administrator & mentor has published a new learning curriculum module for your internship roadmap:</div>
+
+                        <div class="mod-card">
+                            <span class="badge">%s</span>
+                            <span class="badge" style="background: #312e81; color: #c7d2fe;">%s</span>
+                            <div class="mod-title">🎓 %s</div>
+                            <div class="mod-desc">%s</div>
+                            %s
+                            %s
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 12px;">Assigned Target: <strong style="color: #a5b4fc;">%s</strong></div>
+                        </div>
+
+                        <div class="btn-box">
+                            <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Open Intern Portal & Start Module ↗</a>
+                        </div>
+
+                        <div class="footer">
+                            &copy; 2026 WorkSphere Platform. All rights reserved. <br/>
+                            Automated message from worksphere.ac.in@gmail.com
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """.formatted(
+                    internName != null ? internName : username,
+                    category != null ? category : "Engineering",
+                    track != null ? track : "ALL Tracks",
+                    moduleTitle,
+                    description != null && !description.isBlank() ? description : "No additional description provided.",
+                    videoUrl != null && !videoUrl.isBlank() ? "<div style='font-size: 13px; margin: 6px 0;'>▶️ <strong>Video:</strong> <a href='" + (videoUrl.startsWith("http") ? videoUrl : "https://www.youtube.com/watch?v=" + videoUrl) + "' style='color: #f43f5e; font-weight: bold;'>Watch Video Tutorial</a></div>" : "",
+                    resourceUrl != null && !resourceUrl.isBlank() ? "<div style='font-size: 13px; margin: 6px 0;'>📚 <strong>Resource:</strong> <a href='" + resourceUrl + "' style='color: #38bdf8; font-weight: bold;'>Open Documentation</a></div>" : "",
+                    targetLabel
+                );
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            System.out.println("[EMAIL SUCCESS] Learning module notification sent to: " + toEmail);
+        } catch (Exception e) {
+            System.err.println("[EMAIL ERROR] Failed to send learning module email to " + toEmail + ": " + e.getMessage());
+        }
+    }
 }
