@@ -192,6 +192,105 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
   return false;
 }
 
+// Compute dynamic attendance timeline, strictly evaluate missed days, and compute rate
+function getAttendanceTimelineAndRate(logs) {
+  const localNow = new Date();
+  const todayDateStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+
+  if (!logs || logs.length === 0) {
+    return {
+      rate: '0%',
+      rateNum: 0,
+      streakStatus: 'No Standups Yet',
+      streakColor: 'text-slate-400',
+      presentCount: 0,
+      absentCount: 0,
+      expectedDays: 0,
+      timeline: [],
+      todayLog: null
+    };
+  }
+
+  const logMap = new Map();
+  logs.forEach(l => {
+    if (l.date) logMap.set(l.date, l);
+  });
+
+  const dates = Array.from(logMap.keys()).sort();
+  const earliestDateStr = dates[0] || todayDateStr;
+
+  const startD = new Date(earliestDateStr + 'T00:00:00');
+  const todayD = new Date(todayDateStr + 'T00:00:00');
+
+  const timeline = [];
+  let curr = new Date(startD);
+
+  while (curr <= todayD) {
+    const dStr = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}-${String(curr.getDate()).padStart(2, '0')}`;
+    const isToday = dStr === todayDateStr;
+    const log = logMap.get(dStr);
+
+    if (log) {
+      timeline.push({
+        ...log,
+        date: dStr,
+        isAbsent: false,
+        isToday
+      });
+    } else if (!isToday) {
+      // Missed past day before 12 AM -> ABSENT
+      timeline.push({
+        id: `ABSENT-${dStr}`,
+        logId: `ABSENT`,
+        date: dStr,
+        isAbsent: true,
+        isToday: false,
+        hours: 0,
+        summary: 'Daily standup check-in was missed on this day before 12:00 AM midnight.',
+        status: 'ABSENT'
+      });
+    }
+
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  // Sort newest date first
+  timeline.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  const todayLog = logMap.get(todayDateStr);
+  const presentCount = logs.length;
+  const absentCount = timeline.filter(t => t.isAbsent).length;
+  
+  // Past days count
+  const pastDaysCount = timeline.filter(t => !t.isToday).length;
+  // Expected working days: if today logged, includes today. If not logged yet today (monitored until 12 AM), includes past days
+  const expectedDays = todayLog ? pastDaysCount + 1 : Math.max(1, pastDaysCount);
+  const rateNum = Math.min(100, Math.max(0, Math.round((presentCount / expectedDays) * 100)));
+  const rate = `${rateNum}%`;
+
+  let streakStatus = 'Active Streak 🔥';
+  let streakColor = 'text-emerald-600';
+  if (absentCount > 0) {
+    streakStatus = `${absentCount} Day${absentCount > 1 ? 's' : ''} Absent`;
+    streakColor = 'text-rose-600';
+  } else if (rateNum < 100) {
+    streakStatus = 'Attention Needed';
+    streakColor = 'text-amber-600';
+  }
+
+  return {
+    rate,
+    rateNum,
+    streakStatus,
+    streakColor,
+    presentCount,
+    absentCount,
+    expectedDays,
+    timeline,
+    todayLog
+  };
+}
+
   const fetchInternData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
@@ -318,6 +417,7 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
       } catch(e) {}
 
       const totalHours = uniqueLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0);
+      const attStats = getAttendanceTimelineAndRate(uniqueLogs);
 
       const normalized = {
         ...baseData,
@@ -328,7 +428,7 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
           tasksCompleted: rawTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
           tasksTotal: rawTasks.length,
           hoursLogged: totalHours,
-          attendanceRate: rawLogs.length === 0 ? '0%' : '100%',
+          attendanceRate: attStats.rate,
           stipendStatus: finalProfile.stipendAmount || 'Unpaid (Academic Credit)'
         }
       };
@@ -713,27 +813,32 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
         </div>
 
         {/* Card 3: Attendance Rate */}
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-extrabold uppercase tracking-wider">Attendance Rate</span>
-              <Calendar className="w-5 h-5 text-emerald-600 shrink-0" />
+        {(() => {
+          const attCalc = getAttendanceTimelineAndRate(myLogs);
+          return (
+            <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-extrabold uppercase tracking-wider">Attendance Rate</span>
+                  <Calendar className="w-5 h-5 text-emerald-600 shrink-0" />
+                </div>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">
+                    {myLogs.length === 0 ? '0%' : attCalc.rate}
+                  </span>
+                  <span className={`text-xs font-bold ${attCalc.streakColor}`}>
+                    {myLogs.length === 0 ? 'No Standups Yet' : attCalc.streakStatus}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400 font-semibold">
+                {myLogs.length === 0 
+                  ? 'Log daily standup above to build streak' 
+                  : `${attCalc.presentCount} of ${attCalc.expectedDays} active days logged • Monitored daily`}
+              </p>
             </div>
-            <div className="flex items-baseline space-x-2">
-              <span className="text-2xl sm:text-3xl font-poppins font-extrabold text-slate-800">
-                {myLogs.length === 0 ? '0%' : (stats?.attendanceRate || '100%')}
-              </span>
-              <span className={`text-xs font-bold ${myLogs.length === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
-                {myLogs.length === 0 ? 'No Standups Yet' : 'Active Streak'}
-              </span>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-400 font-semibold">
-            {myLogs.length === 0 
-              ? 'Log daily standup above to build streak' 
-              : `${myLogs.length} standup log${myLogs.length > 1 ? 's' : ''} recorded`}
-          </p>
-        </div>
+          );
+        })()}
 
         {/* Card 4: Stipend Status */}
         <div className="glass-card p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm flex flex-col justify-between space-y-3 h-full relative overflow-hidden">
@@ -967,9 +1072,10 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
       {/* TAB 2: STANDUP LOGS */}
       {activeTab === 'standup' && (() => {
         const localNow = new Date();
-        const todayDateStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
-        const todayLog = myLogs.find(l => l.date === todayDateStr);
         const currentDateFormatted = localNow.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+        const attCalc = getAttendanceTimelineAndRate(myLogs);
+        const todayLog = attCalc.todayLog;
+        const timelineLogs = attCalc.timeline;
 
         return (
           <div className="space-y-6">
@@ -999,7 +1105,7 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl">
                       <Clock className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
-                      Daily Standup Check-in Pending for Today ({currentDateFormatted})
+                      Daily Standup Check-in Pending for Today • Due by 12:00 AM Midnight
                     </span>
                   )}
                 </div>
@@ -1014,7 +1120,7 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
             </div>
 
             {/* Standup Log Cards / Grid */}
-            {myLogs.length === 0 ? (
+            {timelineLogs.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center space-y-4 shadow-sm max-w-xl mx-auto my-6">
                 <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
                   <Clock className="w-8 h-8" />
@@ -1022,7 +1128,7 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
                 <div className="space-y-1">
                   <h4 className="text-base font-poppins font-bold text-slate-800">No Standup Logs Recorded Yet</h4>
                   <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                    You haven't recorded any daily standup logs yet. Click the button above to log today's hours and work summary.
+                    You haven't recorded any daily standup logs yet. Click the button above to log today's hours and work summary before 12:00 AM midnight.
                   </p>
                 </div>
                 <button
@@ -1034,8 +1140,60 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {myLogs.map((log, idx) => {
+                {timelineLogs.map((log, idx) => {
+                  const isAbsent = log.isAbsent;
                   const isApproved = log.status === 'APPROVED';
+
+                  if (isAbsent) {
+                    return (
+                      <div
+                        key={log.id || `att-absent-${idx}`}
+                        className="bg-rose-50/40 rounded-3xl border border-rose-200/90 p-6 shadow-xs flex flex-col justify-between space-y-4"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[11px] font-extrabold text-rose-700 bg-rose-100/90 border border-rose-300 px-2.5 py-1 rounded-xl">
+                                ABSENT
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                {log.date}
+                              </span>
+                            </div>
+
+                            <span className="text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                              Missed Check-in
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="bg-white border border-rose-200 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-rose-500" />
+                              <span className="text-xs font-bold text-rose-800">0 Hours Logged</span>
+                            </div>
+                            <div className="bg-rose-100/70 border border-rose-200 px-3 py-1.5 rounded-xl text-[11px] font-bold text-rose-700 flex items-center gap-1">
+                              <span>⚠️ Unrecorded Absence</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-white/80 border border-rose-100 rounded-2xl p-4 text-xs font-medium text-rose-950 leading-relaxed">
+                            <p className="italic text-rose-600">"No standup was submitted on this date before 12:00 AM midnight."</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-rose-100 flex items-center justify-between text-xs">
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Intern <span className="font-bold text-slate-700">@{user?.username}</span>
+                          </span>
+                          <span className="text-[11px] font-bold text-rose-600">
+                            Decreased Attendance Rate
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div

@@ -1058,12 +1058,29 @@ export const api = {
 
     res.attendanceLogs = deduplicatedLogs;
 
+    // Compute dynamic attendance rate based on expected active days
+    const localNow = new Date();
+    const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+    
+    let dynamicAttendanceRate = '0%';
+    if (deduplicatedLogs.length > 0) {
+      const dates = deduplicatedLogs.map(l => l.date).filter(Boolean).sort();
+      const earliestDateStr = dates[0] || todayStr;
+      const startD = new Date(earliestDateStr + 'T00:00:00');
+      const todayD = new Date(todayStr + 'T00:00:00');
+      const totalElapsedDays = Math.max(1, Math.round((todayD - startD) / (1000 * 60 * 60 * 24)) + 1);
+      const hasToday = deduplicatedLogs.some(l => l.date === todayStr);
+      const expectedDays = hasToday ? totalElapsedDays : Math.max(1, totalElapsedDays - 1);
+      const rateNum = Math.min(100, Math.max(0, Math.round((deduplicatedLogs.length / expectedDays) * 100)));
+      dynamicAttendanceRate = `${rateNum}%`;
+    }
+
     // Clean stats dynamically computed from the user's actual tasks and logs
     res.stats = {
       tasksCompleted: realTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
       tasksTotal: realTasks.length,
-      hoursLogged: rawLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
-      attendanceRate: rawLogs.length === 0 ? '0%' : '100%',
+      hoursLogged: deduplicatedLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
+      attendanceRate: dynamicAttendanceRate,
       stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
     };
     res.learningModules = getStoredLearningModules();

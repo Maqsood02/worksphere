@@ -91,6 +91,29 @@ export default async function handler(req, res) {
     const completedCount = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
     const totalHours = myLogs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
 
+    // Compute dynamic attendance rate based on expected days between earliest log and today
+    const now = new Date();
+    let todayStr = now.toISOString().split('T')[0];
+    try {
+      todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    } catch (e) {}
+
+    let attendanceRate = '0%';
+    if (myLogs.length > 0) {
+      const dates = myLogs.map(l => l.date).filter(Boolean).sort();
+      const earliestDateStr = dates[0] || todayStr;
+      
+      const startD = new Date(earliestDateStr + 'T00:00:00');
+      const todayD = new Date(todayStr + 'T00:00:00');
+      const totalElapsedDays = Math.max(1, Math.round((todayD - startD) / (1000 * 60 * 60 * 24)) + 1);
+      
+      const hasToday = myLogs.some(l => l.date === todayStr);
+      // If today is logged, expected is totalElapsedDays. If not logged yet (monitored until 12 AM), expected is past days
+      const expectedDays = hasToday ? totalElapsedDays : Math.max(1, totalElapsedDays - 1);
+      const rateNum = Math.min(100, Math.max(0, Math.round((myLogs.length / expectedDays) * 100)));
+      attendanceRate = `${rateNum}%`;
+    }
+
     const profile = {
       username: uKey,
       name: uKey.includes('chinmay') ? 'Chinmay K V' : (uKey.includes('maqsood') ? 'Maqsood MD' : 'Intern User'),
@@ -114,7 +137,7 @@ export default async function handler(req, res) {
         tasksCompleted: completedCount,
         tasksTotal: myTasks.length,
         hoursLogged: totalHours,
-        attendanceRate: myLogs.length === 0 ? '0%' : '100%',
+        attendanceRate,
         stipendStatus: 'Unpaid (Academic Credit)'
       },
       tasks: myTasks,
