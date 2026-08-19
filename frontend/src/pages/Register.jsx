@@ -247,29 +247,63 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Password Security Policy Checklist */}
-          {password.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-1.5 text-[11px] font-medium">
-              <span className="font-bold text-slate-700 block mb-1">Password Security Criteria:</span>
-              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                <span className={`flex items-center gap-1 font-bold ${passLength ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {passLength ? '✓' : '•'} 8+ Characters
-                </span>
-                <span className={`flex items-center gap-1 font-bold ${passUpper ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {passUpper ? '✓' : '•'} 1 Uppercase (A-Z)
-                </span>
-                <span className={`flex items-center gap-1 font-bold ${passLower ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {passLower ? '✓' : '•'} 1 Lowercase (a-z)
-                </span>
-                <span className={`flex items-center gap-1 font-bold ${passDigit ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {passDigit ? '✓' : '•'} 1 Number (0-9)
-                </span>
-                <span className={`flex items-center gap-1 font-bold ${passSpecial ? 'text-emerald-600' : 'text-slate-400'} col-span-2`}>
-                  {passSpecial ? '✓' : '•'} 1 Special Character (!@#$%^&*)
-                </span>
+          {/* Password Security Strength Meter & Policy Checklist */}
+          {password.length > 0 && (() => {
+            const criteriaCount = [passLength, passUpper, passLower, passDigit, passSpecial].filter(Boolean).length;
+            let strengthText = 'Weak';
+            let strengthColor = 'text-rose-600';
+            let strengthBarBg = 'bg-rose-500';
+            let barWidth = '20%';
+
+            if (criteriaCount === 5 && password.length >= 10) {
+              strengthText = 'Very Strong 🛡️';
+              strengthColor = 'text-emerald-700';
+              strengthBarBg = 'bg-gradient-to-r from-emerald-500 to-indigo-600';
+              barWidth = '100%';
+            } else if (criteriaCount === 5) {
+              strengthText = 'Strong ✓';
+              strengthColor = 'text-emerald-600';
+              strengthBarBg = 'bg-emerald-500';
+              barWidth = '80%';
+            } else if (criteriaCount >= 3) {
+              strengthText = 'Medium';
+              strengthColor = 'text-amber-600';
+              strengthBarBg = 'bg-amber-500';
+              barWidth = '50%';
+            }
+
+            return (
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-[11px] font-medium shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700">Password Security Strength:</span>
+                  <span className={`font-extrabold text-xs ${strengthColor}`}>{strengthText}</span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div className={`h-full ${strengthBarBg} transition-all duration-300 rounded-full`} style={{ width: barWidth }}></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 text-[10px] pt-1 border-t border-slate-200/60">
+                  <span className={`flex items-center gap-1 font-bold ${passLength ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {passLength ? '✓' : '•'} 8+ Characters
+                  </span>
+                  <span className={`flex items-center gap-1 font-bold ${passUpper ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {passUpper ? '✓' : '•'} 1 Uppercase (A-Z)
+                  </span>
+                  <span className={`flex items-center gap-1 font-bold ${passLower ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {passLower ? '✓' : '•'} 1 Lowercase (a-z)
+                  </span>
+                  <span className={`flex items-center gap-1 font-bold ${passDigit ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {passDigit ? '✓' : '•'} 1 Number (0-9)
+                  </span>
+                  <span className={`flex items-center gap-1 font-bold ${passSpecial ? 'text-emerald-600' : 'text-slate-400'} col-span-2`}>
+                    {passSpecial ? '✓' : '•'} 1 Special Character (!@#$%^&*)
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="pt-2">
             <button 

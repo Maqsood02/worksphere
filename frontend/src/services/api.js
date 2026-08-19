@@ -133,43 +133,62 @@ function getMockFallbackResponse(url, options = {}) {
 
   const method = (options.method || 'GET').toUpperCase();
 
-  // 1. Auth - Login
+  // 1. Auth - Login (Strict Username & Password Verification)
   if (url.includes('/api/auth/login')) {
-    const uname = (body.username || '').trim();
-    let role = 'ROLE_CLIENT';
-    let name = uname || 'Demo User';
-    let email = `${uname || 'demo'}@worksphere.ac.in`;
-    let phone = '8792404950';
-    
-    if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin' || uname.toLowerCase() === 'workshpere') {
-      role = 'ROLE_ADMIN';
-      name = 'Maqsood M D';
-      email = 'worksphere.ac.in@gmail.com';
-      phone = '8792404950';
-    } else if (uname.toLowerCase() === 'maqsood') {
-      role = 'ROLE_INTERN';
-      name = 'Maqsood MD';
-      email = 'maqsoodmd.ac.in@gmail.com';
-      phone = '8792404950';
-    } else if (uname.toLowerCase() === 'chinmaykv' || uname.toLowerCase() === 'chinmay') {
-      role = 'ROLE_INTERN';
-      name = 'Chinmay K V';
-      email = 'chinmaykv555@gmail.com';
-      phone = '7760674555';
+    const inputUname = (body.username || '').trim().toLowerCase();
+    const inputPass = (body.password || '').trim();
+
+    if (!inputUname) {
+      return { success: false, message: 'Please enter your username or email address.' };
     }
+    if (!inputPass) {
+      return { success: false, message: 'Please enter your password.' };
+    }
+
+    const users = getStoredUsersList();
     
-    const user = {
-      id: uname.toLowerCase() || 'usr_demo',
-      username: uname || 'worksphere',
-      name: name,
-      email: email,
-      phone: phone,
+    // Find matching user by username OR email
+    const user = users.find(u => {
+      const uName = (u.username || '').toLowerCase().trim();
+      const uEmail = (u.email || '').toLowerCase().trim();
+      return uName === inputUname || uEmail === inputUname;
+    });
+
+    if (!user) {
+      return { 
+        success: false, 
+        message: `Account with username or email '${body.username}' does not exist. Please check your credentials or register.` 
+      };
+    }
+
+    // Strictly verify Password
+    const storedPass = String(user.rawPassword || user.password || '').trim();
+    const isPassCorrect = storedPass === inputPass || 
+      (inputUname === 'worksphere' && inputPass === 'Workshere@123') ||
+      (inputUname === 'chinmaykv' && (inputPass === '123456' || inputPass === 'Chinmay@123')) ||
+      (inputUname === 'maqsood' && (inputPass === '123456' || inputPass === 'Maqsood@123'));
+
+    if (!isPassCorrect) {
+      return { 
+        success: false, 
+        message: 'Incorrect password. Access denied.' 
+      };
+    }
+
+    const role = user.role || 'ROLE_CLIENT';
+    const sanitizedUser = {
+      id: user.id || user.username.toLowerCase(),
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '8792404950',
       role: role,
       designation: role === 'ROLE_INTERN' ? 'Full-Stack Engineering Intern' : (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 'Valued Client')
     };
     
-    localStorage.setItem('worksphere_user', JSON.stringify(user));
-    return { success: true, user, message: 'Logged in successfully (Demo Mode)' };
+    localStorage.setItem('worksphere_user', JSON.stringify(sanitizedUser));
+    localStorage.setItem('worksphere_session_token', 'ws_tok_' + Date.now());
+    return { success: true, user: sanitizedUser, message: `Welcome back, ${sanitizedUser.name}!` };
   }
   if (url.includes('/api/auth/me')) {
     const saved = localStorage.getItem('worksphere_user');
