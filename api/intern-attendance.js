@@ -21,11 +21,35 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { username } = req.query || {};
       const allLogs = await attendanceCol.find({}).sort({ date: -1, createdAt: -1 }).toArray();
+
+      const normalizedLogs = allLogs.map((l, idx) => {
+        let timeStr = l.time;
+        if (!timeStr && l.createdAt) {
+          try {
+            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', {
+              timeZone: 'Asia/Kolkata',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            });
+          } catch (e) {
+            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+          }
+        }
+        return {
+          ...l,
+          id: l.logId || l.id || `ATT-${String(idx + 1).padStart(3, '0')}`,
+          logId: l.logId || l.id || `ATT-${String(idx + 1).padStart(3, '0')}`,
+          time: timeStr || '10:00:00 AM'
+        };
+      });
+
       if (!username || username === 'all' || username === 'admin') {
-        return res.status(200).json({ success: true, logs: allLogs });
+        return res.status(200).json({ success: true, logs: normalizedLogs });
       }
       const uKey = username.toLowerCase().replace(/^@+/, '').trim();
-      const userLogs = allLogs.filter(l => {
+      const userLogs = normalizedLogs.filter(l => {
         const logU = (l.username || '').toLowerCase().replace(/^@+/, '').trim();
         return logU === uKey || logU.includes(uKey) || uKey.includes(logU) ||
           (uKey.includes('chinmay') && logU.includes('chinmay')) ||
@@ -37,11 +61,34 @@ export default async function handler(req, res) {
     // 2. CREATE NEW ATTENDANCE LOG (POST)
     if (req.method === 'POST') {
       const body = req.body || {};
-      const { username = 'intern', hours = 8, summary = '', date } = body;
+      const { username = 'intern', hours = 8, summary = '', date, time } = body;
 
       const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-      const dateStr = date || now.toISOString().split('T')[0];
+      // Use client's exact live time if provided, or format in IST
+      let timeStr = (time && String(time).trim()) || '';
+      if (!timeStr) {
+        try {
+          timeStr = now.toLocaleTimeString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+          });
+        } catch (e) {
+          timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+      }
+
+      let dateStr = (date && String(date).trim()) || '';
+      if (!dateStr) {
+        try {
+          const istFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+          dateStr = istFormatter.format(now);
+        } catch (e) {
+          dateStr = now.toISOString().split('T')[0];
+        }
+      }
 
       const totalCount = await attendanceCol.countDocuments();
       const logId = `ATT-${String(totalCount + 1).padStart(3, '0')}`;

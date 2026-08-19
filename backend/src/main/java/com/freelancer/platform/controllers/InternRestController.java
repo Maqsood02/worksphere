@@ -272,8 +272,9 @@ public class InternRestController {
 
         String logId = "ATT-" + (System.currentTimeMillis() % 1000000);
         String dateStr = payload.containsKey("date") ? String.valueOf(payload.get("date")) : LocalDate.now().toString();
+        String timeStr = payload.containsKey("time") ? String.valueOf(payload.get("time")) : java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).format(java.time.format.DateTimeFormatter.ofPattern("hh:mm:ss a"));
 
-        InternAttendance dbDoc = new InternAttendance(logId, username.replaceAll("^@+", ""), dateStr, "10:00 AM", hours, summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.", "SUBMITTED");
+        InternAttendance dbDoc = new InternAttendance(logId, username.replaceAll("^@+", ""), dateStr, timeStr, hours, summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.", "SUBMITTED");
         try {
             internAttendanceRepository.save(dbDoc);
         } catch (Exception e) {
@@ -285,6 +286,7 @@ public class InternRestController {
         newLog.put("logId", logId);
         newLog.put("username", username);
         newLog.put("date", dateStr);
+        newLog.put("time", timeStr);
         newLog.put("hours", hours);
         newLog.put("summary", summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.");
         newLog.put("status", "SUBMITTED");

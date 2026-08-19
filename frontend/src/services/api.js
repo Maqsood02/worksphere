@@ -1151,13 +1151,24 @@ export const api = {
     } catch (e) {}
     const uKey = (currentUser?.username || 'intern').toLowerCase();
 
+    const now = new Date();
+    const localTimeStr = payload.time || now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const localDateStr = payload.date || (new Date(now.getTime() - (now.getTimezoneOffset() * 60000))).toISOString().split('T')[0];
+
     const newLog = {
       id: 'ATT-' + Date.now(),
       username: currentUser?.username || uKey,
-      date: new Date().toISOString().split('T')[0],
+      date: localDateStr,
+      time: localTimeStr,
       hours: Number(payload.hours) || 8,
       summary: payload.summary || 'Daily standup recorded',
-      status: 'SUBMITTED'
+      status: 'SUBMITTED',
+      createdAt: now.toISOString()
     };
 
     // 1. Direct Serverless MongoDB Atlas persist
@@ -1169,7 +1180,8 @@ export const api = {
           username: uKey,
           hours: newLog.hours,
           summary: newLog.summary,
-          date: newLog.date
+          date: newLog.date,
+          time: newLog.time
         })
       });
     } catch (e) {}
@@ -1183,7 +1195,11 @@ export const api = {
 
     return request('/api/intern/attendance/log', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        date: localDateStr,
+        time: localTimeStr
+      })
     });
   },
   getAdminAttendance: async () => {

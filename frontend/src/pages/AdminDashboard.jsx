@@ -1432,7 +1432,9 @@ export default function AdminDashboard() {
                             </td>
                             <td className="py-4 px-4 text-slate-600 whitespace-nowrap align-middle">
                               <div className="font-bold text-slate-700">{log.date || '2026-08-17'}</div>
-                              {log.time && <div className="text-[10px] text-slate-400 font-semibold">{log.time}</div>}
+                              <div className="text-[10px] text-slate-400 font-mono font-semibold">
+                                🕒 {log.time || (log.createdAt ? new Date(log.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '10:00:00 AM')}
+                              </div>
                             </td>
                             <td className="py-4 px-4 text-center align-middle whitespace-nowrap">
                               {isEditing ? (

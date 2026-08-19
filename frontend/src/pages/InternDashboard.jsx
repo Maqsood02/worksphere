@@ -455,13 +455,24 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
     setIsLogging(true);
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
+      const now = new Date();
+      const currentRealTime = liveClock || now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
       const newLog = {
         id: 'ATT-' + Date.now(),
         username: user?.username || uKey,
-        date: new Date().toISOString().split('T')[0],
+        date: localDateStr,
+        time: currentRealTime,
         hours: Number(standupHours) || 8,
         summary: standupSummary || "Completed sprint backlog tasks.",
-        status: 'SUBMITTED'
+        status: 'SUBMITTED',
+        createdAt: now.toISOString()
       };
       try {
         const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
@@ -472,9 +483,11 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
 
       const res = await api.logInternAttendance({
         hours: standupHours,
-        summary: standupSummary
+        summary: standupSummary,
+        time: currentRealTime,
+        date: localDateStr
       });
-      addToast(res?.message || "Daily standup log saved successfully!");
+      addToast(res?.message || `Daily standup logged for ${localDateStr} at ${currentRealTime}!`);
       setShowLogModal(false);
       setStandupSummary('');
       fetchInternData(true);
@@ -947,9 +960,10 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
 
       {/* TAB 2: STANDUP LOGS */}
       {activeTab === 'standup' && (() => {
-        const todayDateStr = new Date().toISOString().split('T')[0];
+        const localNow = new Date();
+        const todayDateStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
         const todayLog = myLogs.find(l => l.date === todayDateStr);
-        const currentDateFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+        const currentDateFormatted = localNow.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
         return (
           <div className="space-y-6">
@@ -1554,6 +1568,19 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
             </div>
             
             <form onSubmit={handleStandupSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
+              {/* Real-time Clock Sync Banner */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[11px] font-bold text-slate-700">Real-Time Submission Clock</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-extrabold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-100 shadow-xs">
+                    🕒 {liveClock}
+                  </span>
+                </div>
+              </div>
+
               {/* Quick Hours Selector Chips */}
               <div className="space-y-2">
                 <label className="text-slate-800 font-bold flex items-center justify-between">
