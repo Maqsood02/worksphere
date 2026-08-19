@@ -47,12 +47,19 @@ export default async function handler(req, res) {
     // Query Attendance
     const allLogs = await attendanceCol.find({}).sort({ createdAt: -1 }).toArray();
 
-    const myLogs = allLogs.filter(l => {
+    // Filter and strictly deduplicate by date
+    const dateMap = new Map();
+    for (const l of allLogs) {
       const logU = (l.username || '').toLowerCase().replace(/^@+/, '').trim();
-      return logU === cleanUKey || logU.includes(cleanUKey) || cleanUKey.includes(logU) ||
+      const isMatch = logU === cleanUKey || logU.includes(cleanUKey) || cleanUKey.includes(logU) ||
         (cleanUKey.includes('chinmay') && logU.includes('chinmay')) ||
         (cleanUKey.includes('maqsood') && logU.includes('maqsood'));
-    }).map((l, idx) => {
+      if (isMatch && l.date && !dateMap.has(l.date)) {
+        dateMap.set(l.date, l);
+      }
+    }
+
+    const myLogs = Array.from(dateMap.values()).map((l) => {
       let timeStr = l.time;
       if (!timeStr && l.createdAt) {
         try {
@@ -67,10 +74,10 @@ export default async function handler(req, res) {
           timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         }
       }
-      const seqId = l.logId || l.id || `ATT-${String(idx + 1).padStart(3, '0')}`;
+      const finalId = l.logId || l.id || 'ATT-001';
       return {
-        id: seqId,
-        logId: seqId,
+        id: finalId,
+        logId: finalId,
         username: l.username,
         date: l.date || new Date().toISOString().split('T')[0],
         time: timeStr || '10:00:00 AM',

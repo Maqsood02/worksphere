@@ -90,12 +90,18 @@ export default async function handler(req, res) {
         }
       }
 
-      const totalCount = await attendanceCol.countDocuments();
-      const logId = `ATT-${String(totalCount + 1).padStart(3, '0')}`;
+      const cleanU = username.replace(/^@+/, '').toLowerCase().trim();
+      const userCount = await attendanceCol.countDocuments({
+        $or: [
+          { username: cleanU },
+          { username: `@${cleanU}` }
+        ]
+      });
+      const logId = `ATT-${String(userCount + 1).padStart(3, '0')}`;
       const newLogDoc = {
         logId,
         id: logId,
-        username: username.replace(/^@+/, '').toLowerCase().trim(),
+        username: cleanU,
         date: dateStr,
         time: timeStr,
         hours: Number(hours) || 8,

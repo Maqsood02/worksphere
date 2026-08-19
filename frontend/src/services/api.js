@@ -957,15 +957,23 @@ export const api = {
         let timeStr = l.time;
         if (!timeStr && l.createdAt) {
           try {
-            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-          } catch (e) {}
+            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', {
+              timeZone: 'Asia/Kolkata',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            });
+          } catch (e) {
+            timeStr = new Date(l.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+          }
         }
         return {
           id: l.logId || l.id || l._id,
           logId: l.logId || l.id || l._id,
           username: l.username,
           date: l.date || new Date().toISOString().split('T')[0],
-          time: timeStr || '10:00 AM',
+          time: timeStr || '10:00:00 AM',
           hours: Number(l.hours) || 8,
           summary: l.summary || '',
           status: l.status || 'SUBMITTED',
@@ -975,7 +983,7 @@ export const api = {
 
       for (const sl of matchedSLogs) {
         const key = sl.logId || sl.id;
-        const idx = rawLogs.findIndex(existing => (existing.logId === key || existing.id === key));
+        const idx = rawLogs.findIndex(existing => (existing.logId === key || existing.id === key || existing.date === sl.date));
         if (idx >= 0) {
           rawLogs[idx] = { ...rawLogs[idx], ...sl };
         } else {
@@ -984,23 +992,21 @@ export const api = {
       }
     }
 
+    // Strictly deduplicate by date (one real log per day, sorted newest first)
+    const dateMap = new Map();
+    for (const l of rawLogs) {
+      if (l.date && !dateMap.has(l.date)) {
+        dateMap.set(l.date, l);
+      }
+    }
+    const deduplicatedLogs = Array.from(dateMap.values());
+    deduplicatedLogs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
     try {
-      const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
-      if (savedLogs) {
-        const parsed = JSON.parse(savedLogs);
-        for (const pl of parsed) {
-          const key = pl.logId || pl.id;
-          if (!rawLogs.some(l => (l.logId === key || l.id === key))) {
-            rawLogs.push(pl);
-          }
-        }
-      }
-      if (rawLogs.length > 0) {
-        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(rawLogs));
-      }
+      localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(deduplicatedLogs));
     } catch(e) {}
 
-    res.attendanceLogs = rawLogs;
+    res.attendanceLogs = deduplicatedLogs;
 
     // Clean stats dynamically computed from the user's actual tasks and logs
     res.stats = {
