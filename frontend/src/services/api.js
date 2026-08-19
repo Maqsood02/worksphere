@@ -139,10 +139,10 @@ function getMockFallbackResponse(url, options = {}) {
     const inputPass = (body.password || '').trim();
 
     if (!inputUname) {
-      return { success: false, message: 'Please enter your username or email address.' };
+      return { success: false, message: 'Please enter username or email.' };
     }
     if (!inputPass) {
-      return { success: false, message: 'Please enter your password.' };
+      return { success: false, message: 'Please enter password.' };
     }
 
     const users = getStoredUsersList();
@@ -157,7 +157,7 @@ function getMockFallbackResponse(url, options = {}) {
     if (!user) {
       return { 
         success: false, 
-        message: `Account with username or email '${body.username}' does not exist. Please check your credentials or register.` 
+        message: 'Account not found.' 
       };
     }
 
@@ -171,7 +171,7 @@ function getMockFallbackResponse(url, options = {}) {
     if (!isPassCorrect) {
       return { 
         success: false, 
-        message: 'Incorrect password. Access denied.' 
+        message: 'Incorrect password.' 
       };
     }
 
@@ -229,24 +229,24 @@ function isValidEmailFormat(email) {
     const users = getStoredUsersList();
 
     if (!isValidEmailFormat(body.email)) {
-      return { success: false, message: 'Please enter a valid email address.' };
+      return { success: false, message: 'Invalid email address.' };
     }
     const duplicateEmail = users.find(u => (u.email || '').trim().toLowerCase() === inputEmail);
     if (duplicateEmail) {
-      return { success: false, message: `Email '${body.email}' is already registered.` };
+      return { success: false, message: 'Email already registered.' };
     }
     const duplicateUsername = users.find(u => (u.username || '').trim().toLowerCase() === inputUsername);
     if (duplicateUsername) {
-      return { success: false, message: `Username '@${body.username}' is already taken.` };
+      return { success: false, message: 'Username already taken.' };
     }
     if (inputPhoneDigits.length > 0) {
       const duplicatePhone = users.find(u => (u.phone || '').replace(/[^0-9]/g, '') === inputPhoneDigits);
       if (duplicatePhone) {
-        return { success: false, message: `Phone number '${body.phone}' is already registered.` };
+        return { success: false, message: 'Phone number already registered.' };
       }
     }
     if (!isPasswordSecure(body.password)) {
-      return { success: false, message: 'Password must be 8+ chars with uppercase, lowercase, number & special char (!@#$).' };
+      return { success: false, message: 'Password does not meet security criteria.' };
     }
 
     const user = {
