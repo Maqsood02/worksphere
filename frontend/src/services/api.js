@@ -1365,8 +1365,11 @@ export const api = {
     try {
       const saved = localStorage.getItem(`worksphere_attendance_${uKey}`);
       let list = saved ? JSON.parse(saved) : [];
-      list.push(newLog);
-      localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(list));
+      const alreadyExists = list.some(l => (l.date || '').split('T')[0] === localDateStr);
+      if (!alreadyExists) {
+        list.unshift(newLog);
+        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(list));
+      }
     } catch(e) {}
 
     return request('/api/intern/attendance/log', {

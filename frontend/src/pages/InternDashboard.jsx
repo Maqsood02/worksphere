@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { 
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
-  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload
+  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock
 } from 'lucide-react';
 
 function extractYouTubeVideoId(input) {
@@ -420,6 +420,20 @@ function isMatchingInternAttendance(logUsername, currentUsername, currentName) {
   return false;
 }
 
+// Helper: Normalize any date format to YYYY-MM-DD
+function normalizeDateStr(d) {
+  if (!d) return '';
+  if (typeof d === 'string') {
+    return d.split('T')[0].trim();
+  }
+  try {
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  } catch(e) {
+    return String(d);
+  }
+}
+
 // Compute dynamic attendance timeline, strictly evaluate missed days, and compute rate
 function getAttendanceTimelineAndRate(logs) {
   const localNow = new Date();
@@ -441,7 +455,10 @@ function getAttendanceTimelineAndRate(logs) {
 
   const logMap = new Map();
   logs.forEach(l => {
-    if (l.date) logMap.set(l.date, l);
+    if (l.date) {
+      const norm = normalizeDateStr(l.date);
+      if (norm) logMap.set(norm, { ...l, date: norm });
+    }
   });
 
   const dates = Array.from(logMap.keys()).sort();
@@ -485,7 +502,7 @@ function getAttendanceTimelineAndRate(logs) {
   // Sort newest date first
   timeline.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
-  const todayLog = logMap.get(todayDateStr);
+  const todayLog = logMap.get(todayDateStr) || logs.find(l => normalizeDateStr(l.date) === todayDateStr) || null;
   const presentCount = logs.length;
   const absentCount = timeline.filter(t => t.isAbsent).length;
   
@@ -763,6 +780,11 @@ function getAttendanceTimelineAndRate(logs) {
 
   const handleStandupSubmit = async (e) => {
     e.preventDefault();
+    if (todayLog) {
+      addToast("Today's standup has already been marked! Check-in is locked until tomorrow.");
+      setShowLogModal(false);
+      return;
+    }
     setIsLogging(true);
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
@@ -788,8 +810,11 @@ function getAttendanceTimelineAndRate(logs) {
       try {
         const savedLogs = localStorage.getItem(`worksphere_attendance_${uKey}`);
         let parsedLogs = savedLogs ? JSON.parse(savedLogs) : [];
-        parsedLogs.unshift(newLog);
-        localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(parsedLogs));
+        const alreadyExists = parsedLogs.some(l => (l.date || '').split('T')[0] === localDateStr);
+        if (!alreadyExists) {
+          parsedLogs.unshift(newLog);
+          localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(parsedLogs));
+        }
       } catch(e) {}
 
       const res = await api.logInternAttendance({
@@ -911,6 +936,9 @@ function getAttendanceTimelineAndRate(logs) {
   const completedTasksVal = myTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
   const totalTasksVal = myTasks.length;
   const hoursLoggedVal = myLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0);
+  const attCalc = getAttendanceTimelineAndRate(myLogs);
+  const todayLog = attCalc.todayLog;
+  const isTodayStandupMarked = Boolean(todayLog);
 
   const filteredTasks = myTasks.filter(t => {
     if (taskFilter === 'ALL') return true;
@@ -967,13 +995,23 @@ function getAttendanceTimelineAndRate(logs) {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 shrink-0">
-            <button
-              onClick={() => setShowLogModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/40 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-indigo-400/30 cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" /> Log Daily Standup
-            </button>
+          <div className="flex flex-wrap gap-3 shrink-0 items-center">
+            {isTodayStandupMarked ? (
+              <div
+                title="Today's standup has already been marked. Check-in is locked until tomorrow."
+                className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 backdrop-blur-md shadow-inner cursor-not-allowed select-none transition-all"
+              >
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <span>Standup Marked Today 🔒</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowLogModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/40 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-indigo-400/30 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" /> Log Daily Standup
+              </button>
+            )}
             
             {hasCertificate ? (
               <button
@@ -1361,12 +1399,31 @@ function getAttendanceTimelineAndRate(logs) {
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowLogModal(true)}
-                className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold text-xs px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer whitespace-nowrap self-start md:self-center"
-              >
-                <PlusCircle className="w-4 h-4" /> {todayLog ? 'Update Today\'s Standup' : 'Record Today\'s Standup'}
-              </button>
+              {todayLog ? (
+                <div 
+                  title="Daily standup check-in completed for today. Standup is locked until tomorrow."
+                  className="bg-emerald-50 border border-emerald-200/90 text-emerald-800 text-xs font-bold px-5 py-3 rounded-2xl flex items-center gap-3 cursor-not-allowed select-none shadow-xs self-start md:self-center"
+                >
+                  <div className="w-7 h-7 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-emerald-900 flex items-center gap-1.5">
+                      Today's Standup Marked & Locked
+                    </div>
+                    <div className="text-[10px] text-emerald-700 font-medium">
+                      Next check-in unlocks tomorrow (after 12:00 AM)
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowLogModal(true)}
+                  className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold text-xs px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer whitespace-nowrap self-start md:self-center"
+                >
+                  <PlusCircle className="w-4 h-4" /> Record Today's Standup
+                </button>
+              )}
             </div>
 
             {/* Standup Log Cards / Grid */}
@@ -1981,7 +2038,9 @@ function getAttendanceTimelineAndRate(logs) {
                 <div className="inline-flex items-center gap-1.5 text-indigo-600 text-[10px] font-extrabold uppercase tracking-wider">
                   <Clock className="w-3.5 h-3.5" /> Daily Sprint Timesheet
                 </div>
-                <h3 className="text-lg font-poppins font-extrabold text-slate-900">Record Daily Standup Log</h3>
+                <h3 className="text-lg font-poppins font-extrabold text-slate-900">
+                  {todayLog ? "Daily Standup Locked" : "Record Daily Standup Log"}
+                </h3>
               </div>
               <button
                 onClick={() => setShowLogModal(false)}
@@ -1991,85 +2050,108 @@ function getAttendanceTimelineAndRate(logs) {
               </button>
             </div>
             
-            <form onSubmit={handleStandupSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
-              {/* Real-time Clock Sync Banner */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[11px] font-bold text-slate-700">Real-Time Submission Clock</span>
+            {todayLog ? (
+              <div className="py-4 text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200 shadow-sm">
+                  <Lock className="w-7 h-7" />
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-xs font-extrabold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-100 shadow-xs">
-                    🕒 {liveClock}
-                  </span>
+                <div className="space-y-1.5">
+                  <h4 className="font-poppins font-extrabold text-slate-800 text-base">Today's Standup Already Submitted</h4>
+                  <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
+                    You have already recorded your daily standup for today ({todayLog.hours} hours logged at {todayLog.time || '10:00 AM'}). Check-in is locked and will automatically reopen tomorrow for your next standup log.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowLogModal(false)}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl cursor-pointer shadow-md transition-all"
+                  >
+                    Got It, Close
+                  </button>
                 </div>
               </div>
-
-              {/* Quick Hours Selector Chips */}
-              <div className="space-y-2">
-                <label className="text-slate-800 font-bold flex items-center justify-between">
-                  <span>Hours Worked Today *</span>
-                  <span className="text-indigo-600 font-extrabold">{standupHours} Hours Selected</span>
-                </label>
-                
-                <div className="grid grid-cols-4 gap-2">
-                  {[4, 6, 8, 10].map(h => (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => setStandupHours(h)}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        Number(standupHours) === h
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {h} hrs {h === 8 && '⚡'}
-                    </button>
-                  ))}
+            ) : (
+              <form onSubmit={handleStandupSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
+                {/* Real-time Clock Sync Banner */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[11px] font-bold text-slate-700">Real-Time Submission Clock</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-xs font-extrabold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-100 shadow-xs">
+                      🕒 {liveClock}
+                    </span>
+                  </div>
                 </div>
 
-                <input
-                  type="number"
-                  min="1"
-                  max="24"
-                  value={standupHours}
-                  onChange={(e) => setStandupHours(e.target.value)}
-                  required
-                  placeholder="Or enter custom hours..."
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500 w-full text-xs font-bold"
-                />
-              </div>
+                {/* Quick Hours Selector Chips */}
+                <div className="space-y-2">
+                  <label className="text-slate-800 font-bold flex items-center justify-between">
+                    <span>Hours Worked Today *</span>
+                    <span className="text-indigo-600 font-extrabold">{standupHours} Hours Selected</span>
+                  </label>
+                  
+                  <div className="grid grid-cols-4 gap-2">
+                    {[4, 6, 8, 10].map(h => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setStandupHours(h)}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          Number(standupHours) === h
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {h} hrs {h === 8 && '⚡'}
+                      </button>
+                    ))}
+                  </div>
 
-              <div className="flex flex-col space-y-1.5">
-                <label className="text-slate-800 font-bold">Daily Summary & Deliverables Completed *</label>
-                <textarea
-                  value={standupSummary}
-                  onChange={(e) => setStandupSummary(e.target.value)}
-                  rows={4}
-                  placeholder="• Features or components built today&#10;• Code commits & deliverables updated&#10;• Any blockers or questions for mentor"
-                  required
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 leading-relaxed"
-                ></textarea>
-              </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={standupHours}
+                    onChange={(e) => setStandupHours(e.target.value)}
+                    required
+                    placeholder="Or enter custom hours..."
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500 w-full text-xs font-bold"
+                  />
+                </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowLogModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLogging}
-                  className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
-                >
-                  {isLogging ? 'Saving...' : 'Submit Daily Standup'}
-                </button>
-              </div>
-            </form>
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-slate-800 font-bold">Daily Summary & Deliverables Completed *</label>
+                  <textarea
+                    value={standupSummary}
+                    onChange={(e) => setStandupSummary(e.target.value)}
+                    rows={4}
+                    placeholder="• Features or components built today&#10;• Code commits & deliverables updated&#10;• Any blockers or questions for mentor"
+                    required
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 leading-relaxed"
+                  ></textarea>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowLogModal(false)}
+                    className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLogging}
+                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
+                  >
+                    {isLogging ? 'Saving...' : 'Submit Daily Standup'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -274,7 +274,29 @@ public class InternRestController {
         String dateStr = payload.containsKey("date") ? String.valueOf(payload.get("date")) : LocalDate.now().toString();
         String timeStr = payload.containsKey("time") ? String.valueOf(payload.get("time")) : java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).format(java.time.format.DateTimeFormatter.ofPattern("hh:mm:ss a"));
 
-        InternAttendance dbDoc = new InternAttendance(logId, username.replaceAll("^@+", ""), dateStr, timeStr, hours, summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.", "SUBMITTED");
+        String cleanUsername = username.replaceAll("^@+", "").trim();
+
+        // Check if user already submitted standup for this date
+        boolean alreadySubmitted = false;
+        try {
+            List<InternAttendance> existing = internAttendanceRepository.findByUsernameIgnoreCase(cleanUsername);
+            alreadySubmitted = existing.stream().anyMatch(a -> dateStr.equals(a.getDate()));
+        } catch (Exception ignored) {}
+
+        if (!alreadySubmitted) {
+            alreadySubmitted = attendanceLogs.stream().anyMatch(a -> 
+                cleanUsername.equalsIgnoreCase(String.valueOf(a.get("username")).replaceAll("^@+", "").trim()) && dateStr.equals(String.valueOf(a.get("date")))
+            );
+        }
+
+        if (alreadySubmitted) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Today's standup has already been marked. Check-in is locked until tomorrow."
+            ));
+        }
+
+        InternAttendance dbDoc = new InternAttendance(logId, cleanUsername, dateStr, timeStr, hours, summary != null && !summary.isBlank() ? summary : "Completed sprint backlog tasks.", "SUBMITTED");
         try {
             internAttendanceRepository.save(dbDoc);
         } catch (Exception e) {

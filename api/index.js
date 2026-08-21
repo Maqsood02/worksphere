@@ -764,6 +764,15 @@ export default async function handler(req, res) {
     if (cleanPath.includes('intern-attendance')) {
       const col = db.collection('intern_attendance');
       if (req.method === 'POST') {
+        const uKey = (body.username || '').toLowerCase().trim();
+        const dateStr = body.date || new Date().toISOString().split('T')[0];
+        const existing = await col.findOne({
+          username: uKey,
+          date: dateStr
+        });
+        if (existing) {
+          return res.status(400).json({ success: false, message: "Today's standup has already been marked. Check-in is locked until tomorrow." });
+        }
         const newLog = { ...body, id: body.id || body.logId || `ATT-${Date.now()}`, logId: body.logId || body.id || `ATT-${Date.now()}`, createdAt: new Date() };
         await col.insertOne(newLog);
         return res.status(200).json({ success: true, log: newLog });
