@@ -312,48 +312,11 @@ function getAttendanceTimelineAndRate(logs) {
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
       const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
 
-      // Extract and filter tasks strictly for this intern (or ALL)
+      // Extract and filter tasks strictly for this intern (or ALL) from MongoDB Atlas
       let rawTasks = [];
       if (Array.isArray(baseData.tasks)) {
         rawTasks = baseData.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey, user?.name));
       }
-
-      try {
-        const savedUserTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
-        if (savedUserTasks) {
-          const parsed = JSON.parse(savedUserTasks);
-          for (const t of parsed) {
-            const idx = rawTasks.findIndex(existing => existing.id === t.id);
-            if (idx >= 0) {
-              rawTasks[idx] = { ...rawTasks[idx], ...t };
-            } else {
-              rawTasks.unshift(t);
-            }
-          }
-        }
-
-        const globalSaved = localStorage.getItem('worksphere_global_tasks');
-        if (globalSaved) {
-          const parsedGlobal = JSON.parse(globalSaved);
-          for (const t of parsedGlobal) {
-            if (isMatchingInternTask(t.assignedTo, uKey, user?.name)) {
-              const idx = rawTasks.findIndex(existing => existing.id === t.id);
-              if (idx >= 0) {
-                rawTasks[idx] = { ...rawTasks[idx], ...t };
-              } else {
-                rawTasks.unshift(t);
-              }
-            }
-          }
-        }
-
-        // Exclude any deleted tasks
-        const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-        if (savedDel) {
-          const deletedIds = JSON.parse(savedDel);
-          rawTasks = rawTasks.filter(t => !deletedIds.includes(t.id));
-        }
-      } catch(e) {}
 
       // Attendance logs strictly for this intern from MongoDB Atlas
       let rawLogs = [];

@@ -5,10 +5,16 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v13');
-  if (currentCacheVer !== 'v13') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v16');
+  if (currentCacheVer !== 'v16') {
     localStorage.removeItem('worksphere_users_list');
-    localStorage.setItem('worksphere_clean_cache_v13', 'v13');
+    localStorage.removeItem('worksphere_tasks_maqsood');
+    localStorage.removeItem('worksphere_tasks_chinmaykv');
+    localStorage.removeItem('worksphere_tasks_intern');
+    localStorage.removeItem('worksphere_tasks_all');
+    localStorage.removeItem('worksphere_global_tasks');
+    localStorage.removeItem('worksphere_deleted_tasks');
+    localStorage.setItem('worksphere_clean_cache_v16', 'v16');
   }
 }
 
@@ -976,13 +982,10 @@ export const api = {
     }
     res.profile = p;
 
-    // Merge tasks
+    // Merge tasks from MongoDB Atlas Database
     let realTasks = [];
-    if (Array.isArray(res.tasks)) {
-      realTasks = res.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey));
-    }
-    if (serverlessTasks.length > 0) {
-      const matchedSTasks = serverlessTasks.filter(t => isMatchingInternTask(t.assignedTo, uKey)).map(t => ({
+    if (serverlessTasks && Array.isArray(serverlessTasks) && serverlessTasks.length > 0) {
+      realTasks = serverlessTasks.filter(t => isMatchingInternTask(t.assignedTo, uKey)).map(t => ({
         id: t.taskId || t.id || t._id,
         taskId: t.taskId || t.id || t._id,
         assignedTo: t.assignedTo,
@@ -994,51 +997,9 @@ export const api = {
         submissionUrl: t.submissionUrl || '',
         submissionNotes: t.submissionNotes || ''
       }));
-      for (const st of matchedSTasks) {
-        const idx = realTasks.findIndex(existing => (existing.id === st.id || existing.taskId === st.taskId || existing.title === st.title));
-        if (idx >= 0) {
-          realTasks[idx] = { ...realTasks[idx], ...st };
-        } else {
-          realTasks.push(st);
-        }
-      }
+    } else if (Array.isArray(res.tasks) && res.tasks.length > 0) {
+      realTasks = res.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey));
     }
-
-    try {
-      const savedTasks = localStorage.getItem(`worksphere_tasks_${uKey}`);
-      if (savedTasks) {
-        const parsed = JSON.parse(savedTasks);
-        for (const t of parsed) {
-          const idx = realTasks.findIndex(existing => existing.id === t.id);
-          if (idx >= 0) {
-            realTasks[idx] = { ...realTasks[idx], ...t };
-          } else {
-            realTasks.unshift(t);
-          }
-        }
-      }
-
-      const globalSaved = localStorage.getItem('worksphere_global_tasks');
-      if (globalSaved) {
-        const globalList = JSON.parse(globalSaved);
-        const matched = globalList.filter(t => isMatchingInternTask(t.assignedTo, uKey));
-        for (const gTask of matched) {
-          const idx = realTasks.findIndex(existing => existing.id === gTask.id);
-          if (idx >= 0) {
-            realTasks[idx] = { ...realTasks[idx], ...gTask };
-          } else {
-            realTasks.unshift(gTask);
-          }
-        }
-      }
-
-      // Filter out deleted tasks
-      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-      if (savedDel) {
-        const deletedIds = JSON.parse(savedDel);
-        realTasks = realTasks.filter(t => !deletedIds.includes(t.id) && !deletedIds.includes(t.taskId));
-      }
-    } catch(e) {}
 
     res.tasks = realTasks;
 
