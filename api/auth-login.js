@@ -22,10 +22,10 @@ export default async function handler(req, res) {
   const inputPass = (password || '').trim();
 
   if (!inputUname) {
-    return res.status(400).json({ success: false, message: 'Please enter username or email.' });
+    return res.status(400).json({ success: false, message: 'Username required.' });
   }
   if (!inputPass) {
-    return res.status(400).json({ success: false, message: 'Please enter password.' });
+    return res.status(400).json({ success: false, message: 'Password required.' });
   }
 
   try {
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Account not found in database. Please check your username or email.'
+        message: 'Account not found.'
       });
     }
 
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Incorrect password. Please verify your credentials and try again.'
+        message: 'Incorrect password.'
       });
     }
 

@@ -43,11 +43,16 @@ export default function Login() {
         setShowOtpModal(true);
         addToast(data.message || 'OTP code sent to your email.');
       } else {
-        setError(data?.message || "Invalid credentials.");
+        let msg = data?.message || "Invalid credentials.";
+        if (msg.includes('Account not found') || msg.includes('not found')) msg = 'Account not found.';
+        if (msg.includes('Incorrect password') || msg.includes('password')) msg = 'Incorrect password.';
+        if (msg.includes('Username required') || msg.includes('enter username')) msg = 'Username required.';
+        if (msg.includes('Password required') || msg.includes('enter password')) msg = 'Password required.';
+        setError(msg);
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to connect to authentication server.");
+      setError("Server connection error.");
     }
   };
 

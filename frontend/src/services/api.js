@@ -167,10 +167,10 @@ function getMockFallbackResponse(url, options = {}) {
     const inputPass = (body.password || '').trim();
 
     if (!inputUname) {
-      return { success: false, message: 'Please enter username or email.' };
+      return { success: false, message: 'Username required.' };
     }
     if (!inputPass) {
-      return { success: false, message: 'Please enter password.' };
+      return { success: false, message: 'Password required.' };
     }
 
     const users = getStoredUsersList();

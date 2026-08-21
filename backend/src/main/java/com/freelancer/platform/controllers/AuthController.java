@@ -185,12 +185,12 @@ public class AuthController {
         String password = payload.get("password");
 
         if (username == null || password == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Username and Password required."));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Username and password required."));
         }
 
         Optional<User> userOpt = userService.findByIdentifier(username);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Invalid username, email, or password."));
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Account not found."));
         }
 
         User user = userOpt.get();
@@ -198,7 +198,7 @@ public class AuthController {
                               (user.getRawPassword() != null && !user.getRawPassword().isBlank() && user.getRawPassword().equals(password));
 
         if (!passMatches) {
-            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Invalid username, email, or password."));
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Incorrect password."));
         }
 
         // If email or phone is not verified, require OTP verification before logging in
