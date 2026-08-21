@@ -1477,8 +1477,17 @@ export const api = {
     return res;
   },
   updateAdminIntern: async (username, payload) => {
+    const uKey = (username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+    // 1. Direct Serverless MongoDB Atlas persist
     try {
-      const uKey = (username || 'intern').toLowerCase();
+      await fetch('/api/intern-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, username: uKey })
+      });
+    } catch (e) {}
+
+    try {
       const storedProfiles = getStoredInternProfiles();
 
       const newStipendType = payload.stipendType || 'UNPAID';

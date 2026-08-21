@@ -813,6 +813,7 @@ export default async function handler(req, res) {
       const tasksCol = db.collection('intern_tasks');
       const attendanceCol = db.collection('intern_attendance');
       const modulesCol = db.collection('learning_modules');
+      const profilesCol = db.collection('intern_profiles');
 
       const allTasks = await tasksCol.find({}).sort({ createdAt: -1 }).toArray();
       const myTasks = allTasks.filter(t => {
@@ -830,13 +831,55 @@ export default async function handler(req, res) {
           (uKey.includes('chinmay') && a.includes('chinmay'));
       });
 
+      let internProfile = await profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') });
+      if (!internProfile) {
+        const isChinmay = uKey.includes('chinmay');
+        internProfile = {
+          username: uKey,
+          role: 'ROLE_INTERN',
+          track: isChinmay ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering',
+          mentorName: 'Unassigned Mentor',
+          mentorEmail: 's.jenkins@worksphere.ac.in',
+          stipendType: 'UNPAID',
+          stipendAmount: 'Unpaid (Academic Credit)',
+          performanceRating: 'Active Intern',
+          startDate: '2026-06-01',
+          endDate: '2026-08-31'
+        };
+      }
+
       return res.status(200).json({
         success: true,
-        profile: { username: uKey, role: 'ROLE_INTERN' },
+        profile: internProfile,
         tasks: myTasks,
         attendanceLogs: myLogs,
         learningModules: myModules
       });
+    }
+
+    // ==========================================
+    // 10.5 INTERN: PROFILE SETTINGS (/api/intern-profile)
+    // ==========================================
+    if (cleanPath.includes('intern-profile') || cleanPath.includes('interns-profile')) {
+      const profilesCol = db.collection('intern_profiles');
+      if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') {
+        const uKey = (body.username || query.username || '').toLowerCase().replace(/^@+/, '').trim();
+        if (uKey) {
+          await profilesCol.updateOne(
+            { username: new RegExp(`^${uKey}$`, 'i') },
+            { $set: { ...body, username: uKey, updatedAt: new Date() } },
+            { upsert: true }
+          );
+          return res.status(200).json({ success: true, message: `Profile updated for @${uKey}!` });
+        }
+      }
+      const uKey = (query.username || '').toLowerCase().replace(/^@+/, '').trim();
+      if (!uKey || uKey === 'all') {
+        const allProfiles = await profilesCol.find({}).toArray();
+        return res.status(200).json({ success: true, profiles: allProfiles });
+      }
+      const prof = await profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') });
+      return res.status(200).json({ success: true, profile: prof });
     }
 
     // ==========================================

@@ -69,6 +69,7 @@ public class InternRestController {
         chinmayData.put("username", "chinmaykv");
         chinmayData.put("name", "Chinmay K V");
         chinmayData.put("email", "chinmaykv555@gmail.com");
+        chinmayData.put("track", "AI & Automation Engineering");
         internProfiles.put("chinmaykv", chinmayData);
     }
 

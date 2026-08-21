@@ -409,11 +409,25 @@ export default function AdminDashboard() {
       const filteredTasks = rawTasks.filter(t => !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t.taskId));
       setAllInternTasks(filteredTasks);
 
-      // Deduplicate interns by lowercase username & merge local profile overrides
+      // Fetch MongoDB Atlas serverless profiles
+      let serverProfiles = {};
+      try {
+        const pRes = await fetch('/api/intern-profile?username=all');
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData && Array.isArray(pData.profiles)) {
+            pData.profiles.forEach(p => {
+              if (p.username) serverProfiles[p.username.toLowerCase().replace(/^@+/, '').trim()] = p;
+            });
+          }
+        }
+      } catch(e) {}
+
+      // Deduplicate interns by lowercase username & merge profile overrides
       const seen = new Set();
       const uniqueInterns = [];
       (interns || []).forEach(i => {
-        const uKey = (i.username || '').trim().toLowerCase();
+        const uKey = (i.username || '').trim().toLowerCase().replace(/^@+/, '');
         if (uKey && uKey !== 'intern' && !seen.has(uKey)) {
           seen.add(uKey);
           let localOv = null;
@@ -422,7 +436,17 @@ export default function AdminDashboard() {
             if (ov) localOv = JSON.parse(ov);
           } catch(e) {}
 
-          const merged = { ...i, username: uKey, ...(localOv || {}) };
+          const sProf = serverProfiles[uKey] || {};
+          const defaultTrack = uKey.includes('chinmay') ? 'AI & Automation Engineering' : (i.track || 'Full-Stack Software Engineering');
+
+          const merged = {
+            ...i,
+            track: defaultTrack,
+            ...sProf,
+            ...(localOv || {}),
+            username: uKey
+          };
+
           if (merged.stipendType === 'UNPAID' || (merged.stipendAmount || '').toLowerCase().includes('unpaid')) {
             merged.stipendType = 'UNPAID';
             merged.stipendAmount = 'Unpaid (Academic Credit)';

@@ -556,6 +556,15 @@ function getAttendanceTimelineAndRate(logs) {
         }
       } catch (e) {}
 
+      let serverProfile = null;
+      try {
+        const pRes = await fetch(`/api/intern-profile?username=${uKey}`);
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData && pData.profile) serverProfile = pData.profile;
+        }
+      } catch(e) {}
+
       const [res, directAtt, directMods] = await Promise.allSettled([
         api.getInternOverview(uKey),
         api.getInternAttendance ? api.getInternAttendance(uKey) : api.getAdminAttendance(),
@@ -564,7 +573,13 @@ function getAttendanceTimelineAndRate(logs) {
 
       const baseData = (res.status === 'fulfilled' && res.value && res.value.success) ? res.value : defaultInternData;
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
-      const finalProfile = localOverride ? { ...apiProfile, ...localOverride } : apiProfile;
+      const defaultTrack = uKey.includes('chinmay') ? 'AI & Automation Engineering' : (apiProfile.track || 'Full-Stack Software Engineering');
+      const finalProfile = {
+        ...apiProfile,
+        track: defaultTrack,
+        ...(serverProfile || {}),
+        ...(localOverride || {})
+      };
 
       // Extract and filter tasks strictly for this intern (or ALL) from MongoDB Atlas
       let rawTasks = [];
