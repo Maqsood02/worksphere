@@ -438,12 +438,13 @@ export default function AdminDashboard() {
 
           const sProf = serverProfiles[uKey] || {};
           const defaultTrack = uKey.includes('chinmay') ? 'AI & Automation Engineering' : (i.track || 'Full-Stack Software Engineering');
+          const finalTrack = sProf.track || (localOv && localOv.track) || defaultTrack;
 
           const merged = {
             ...i,
-            track: defaultTrack,
             ...sProf,
             ...(localOv || {}),
+            track: finalTrack,
             username: uKey
           };
 
@@ -2384,15 +2385,24 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex flex-col space-y-1">
-                <label>Engineering Track *</label>
+                <div className="flex items-center justify-between">
+                  <label>Engineering Track *</label>
+                  <span className="text-[10px] text-indigo-600 font-extrabold uppercase">Admin Defined</span>
+                </div>
                 <input
                   type="text"
                   value={editTrack}
                   onChange={(e) => setEditTrack(e.target.value)}
-                  placeholder="e.g. Full-Stack Software Engineering"
+                  placeholder="e.g. AI & Automation Engineering"
                   required
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-medium"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-primary font-bold text-slate-900"
                 />
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button type="button" onClick={() => setEditTrack('AI & Automation Engineering')} className={`text-[10px] px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${editTrack === 'AI & Automation Engineering' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'}`}>🤖 AI & Automation Engineering</button>
+                  <button type="button" onClick={() => setEditTrack('Full-Stack Software Engineering')} className={`text-[10px] px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${editTrack === 'Full-Stack Software Engineering' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'}`}>💻 Full-Stack Software Engineering</button>
+                  <button type="button" onClick={() => setEditTrack('Data Science & Machine Learning')} className={`text-[10px] px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${editTrack === 'Data Science & Machine Learning' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'}`}>📊 Data Science & ML</button>
+                  <button type="button" onClick={() => setEditTrack('Cloud & Cybersecurity')} className={`text-[10px] px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer ${editTrack === 'Cloud & Cybersecurity' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200'}`}>☁️ Cloud & Cybersecurity</button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

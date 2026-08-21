@@ -566,12 +566,12 @@ function isValidEmailFormat(email) {
         } catch(e) {}
 
         const existing = uniqueMap[uname] || {};
+        const defaultTrack = uname.includes('chinmay') ? 'AI & Automation Engineering' : (existing.track || 'Full-Stack Software Engineering');
         const merged = {
           username: uname,
           name: u.name || u.username,
           email: u.email || `${uname}@worksphere.ac.in`,
           phone: u.phone || '',
-          track: 'Full-Stack Software Engineering',
           mentorName: 'Unassigned Mentor',
           stipendType: 'UNPAID',
           stipendCurrency: 'INR',
@@ -579,7 +579,8 @@ function isValidEmailFormat(email) {
           performanceRating: 'New Intern',
           certificateStatus: 'NOT_ISSUED',
           ...existing,
-          ...(userOverride || {})
+          ...(userOverride || {}),
+          track: (userOverride && userOverride.track) || existing.track || defaultTrack
         };
         if (merged.stipendType === 'UNPAID' || (merged.stipendAmount || '').toLowerCase().includes('unpaid')) {
           merged.stipendType = 'UNPAID';
@@ -620,11 +621,12 @@ function isValidEmailFormat(email) {
     const profiles = getStoredInternProfiles();
     
     if (!profiles[uname]) {
+      const defaultTrack = uname.includes('chinmay') ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering';
       profiles[uname] = {
         username: currentUser?.username || uname,
         name: currentUser?.name || uname,
         email: currentUser?.email || `${uname}@worksphere.ac.in`,
-        track: 'Full-Stack Software Engineering',
+        track: defaultTrack,
         mentorName: 'Unassigned Mentor',
         mentorEmail: 's.jenkins@worksphere.ac.in',
         startDate: '2026-06-01',
@@ -952,11 +954,12 @@ export const api = {
     }
     if (!res || typeof res !== 'object') res = {};
 
+    const isChinmay = defaultUKey.includes('chinmay');
     const cleanDefaultProfile = {
       username: currentUser?.username || defaultUKey,
-      name: currentUser?.name || (defaultUKey.includes('chinmay') ? 'Chinmay K V' : (defaultUKey.includes('maqsood') ? 'Maqsood MD' : defaultUKey)),
-      email: currentUser?.email || (defaultUKey.includes('chinmay') ? 'chinmaykv555@gmail.com' : (defaultUKey.includes('maqsood') ? 'maqsoodmd.ac.in@gmail.com' : `${defaultUKey}@worksphere.ac.in`)),
-      track: 'Full-Stack Software Engineering',
+      name: currentUser?.name || (isChinmay ? 'Chinmay K V' : (defaultUKey.includes('maqsood') ? 'Maqsood MD' : defaultUKey)),
+      email: currentUser?.email || (isChinmay ? 'chinmaykv555@gmail.com' : (defaultUKey.includes('maqsood') ? 'maqsoodmd.ac.in@gmail.com' : `${defaultUKey}@worksphere.ac.in`)),
+      track: isChinmay ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering',
       mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
