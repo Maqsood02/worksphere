@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install && cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
   "headers": [
@@ -23,46 +23,6 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/auth/login",
-      "destination": "/api/auth-login"
-    },
-    {
-      "source": "/api/auth/me",
-      "destination": "/api/auth-me"
-    },
-    {
-      "source": "/api/client/projects",
-      "destination": "/api/client-projects"
-    },
-    {
-      "source": "/api/client/invoices",
-      "destination": "/api/client-invoices"
-    },
-    {
-      "source": "/api/client/appointments",
-      "destination": "/api/client-appointments"
-    },
-    {
-      "source": "/api/admin/projects",
-      "destination": "/api/admin-projects"
-    },
-    {
-      "source": "/api/admin/invoices",
-      "destination": "/api/admin-invoices"
-    },
-    {
-      "source": "/api/admin/appointments",
-      "destination": "/api/admin-appointments"
-    },
-    {
-      "source": "/api/admin/users",
-      "destination": "/api/admin-users"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
     {
       "source": "/((?!api/|assets/|favicon.ico|.*\\..*).*)",
       "destination": "/index.html"
