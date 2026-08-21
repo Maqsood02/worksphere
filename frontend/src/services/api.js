@@ -1079,7 +1079,8 @@ export const api = {
       const totalElapsedDays = Math.max(1, Math.round((todayD - startD) / (1000 * 60 * 60 * 24)) + 1);
       const hasToday = deduplicatedLogs.some(l => l.date === todayStr);
       const expectedDays = hasToday ? totalElapsedDays : Math.max(1, totalElapsedDays - 1);
-      const rateNum = Math.min(100, Math.max(0, Math.round((deduplicatedLogs.length / expectedDays) * 100)));
+      const approvedCount = deduplicatedLogs.filter(l => (l.status || '').toUpperCase() === 'APPROVED').length;
+      const rateNum = Math.min(100, Math.max(0, Math.round((approvedCount / expectedDays) * 100)));
       dynamicAttendanceRate = `${rateNum}%`;
     }
 
@@ -1109,23 +1110,18 @@ export const api = {
   },
   getLearningModules: async (username) => {
     try {
-      const resp = await fetch(`/api/learning-modules${username ? `?username=${username}` : ''}`);
-      if (resp.ok) {
-        const json = await resp.json();
-        if (json && json.success && Array.isArray(json.modules)) {
-          saveStoredLearningModules(json.modules);
-          return { success: true, modules: json.modules };
-        }
+      const uParam = username ? `?username=${username}` : '';
+      const res = await fetch(`/api/learning-modules${uParam}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.modules)) return data.modules;
       }
     } catch (e) {}
-    return { success: true, modules: getStoredLearningModules() };
+    return getStoredLearningModules();
   },
   createLearningModule: async (payload) => {
     const title = (payload.title || '').trim();
-    if (!title) {
-      throw new Error('Module title is required. Learning modules can only be created by admin.');
-    }
-    const modId = 'MOD-' + Date.now();
+    const modId = payload.id || payload.moduleId || ('MOD-' + Date.now());
     const newMod = {
       id: modId,
       moduleId: modId,

@@ -503,14 +503,17 @@ function getAttendanceTimelineAndRate(logs) {
   timeline.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   const todayLog = logMap.get(todayDateStr) || logs.find(l => normalizeDateStr(l.date) === todayDateStr) || null;
-  const presentCount = logs.length;
+  const approvedCount = logs.filter(l => (l.status || '').toUpperCase() === 'APPROVED').length;
+  const pendingCount = logs.filter(l => (l.status || '').toUpperCase() !== 'APPROVED').length;
   const absentCount = timeline.filter(t => t.isAbsent).length;
   
   // Past days count
   const pastDaysCount = timeline.filter(t => !t.isToday).length;
   // Expected working days: if today logged, includes today. If not logged yet today (monitored until 12 AM), includes past days
   const expectedDays = todayLog ? pastDaysCount + 1 : Math.max(1, pastDaysCount);
-  const rateNum = Math.min(100, Math.max(0, Math.round((presentCount / expectedDays) * 100)));
+  
+  // Attendance rate only increases when approved by Admin
+  const rateNum = Math.min(100, Math.max(0, Math.round((approvedCount / expectedDays) * 100)));
   const rate = `${rateNum}%`;
 
   let streakStatus = 'Active Streak 🔥';
@@ -518,6 +521,9 @@ function getAttendanceTimelineAndRate(logs) {
   if (absentCount > 0) {
     streakStatus = `${absentCount} Day${absentCount > 1 ? 's' : ''} Absent`;
     streakColor = 'text-rose-600';
+  } else if (pendingCount > 0 && approvedCount === 0) {
+    streakStatus = 'Under Review';
+    streakColor = 'text-amber-600';
   } else if (rateNum < 100) {
     streakStatus = 'Attention Needed';
     streakColor = 'text-amber-600';
@@ -528,7 +534,9 @@ function getAttendanceTimelineAndRate(logs) {
     rateNum,
     streakStatus,
     streakColor,
-    presentCount,
+    presentCount: approvedCount,
+    approvedCount,
+    pendingCount,
     absentCount,
     expectedDays,
     timeline,
@@ -1096,7 +1104,7 @@ function getAttendanceTimelineAndRate(logs) {
               <p className="text-[11px] text-slate-400 font-semibold">
                 {myLogs.length === 0 
                   ? 'Log daily standup above to build streak' 
-                  : `${attCalc.presentCount} of ${attCalc.expectedDays} active days logged • Monitored daily`}
+                  : `${attCalc.approvedCount} of ${attCalc.expectedDays} active days approved${attCalc.pendingCount > 0 ? ` (${attCalc.pendingCount} in review)` : ''} • Monitored daily`}
               </p>
             </div>
           );

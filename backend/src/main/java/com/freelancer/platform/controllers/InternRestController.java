@@ -187,7 +187,9 @@ public class InternRestController {
         stats.put("tasksCompleted", completedCount);
         stats.put("tasksTotal", myTasks.size());
         stats.put("hoursLogged", totalLoggedHours);
-        stats.put("attendanceRate", myAttendance.isEmpty() ? "0%" : "100%");
+        long approvedAttendanceCount = myAttendance.stream().filter(a -> "APPROVED".equalsIgnoreCase(String.valueOf(a.get("status")))).count();
+        int attRate = myAttendance.isEmpty() ? 0 : (int) Math.min(100, Math.round((approvedAttendanceCount * 100.0) / myAttendance.size()));
+        stats.put("attendanceRate", attRate + "%");
         
         String stipendType = (String) profile.getOrDefault("stipendType", "UNPAID");
         if ("UNPAID".equalsIgnoreCase(stipendType)) {
