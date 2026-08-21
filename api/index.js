@@ -722,15 +722,19 @@ export default async function handler(req, res) {
           let targetEmail = '';
           if (targetClean === 'all') {
             const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
-            interns.forEach(i => {
-              if (i.email) sendTaskNotification({ toEmail: i.email, internName: i.name, username: i.username, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
-            });
+            for (const i of interns) {
+              if (i.email) {
+                await sendTaskNotification({ toEmail: i.email, internName: i.name, username: i.username, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
+              }
+            }
           } else {
             const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
             targetEmail = found?.email || (targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com');
-            sendTaskNotification({ toEmail: targetEmail, internName: found?.name || targetClean, username: targetClean, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
+            await sendTaskNotification({ toEmail: targetEmail, internName: found?.name || targetClean, username: targetClean, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error('[TASK EMAIL DISPATCH ERROR]:', e);
+        }
 
         return res.status(200).json({ success: true, message: `Task assigned successfully!`, task: newTaskDoc });
       }
@@ -870,26 +874,28 @@ export default async function handler(req, res) {
 
             if (targetClean === 'all') {
               const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
-              interns.forEach(i => {
-                if (i.email) sendLearningModuleNotification({
-                  toEmail: i.email,
-                  internName: i.name || i.username,
-                  username: i.username,
-                  moduleTitle: newMod.title,
-                  category: newMod.category,
-                  track: newMod.track,
-                  description: newMod.description,
-                  videoUrl: newMod.videoUrl,
-                  resourceUrl: newMod.resourceUrl
-                });
-              });
+              for (const i of interns) {
+                if (i.email) {
+                  await sendLearningModuleNotification({
+                    toEmail: i.email,
+                    internName: i.name || i.username,
+                    username: i.username,
+                    moduleTitle: newMod.title,
+                    category: newMod.category,
+                    track: newMod.track,
+                    description: newMod.description,
+                    videoUrl: newMod.videoUrl,
+                    resourceUrl: newMod.resourceUrl
+                  });
+                }
+              }
             } else {
               if (!targetEmail) {
                 const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
                 targetEmail = found?.email || (targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com');
                 targetName = found?.name || targetClean;
               }
-              sendLearningModuleNotification({
+              await sendLearningModuleNotification({
                 toEmail: targetEmail,
                 internName: targetName,
                 username: targetClean,

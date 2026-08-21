@@ -1,19 +1,16 @@
 import handler from '../api/index.js';
 
-async function testEmail() {
-  console.log('Testing Learning Module Email via unified handler...');
+async function testBroadcastEmail() {
+  console.log('Testing Broadcast Learning Module Email (Maqsood + Chinmay)...');
   const req = {
     method: 'POST',
     url: '/api/send-learning-module-email',
     body: {
-      assignedTo: 'maqsood',
-      username: 'maqsood',
-      internName: 'Maqsood MD',
-      toEmail: 'maqsoodmd.ac.in@gmail.com',
-      moduleTitle: 'Convolutional Neural Networks (CNN) Deep Dive',
-      category: 'Frontend',
+      assignedTo: 'ALL',
+      moduleTitle: 'Deep Learning & CNN Image Classification',
+      category: 'AI & Automation',
       track: 'Full-Stack Software Engineering',
-      description: 'Explore neural network architectures, image feature extraction, and real-time inference.',
+      description: 'Explore dataset preprocessing, model architecture, training, and web inference.',
       videoUrl: 'https://youtu.be/3iwqwbcy7Sw?si=2coe-LZVF2Kjh7Hd',
       resourceUrl: 'https://react.dev'
     }
@@ -35,4 +32,4 @@ async function testEmail() {
   await handler(req, res);
 }
 
-testEmail().catch(console.error);
+testBroadcastEmail().catch(console.error);
