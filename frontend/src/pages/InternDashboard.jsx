@@ -8,6 +8,194 @@ import {
   BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload
 } from 'lucide-react';
 
+function extractYouTubeVideoId(input) {
+  if (!input) return null;
+  const str = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+  try {
+    if (str.includes('youtube.com/watch')) {
+      const u = new URL(str);
+      const v = u.searchParams.get('v');
+      if (v) return v;
+    }
+    if (str.includes('youtu.be/')) {
+      const parts = str.split('youtu.be/');
+      const id = parts[1].split('?')[0].split('&')[0];
+      if (id) return id;
+    }
+    if (str.includes('youtube.com/embed/')) {
+      const parts = str.split('youtube.com/embed/');
+      const id = parts[1].split('?')[0].split('&')[0];
+      if (id) return id;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
+  const containerId = React.useMemo(() => 'yt-player-' + Math.random().toString(36).substring(2, 9), []);
+  const videoId = React.useMemo(() => extractYouTubeVideoId(videoUrl), [videoUrl]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [livePct, setLivePct] = useState(currentProgress || 0);
+  const lastSavedRef = React.useRef(currentProgress || 0);
+  const playerRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+
+  useEffect(() => {
+    setLivePct(currentProgress || 0);
+    lastSavedRef.current = currentProgress || 0;
+  }, [currentProgress]);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (!videoId) return;
+
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.async = true;
+      document.body.appendChild(tag);
+    }
+
+    const onPlayerStateChange = (event) => {
+      if (event.data === 1) { // PLAYING
+        setIsPlaying(true);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+          try {
+            if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+              const curr = playerRef.current.getCurrentTime();
+              const dur = playerRef.current.getDuration();
+              if (dur > 0) {
+                const calculatedPct = Math.min(100, Math.max(0, Math.floor((curr / dur) * 100)));
+                setLivePct(prev => {
+                  const newMax = Math.max(prev, calculatedPct);
+                  if (newMax > lastSavedRef.current && (newMax - lastSavedRef.current >= 2 || newMax === 25 || newMax === 50 || newMax === 75 || newMax >= 100)) {
+                    lastSavedRef.current = newMax;
+                    onProgressChange(newMax, newMax >= 100);
+                  }
+                  return newMax;
+                });
+              }
+            }
+          } catch (e) {}
+        }, 1000);
+      } else if (event.data === 0) { // ENDED
+        setIsPlaying(false);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setLivePct(100);
+        lastSavedRef.current = 100;
+        onProgressChange(100, true);
+      } else {
+        setIsPlaying(false);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+    };
+
+    const setupPlayer = () => {
+      if (window.YT && window.YT.Player && document.getElementById(containerId)) {
+        try {
+          if (playerRef.current && playerRef.current.destroy) {
+            playerRef.current.destroy();
+          }
+          playerRef.current = new window.YT.Player(containerId, {
+            videoId: videoId,
+            playerVars: {
+              autoplay: 0,
+              enablejsapi: 1,
+              origin: window.location.origin,
+              rel: 0,
+              modestbranding: 1
+            },
+            events: {
+              onStateChange: onPlayerStateChange
+            }
+          });
+        } catch (e) {
+          console.warn('YouTube Player initialization note:', e);
+        }
+      }
+    };
+
+    if (window.YT && window.YT.Player) {
+      setupPlayer();
+    } else {
+      const prevCallback = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prevCallback) prevCallback();
+        setupPlayer();
+      };
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      try {
+        if (playerRef.current && playerRef.current.destroy) {
+          playerRef.current.destroy();
+        }
+      } catch (e) {}
+    };
+  }, [videoId, containerId]);
+
+  if (!videoId) {
+    if (videoUrl) {
+      return (
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center justify-between text-rose-800 font-bold">
+          <span className="flex items-center gap-2">▶ Video Link Provided by Admin</span>
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1"
+          >
+            Open Video <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-slate-950 relative">
+        <div id={containerId} className="w-full h-full"></div>
+      </div>
+
+      {/* Real-time Video Watch Progress Indicator */}
+      <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-3.5 rounded-2xl border border-indigo-700/50 shadow-md space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${isPlaying ? 'bg-rose-500 animate-ping' : livePct >= 100 ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+            <span className="font-extrabold text-xs tracking-wide">
+              {isPlaying ? '▶ Auto-Tracking Active Video Playback' : livePct >= 100 ? '✓ Video Tutorial Completed' : '⏸ Video Paused / Ready to Track'}
+            </span>
+          </div>
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+            livePct >= 100 ? 'bg-emerald-500 text-white' : 'bg-indigo-500/80 text-white'
+          }`}>
+            {livePct}% Watched
+          </span>
+        </div>
+
+        <div className="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden border border-indigo-500/30">
+          <div
+            className={`h-2 rounded-full transition-all duration-300 ${
+              livePct >= 100 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-gradient-to-r from-indigo-400 to-violet-400'
+            }`}
+            style={{ width: `${livePct}%` }}
+          ></div>
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pt-0.5">
+          <span>• Progress automatically syncs to Admin Dashboard as you watch</span>
+          <span>{livePct >= 100 ? '🎉 Completed' : `${100 - livePct}% Remaining`}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InternDashboard() {
   const { user, addToast } = useApp();
   const navigate = useNavigate();
@@ -93,6 +281,39 @@ export default function InternDashboard() {
     }
     return str.toUpperCase();
   }
+
+  const handleAutoUpdateProgress = async (modId, pct, isCompleted = false) => {
+    const progressVal = Math.min(100, Math.max(0, Number(pct) || 0));
+    const isComp = isCompleted || progressVal >= 100;
+    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+    try {
+      await api.updateLearningModuleProgress(modId, progressVal, isComp, uKey);
+      setSelectedModule(prev => prev ? ({ ...prev, progressPct: progressVal, completed: isComp }) : null);
+      setData(prev => {
+        if (!prev) return prev;
+        const updatedMods = (prev.learningModules || []).map(m => {
+          if (m.id === modId || m.moduleId === modId) {
+            const userProg = m.progressByUser || {};
+            userProg[uKey] = {
+              progressPct: progressVal,
+              completed: isComp,
+              updatedAt: new Date().toISOString()
+            };
+            return {
+              ...m,
+              progressPct: progressVal,
+              completed: isComp,
+              progressByUser: userProg
+            };
+          }
+          return m;
+        });
+        return { ...prev, learningModules: updatedMods };
+      });
+    } catch (e) {
+      console.error('Auto progress error:', e);
+    }
+  };
 
   const handleUpdateProgress = async (modId, pct) => {
     const progressVal = Math.min(100, Math.max(0, Number(pct) || 0));
@@ -1876,85 +2097,12 @@ function getAttendanceTimelineAndRate(logs) {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 text-xs font-medium text-slate-700">
-              {/* YouTube Video Player Embed */}
-              {getYouTubeEmbedUrl(selectedModule.videoUrl) ? (
-                <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-slate-900">
-                  <iframe
-                    src={getYouTubeEmbedUrl(selectedModule.videoUrl)}
-                    title={selectedModule.title}
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-              ) : selectedModule.videoUrl ? (
-                <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center justify-between text-rose-800 font-bold">
-                  <span className="flex items-center gap-2">▶ Video Link Provided by Admin</span>
-                  <a
-                    href={selectedModule.videoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1"
-                  >
-                    Open Video <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              ) : null}
-
-              {/* Interactive Video Watch Progress Tracker */}
-              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-indigo-600" /> Video Watch & Completion Progress
-                  </span>
-                  <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                    (selectedModule.progressPct || 0) >= 100 
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                      : (selectedModule.progressPct || 0) > 0 
-                        ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' 
-                        : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {(selectedModule.progressPct || 0)}% {(selectedModule.progressPct || 0) >= 100 ? 'Completed ✓' : 'Watched'}
-                  </span>
-                </div>
-
-                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${selectedModule.progressPct || 0}%` }}
-                  ></div>
-                </div>
-
-                {/* Quick Watch Selector Chips */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Log Watch Progress & Sync with Admin:</label>
-                    <span className="text-[10px] text-indigo-600 font-bold">Monitored live by mentor</span>
-                  </div>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[
-                      { pct: 0, label: '0%' },
-                      { pct: 25, label: '25%' },
-                      { pct: 50, label: '50%' },
-                      { pct: 75, label: '75%' },
-                      { pct: 100, label: '100% ✓' }
-                    ].map(item => (
-                      <button
-                        key={item.pct}
-                        type="button"
-                        onClick={() => handleUpdateProgress(selectedModule.id || selectedModule.moduleId, item.pct)}
-                        className={`py-1.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer border ${
-                          Number(selectedModule.progressPct || 0) === item.pct
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
-                            : 'bg-white hover:bg-indigo-50 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              {/* Automated YouTube Video Player & Real-Time Progress Tracker */}
+              <YouTubeAutoTracker
+                videoUrl={selectedModule.videoUrl}
+                currentProgress={selectedModule.progressPct || 0}
+                onProgressChange={(pct, isComp) => handleAutoUpdateProgress(selectedModule.id || selectedModule.moduleId, pct, isComp)}
+              />
 
               {/* Module Description */}
               {selectedModule.description && (
