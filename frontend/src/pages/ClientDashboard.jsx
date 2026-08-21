@@ -245,12 +245,12 @@ export default function ClientDashboard() {
     <main className="max-w-7xl w-full mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-24 min-h-[85vh]">
       {/* Sidebar navigation */}
       <div className="lg:col-span-3 bg-white border border-slate-200 rounded-3xl p-6 space-y-8 shadow-sm">
-        <div className="space-y-2 text-center lg:text-left">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center font-poppins font-bold text-2xl shadow-lg shadow-primary/20 mx-auto lg:mx-0">
+        <div className="space-y-2 text-center flex flex-col items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center font-poppins font-bold text-2xl shadow-lg shadow-primary/20 mx-auto">
             {user.name.charAt(0)}
           </div>
-          <h3 className="font-poppins font-bold text-lg text-text-dark pt-2">{user.name}</h3>
-          <p className="text-[10px] text-text-light font-mono bg-slate-100 py-1 px-3 rounded-full border border-slate-200 inline-block">{user.designation || 'Client Account'}</p>
+          <h3 className="font-poppins font-bold text-lg text-text-dark pt-1 text-center">{user.name}</h3>
+          <p className="text-[10px] text-text-light font-mono bg-slate-100 py-1 px-3 rounded-full border border-slate-200 inline-block text-center">{user.designation || 'Client Account'}</p>
         </div>
 
         <nav className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 text-xs font-semibold text-text-light border-b lg:border-b-0 pb-4 lg:pb-0 border-slate-200">
