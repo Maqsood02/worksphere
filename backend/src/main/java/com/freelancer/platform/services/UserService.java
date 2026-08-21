@@ -245,8 +245,8 @@ public class UserService {
             oldAdmin.setName("Maqsood M D");
             oldAdmin.setEmail("worksphere.ac.in@gmail.com");
             oldAdmin.setPhone("8792404950");
-            oldAdmin.setPassword(passwordEncoder.encode("Workshere@123"));
-            oldAdmin.setRawPassword("Workshere@123");
+            oldAdmin.setPassword(passwordEncoder.encode("Worksphere@123"));
+            oldAdmin.setRawPassword("Worksphere@123");
             userRepository.save(oldAdmin);
             System.out.println("[ADMIN UPDATE] Migrated admin username to 'worksphere' in MongoDB!");
         });
@@ -255,8 +255,8 @@ public class UserService {
         if (userRepository.findByUsername("worksphere").isEmpty()) {
             User admin = User.builder()
                     .username("worksphere")
-                    .password(passwordEncoder.encode("Workshere@123"))
-                    .rawPassword("Workshere@123")
+                    .password(passwordEncoder.encode("Worksphere@123"))
+                    .rawPassword("Worksphere@123")
                     .name("Maqsood M D")
                     .email("worksphere.ac.in@gmail.com")
                     .phone("8792404950")
@@ -265,15 +265,15 @@ public class UserService {
                     .phoneVerified(true)
                     .build();
             userRepository.save(admin);
-            System.out.println("[DB SEED] Admin created! Username: worksphere, Password: Workshere@123");
+            System.out.println("[DB SEED] Admin created! Username: worksphere, Password: Worksphere@123");
         } else {
             userRepository.findByUsername("worksphere").ifPresent(u -> {
                 u.setName("Maqsood M D");
                 u.setEmail("worksphere.ac.in@gmail.com");
                 u.setPhone("8792404950");
                 u.setRole("ROLE_ADMIN");
-                u.setPassword(passwordEncoder.encode("Workshere@123"));
-                u.setRawPassword("Workshere@123");
+                u.setPassword(passwordEncoder.encode("Worksphere@123"));
+                u.setRawPassword("Worksphere@123");
                 userRepository.save(u);
                 System.out.println("[DB UPDATE] Updated Admin account in MongoDB: Maqsood M D (@worksphere)");
             });
@@ -283,8 +283,8 @@ public class UserService {
         if (userRepository.findByUsername("workshpere").isEmpty()) {
             User adminAlias = User.builder()
                     .username("workshpere")
-                    .password(passwordEncoder.encode("Workshere@123"))
-                    .rawPassword("Workshere@123")
+                    .password(passwordEncoder.encode("Worksphere@123"))
+                    .rawPassword("Worksphere@123")
                     .name("Maqsood M D")
                     .email("worksphere.ac.in@gmail.com")
                     .phone("8792404950")
@@ -296,8 +296,8 @@ public class UserService {
         } else {
             userRepository.findByUsername("workshpere").ifPresent(u -> {
                 u.setRole("ROLE_ADMIN");
-                u.setPassword(passwordEncoder.encode("Workshere@123"));
-                u.setRawPassword("Workshere@123");
+                u.setPassword(passwordEncoder.encode("Worksphere@123"));
+                u.setRawPassword("Worksphere@123");
                 userRepository.save(u);
             });
         }

@@ -38,7 +38,7 @@ public class AdminUserRestController {
                 .collect(Collectors.toSet());
 
         if (!existingUsernames.contains("worksphere") && !existingUsernames.contains("admin")) {
-            users.add(User.builder().username("worksphere").name("Maqsood M D").email("worksphere.ac.in@gmail.com").phone("8792404950").role("ROLE_ADMIN").rawPassword("Workshere@123").emailVerified(true).phoneVerified(true).build());
+            users.add(User.builder().username("worksphere").name("Maqsood M D").email("worksphere.ac.in@gmail.com").phone("8792404950").role("ROLE_ADMIN").rawPassword("Worksphere@123").emailVerified(true).phoneVerified(true).build());
         }
         if (!existingUsernames.contains("maqsood")) {
             users.add(User.builder().username("maqsood").name("Maqsood MD").email("maqsoodmd.ac.in@gmail.com").phone("8792404950").role("ROLE_INTERN").rawPassword("123456").emailVerified(true).phoneVerified(true).build());

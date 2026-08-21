@@ -35,6 +35,9 @@ export default async function handler(req, res) {
           (uKey.includes('maqsood') && a.includes('maqsood'));
         
         const matchesTrack = !m.track || m.track === 'ALL' || m.track === 'ALL Tracks' || (track && m.track.toLowerCase() === track.toLowerCase());
+        return matchesUser && matchesTrack;
+      });
+
       // Deduplicate modules list
       const seenKeys = new Set();
       const deduplicated = [];
