@@ -1117,7 +1117,7 @@ export default function AdminDashboard() {
           </button>
           <button onClick={() => setActiveTab('curriculum')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'curriculum' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <BookOpen className="w-4 h-4 shrink-0" />
-            <span>Learning Curriculum</span>
+            <span>Learning Curriculum ({learningModules.length})</span>
           </button>
           <button onClick={() => setActiveTab('projects')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'projects' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <Layout className="w-4 h-4 shrink-0" />

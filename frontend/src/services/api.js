@@ -1090,19 +1090,19 @@ export const api = {
       attendanceRate: dynamicAttendanceRate,
       stipendStatus: res.profile.stipendAmount || 'Unpaid (Academic Credit)'
     };
-    const allStoredModules = getStoredLearningModules();
-    const internFilteredModules = allStoredModules.filter(m => {
+    const serverModules = Array.isArray(res.learningModules) ? res.learningModules : [];
+    let candidateModules = serverModules;
+    if (candidateModules.length === 0) {
+      candidateModules = getStoredLearningModules();
+    }
+    const internFilteredModules = candidateModules.filter(m => {
+      if (!m) return false;
       const a = (m.assignedTo || 'ALL').toLowerCase().replace(/^@+/, '').trim();
       return a === 'all' || a === uKey || a.includes(uKey) || uKey.includes(a) ||
         (uKey.includes('chinmay') && a.includes('chinmay')) ||
         (uKey.includes('maqsood') && a.includes('maqsood'));
     });
-    const serverModules = Array.isArray(res.learningModules) ? res.learningModules : [];
-    const modMap = new Map();
-    [...internFilteredModules, ...serverModules].forEach(m => {
-      if (m && (m.id || m.moduleId)) modMap.set(m.id || m.moduleId, m);
-    });
-    res.learningModules = Array.from(modMap.values());
+    res.learningModules = internFilteredModules;
     res.success = true;
     return res;
   },
@@ -1112,10 +1112,8 @@ export const api = {
       if (resp.ok) {
         const json = await resp.json();
         if (json && json.success && Array.isArray(json.modules)) {
-          const localMods = getStoredLearningModules();
-          const merged = deduplicateModulesList([...json.modules, ...localMods]);
-          saveStoredLearningModules(merged);
-          return { success: true, modules: merged };
+          saveStoredLearningModules(json.modules);
+          return { success: true, modules: json.modules };
         }
       }
     } catch (e) {}

@@ -1,21 +1,21 @@
-import http from 'http';
-import handler from '../api/send-learning-module-email.js';
+import handler from '../api/index.js';
 
 async function testEmail() {
-  console.log('Testing Learning Module Email Serverless Handler...');
+  console.log('Testing Learning Module Email via unified handler...');
   const req = {
     method: 'POST',
+    url: '/api/send-learning-module-email',
     body: {
       assignedTo: 'maqsood',
       username: 'maqsood',
       internName: 'Maqsood MD',
       toEmail: 'maqsoodmd.ac.in@gmail.com',
-      moduleTitle: 'Advanced Cloud Architecture with Spring Boot & Docker',
-      category: 'Backend',
+      moduleTitle: 'Convolutional Neural Networks (CNN) Deep Dive',
+      category: 'Frontend',
       track: 'Full-Stack Software Engineering',
-      description: 'Master containerization, Spring Boot microservice configurations, and automated CI/CD pipeline deployments.',
-      videoUrl: 'https://www.youtube.com/watch?v=BVWdF0nL7_M',
-      resourceUrl: 'https://spring.io/projects/spring-boot'
+      description: 'Explore neural network architectures, image feature extraction, and real-time inference.',
+      videoUrl: 'https://youtu.be/3iwqwbcy7Sw?si=2coe-LZVF2Kjh7Hd',
+      resourceUrl: 'https://react.dev'
     }
   };
 
