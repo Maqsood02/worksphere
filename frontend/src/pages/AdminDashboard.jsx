@@ -1867,10 +1867,10 @@ export default function AdminDashboard() {
                                 <div key={uKey} className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 space-y-2 transition-all">
                                   {/* Top row: Name/Username on left, Status badge on right */}
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex items-center gap-2">
                                       <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isComp ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : pct > 0 ? 'bg-indigo-500 shadow-xs shadow-indigo-500/50' : 'bg-slate-300'}`}></div>
-                                      <div className="min-w-0">
-                                        <span className="font-extrabold text-slate-900 text-xs truncate block leading-tight">
+                                      <div>
+                                        <span className="font-extrabold text-slate-900 text-xs block leading-tight whitespace-nowrap">
                                           {intern.name || intern.username}
                                         </span>
                                         <span className="text-[10px] text-slate-400 font-mono font-medium block">
@@ -1879,7 +1879,7 @@ export default function AdminDashboard() {
                                       </div>
                                     </div>
 
-                                    <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-extrabold shadow-2xs ${
+                                    <span className={`shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-extrabold shadow-2xs whitespace-nowrap ${
                                       isComp 
                                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                                         : pct > 0 
