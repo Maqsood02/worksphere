@@ -116,9 +116,11 @@ public class AppointmentRestController {
 
     // CLIENT: Fetch own booked appointments
     @GetMapping("/api/client/appointments")
-    public ResponseEntity<?> getClientAppointments(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
-        return ResponseEntity.ok(appointmentService.getAppointmentsByClient(principal.getName()));
+    public ResponseEntity<?> getClientAppointments(Principal principal,
+                                                   @RequestHeader(value = "X-Username", required = false) String headerUser,
+                                                   @RequestParam(required = false) String username) {
+        String clientId = (principal != null) ? principal.getName() : (headerUser != null ? headerUser : (username != null ? username : "client"));
+        return ResponseEntity.ok(appointmentService.getAppointmentsByClient(clientId));
     }
 
     // ADMIN: Fetch all booked appointments

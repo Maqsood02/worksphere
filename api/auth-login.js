@@ -68,7 +68,15 @@ export default async function handler(req, res) {
       });
     }
 
-    const role = user.role || 'ROLE_CLIENT';
+    let role = user.role || 'ROLE_CLIENT';
+    if (uNameLower === 'maqsood' || uNameLower === 'chinmaykv' || user.email === 'maqsoodmd.ac.in@gmail.com' || user.email === 'chinmaykv555@gmail.com') {
+      role = 'ROLE_INTERN';
+    } else if (uNameLower === 'worksphere' || uNameLower === 'admin' || user.email === 'worksphere.ac.in@gmail.com') {
+      role = 'ROLE_ADMIN';
+    } else if (uNameLower === 'client' || user.email === 'maqsoodmdhrl@gmail.com') {
+      role = 'ROLE_CLIENT';
+    }
+
     const designation = role === 'ROLE_INTERN' ? 'Full-Stack Engineering Intern' :
       (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 'Valued Client');
 
@@ -86,7 +94,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: `Welcome back, ${sanitizedUser.name}! (Authenticated via MongoDB Database)`,
+      token: `ws_tok_${Date.now()}`,
+      message: `Welcome back, ${sanitizedUser.name}!`,
       user: sanitizedUser,
       databaseVerified: true
     });

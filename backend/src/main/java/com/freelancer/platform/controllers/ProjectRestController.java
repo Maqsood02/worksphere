@@ -164,16 +164,20 @@ public class ProjectRestController {
 
     // CLIENT: Fetch own projects
     @GetMapping("/api/client/projects")
-    public ResponseEntity<?> getClientProjects(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
-        return ResponseEntity.ok(projectService.getProjectsByClient(principal.getName()));
+    public ResponseEntity<?> getClientProjects(Principal principal,
+                                               @RequestHeader(value = "X-Username", required = false) String headerUser,
+                                               @RequestParam(required = false) String username) {
+        String clientId = (principal != null) ? principal.getName() : (headerUser != null ? headerUser : (username != null ? username : "client"));
+        return ResponseEntity.ok(projectService.getProjectsByClient(clientId));
     }
 
     // CLIENT: Fetch own invoices
     @GetMapping("/api/client/invoices")
-    public ResponseEntity<?> getClientInvoices(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
-        return ResponseEntity.ok(invoiceService.getInvoicesByClient(principal.getName()));
+    public ResponseEntity<?> getClientInvoices(Principal principal,
+                                               @RequestHeader(value = "X-Username", required = false) String headerUser,
+                                               @RequestParam(required = false) String username) {
+        String clientId = (principal != null) ? principal.getName() : (headerUser != null ? headerUser : (username != null ? username : "client"));
+        return ResponseEntity.ok(invoiceService.getInvoicesByClient(clientId));
     }
 
     // ADMIN: Fetch all projects

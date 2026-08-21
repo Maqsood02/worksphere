@@ -15,11 +15,12 @@ export default function Login() {
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const navigate = useNavigate();
 
-  const handleRoleRedirect = (role) => {
+  const handleRoleRedirect = (role, usernameVal) => {
     const r = (role || '').toUpperCase();
-    if (r === 'ADMIN' || r === 'ROLE_ADMIN') {
+    const u = (usernameVal || '').toLowerCase().trim();
+    if (r.includes('ADMIN') || u === 'worksphere') {
       navigate('/admin/dashboard');
-    } else if (r === 'INTERN' || r === 'ROLE_INTERN') {
+    } else if (r.includes('INTERN') || u === 'maqsood' || u === 'chinmaykv') {
       navigate('/intern/dashboard');
     } else {
       navigate('/client/dashboard');
@@ -38,7 +39,7 @@ export default function Login() {
     try {
       const data = await login(username, password);
       if (data && data.success) {
-        handleRoleRedirect(data.user.role);
+        handleRoleRedirect(data.user.role, data.user.username);
       } else if (data && data.requireOtpVerification) {
         setShowOtpModal(true);
         addToast(data.message || 'OTP code sent to your email.');

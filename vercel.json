@@ -28,6 +28,22 @@
       "destination": "/api/auth-login"
     },
     {
+      "source": "/api/auth/me",
+      "destination": "/api/auth-me"
+    },
+    {
+      "source": "/api/client/projects",
+      "destination": "/api/client-projects"
+    },
+    {
+      "source": "/api/client/invoices",
+      "destination": "/api/client-invoices"
+    },
+    {
+      "source": "/api/client/appointments",
+      "destination": "/api/client-appointments"
+    },
+    {
       "source": "/api/admin/projects",
       "destination": "/api/admin-projects"
     },

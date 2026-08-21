@@ -5,10 +5,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v12');
-  if (currentCacheVer !== 'v12') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v13');
+  if (currentCacheVer !== 'v13') {
     localStorage.removeItem('worksphere_users_list');
-    localStorage.setItem('worksphere_clean_cache_v12', 'v12');
+    localStorage.setItem('worksphere_clean_cache_v13', 'v13');
   }
 }
 
@@ -17,8 +17,8 @@ function getStoredUsersList() {
   const defaultList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'Maqsood', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
+    { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u4', username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
   const saved = localStorage.getItem('worksphere_users_list');
@@ -28,18 +28,18 @@ function getStoredUsersList() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         parsed = parsed.filter(u => (u.username || '').toLowerCase() !== 'workshpere');
         parsed = parsed.map(u => {
-          const uname = (u.username || '').toLowerCase();
-          if (uname === 'maqsood' && (u.role === 'ROLE_INTERN' || u.role === 'INTERN')) {
-            return { ...u, name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', rawPassword: u.rawPassword || '123456' };
+          const uname = (u.username || '').toLowerCase().trim();
+          if (uname === 'maqsood') {
+            return { ...u, username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: u.rawPassword || '123456' };
           }
           if (uname === 'chinmaykv' || uname === 'chinmay') {
-            return { ...u, name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', rawPassword: u.rawPassword || '123456' };
+            return { ...u, username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: u.rawPassword || '123456' };
           }
           if (uname === 'worksphere' || uname === 'admin') {
-            return { ...u, name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', rawPassword: 'Worksphere@123' };
+            return { ...u, username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123' };
           }
-          if (uname === 'maqsood' && (u.role === 'ROLE_CLIENT' || u.role === 'CLIENT')) {
-            return { ...u, name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', rawPassword: u.rawPassword || '123456' };
+          if (uname === 'client') {
+            return { ...u, username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: u.rawPassword || '123456' };
           }
           return u;
         });
@@ -714,8 +714,19 @@ function isValidEmailFormat(email) {
 
 // Helper to make fetch calls with proper JSON and Session credentials config
 async function request(url, options = {}) {
+  let token = null;
+  let savedUser = null;
+  try {
+    token = localStorage.getItem('worksphere_session_token');
+    const u = localStorage.getItem('worksphere_user');
+    if (u) savedUser = JSON.parse(u);
+  } catch (e) {}
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(savedUser?.username ? { 'X-Username': savedUser.username } : {}),
+    ...(savedUser?.role ? { 'X-User-Role': savedUser.role } : {})
   };
 
   const config = {
