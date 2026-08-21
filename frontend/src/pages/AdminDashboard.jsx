@@ -1839,15 +1839,17 @@ export default function AdminDashboard() {
                       )}
 
                       {/* Monitored Intern Video Watch & Completion Breakdown */}
-                      <div className="bg-white p-3 rounded-xl border border-slate-200/80 space-y-2">
-                        <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                          <span className="flex items-center gap-1 text-indigo-700">
-                            <Eye className="w-3.5 h-3.5" /> Intern Watch Progress
+                      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                          <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-indigo-700 uppercase tracking-wider">
+                            <Eye className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> Intern Watch Progress
                           </span>
-                          <span className="text-slate-400">Live Monitor</span>
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                            Live Monitor
+                          </span>
                         </div>
 
-                        <div className="space-y-1.5 pt-0.5">
+                        <div className="space-y-2">
                           {internsList
                             .filter(i => {
                               if (!mod.assignedTo || mod.assignedTo === 'ALL') return true;
@@ -1862,25 +1864,40 @@ export default function AdminDashboard() {
                               const isComp = userProg.completed || pct >= 100;
 
                               return (
-                                <div key={uKey} className="bg-slate-50/80 p-2 rounded-lg border border-slate-100 flex items-center justify-between text-[11px]">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className={`w-2 h-2 rounded-full shrink-0 ${isComp ? 'bg-emerald-500 shadow-xs' : pct > 0 ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
-                                    <span className="font-bold text-slate-800">{intern.name || intern.username}</span>
-                                    <span className="text-[9px] text-slate-400 font-mono">@{intern.username}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-12 bg-slate-200 rounded-full h-1 overflow-hidden hidden sm:block">
-                                      <div className={`h-1 rounded-full ${isComp ? 'bg-emerald-500' : 'bg-indigo-600'}`} style={{ width: `${pct}%` }}></div>
+                                <div key={uKey} className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 space-y-2 transition-all">
+                                  {/* Top row: Name/Username on left, Status badge on right */}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isComp ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : pct > 0 ? 'bg-indigo-500 shadow-xs shadow-indigo-500/50' : 'bg-slate-300'}`}></div>
+                                      <div className="min-w-0">
+                                        <span className="font-extrabold text-slate-900 text-xs truncate block leading-tight">
+                                          {intern.name || intern.username}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-mono font-medium block">
+                                          @{intern.username}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+
+                                    <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-extrabold shadow-2xs ${
                                       isComp 
-                                        ? 'bg-emerald-100 text-emerald-800' 
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                                         : pct > 0 
-                                          ? 'bg-indigo-100 text-indigo-800' 
-                                          : 'bg-slate-200 text-slate-600'
+                                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                          : 'bg-slate-200/80 text-slate-700 border border-slate-300/60'
                                     }`}>
-                                      {isComp ? '✓ Done (100%)' : `${pct}%`}
+                                      {isComp ? '✓ Done (100%)' : `${pct}% Watched`}
                                     </span>
+                                  </div>
+
+                                  {/* Dedicated full-width progress bar spanning across the bottom */}
+                                  <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                                        isComp ? 'bg-emerald-500' : pct > 0 ? 'bg-indigo-600' : 'bg-slate-300'
+                                      }`}
+                                      style={{ width: `${pct}%` }}
+                                    ></div>
                                   </div>
                                 </div>
                               );
