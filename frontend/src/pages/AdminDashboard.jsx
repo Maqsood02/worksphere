@@ -144,7 +144,7 @@ export default function AdminDashboard() {
 
   const defaultInterns = [
     { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' },
-    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'AI & Automation Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' }
+    { username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', status: 'ACTIVE', tasksCompleted: 10, tasksTotal: 12, performance: 95, track: 'Full-Stack Software Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' }
   ];
 
   const fetchData = async () => {
@@ -437,7 +437,7 @@ export default function AdminDashboard() {
           } catch(e) {}
 
           const sProf = serverProfiles[uKey] || {};
-          const defaultTrack = uKey.includes('chinmay') ? 'AI & Automation Engineering' : (i.track || 'Full-Stack Software Engineering');
+          const defaultTrack = i.track || 'Full-Stack Software Engineering';
           const finalTrack = sProf.track || (localOv && localOv.track) || defaultTrack;
 
           const merged = {

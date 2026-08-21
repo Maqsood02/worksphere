@@ -833,11 +833,10 @@ export default async function handler(req, res) {
 
       let internProfile = await profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') });
       if (!internProfile) {
-        const isChinmay = uKey.includes('chinmay');
         internProfile = {
           username: uKey,
           role: 'ROLE_INTERN',
-          track: isChinmay ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering',
+          track: 'Full-Stack Software Engineering',
           mentorName: 'Unassigned Mentor',
           mentorEmail: 's.jenkins@worksphere.ac.in',
           stipendType: 'UNPAID',

@@ -130,7 +130,7 @@ function getStoredInternProfiles() {
       name: 'Chinmay K V',
       email: 'chinmaykv555@gmail.com',
       phone: '7760674555',
-      track: 'AI & Automation Engineering',
+      track: 'Full-Stack Software Engineering',
       mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',
@@ -566,7 +566,7 @@ function isValidEmailFormat(email) {
         } catch(e) {}
 
         const existing = uniqueMap[uname] || {};
-        const defaultTrack = uname.includes('chinmay') ? 'AI & Automation Engineering' : (existing.track || 'Full-Stack Software Engineering');
+        const defaultTrack = existing.track || 'Full-Stack Software Engineering';
         const merged = {
           username: uname,
           name: u.name || u.username,
@@ -621,7 +621,7 @@ function isValidEmailFormat(email) {
     const profiles = getStoredInternProfiles();
     
     if (!profiles[uname]) {
-      const defaultTrack = uname.includes('chinmay') ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering';
+      const defaultTrack = 'Full-Stack Software Engineering';
       profiles[uname] = {
         username: currentUser?.username || uname,
         name: currentUser?.name || uname,
@@ -959,7 +959,7 @@ export const api = {
       username: currentUser?.username || defaultUKey,
       name: currentUser?.name || (isChinmay ? 'Chinmay K V' : (defaultUKey.includes('maqsood') ? 'Maqsood MD' : defaultUKey)),
       email: currentUser?.email || (isChinmay ? 'chinmaykv555@gmail.com' : (defaultUKey.includes('maqsood') ? 'maqsoodmd.ac.in@gmail.com' : `${defaultUKey}@worksphere.ac.in`)),
-      track: isChinmay ? 'AI & Automation Engineering' : 'Full-Stack Software Engineering',
+      track: 'Full-Stack Software Engineering',
       mentorName: 'Unassigned Mentor',
       mentorEmail: 's.jenkins@worksphere.ac.in',
       startDate: '2026-06-01',

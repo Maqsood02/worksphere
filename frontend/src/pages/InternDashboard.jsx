@@ -573,10 +573,8 @@ function getAttendanceTimelineAndRate(logs) {
 
       const baseData = (res.status === 'fulfilled' && res.value && res.value.success) ? res.value : defaultInternData;
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
-      const defaultTrack = uKey.includes('chinmay') ? 'AI & Automation Engineering' : (apiProfile.track || 'Full-Stack Software Engineering');
       const finalProfile = {
         ...apiProfile,
-        track: defaultTrack,
         ...(serverProfile || {}),
         ...(localOverride || {})
       };
