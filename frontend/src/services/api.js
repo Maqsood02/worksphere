@@ -5,8 +5,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v16');
-  if (currentCacheVer !== 'v16') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v18');
+  if (currentCacheVer !== 'v18') {
+    localStorage.removeItem('worksphere_learning_modules');
     localStorage.removeItem('worksphere_users_list');
     localStorage.removeItem('worksphere_tasks_maqsood');
     localStorage.removeItem('worksphere_tasks_chinmaykv');
@@ -14,7 +15,7 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('worksphere_tasks_all');
     localStorage.removeItem('worksphere_global_tasks');
     localStorage.removeItem('worksphere_deleted_tasks');
-    localStorage.setItem('worksphere_clean_cache_v16', 'v16');
+    localStorage.setItem('worksphere_clean_cache_v18', 'v18');
   }
 }
 
@@ -67,7 +68,7 @@ function deduplicateModulesList(list) {
   if (!Array.isArray(list)) return [];
   const map = new Map();
   for (const m of list) {
-    if (!m) continue;
+    if (!m || !m.title || m.title.trim().toLowerCase() === 'new learning module' || m.title.trim().toLowerCase() === 'test') continue;
     const titleKey = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}:::${(m.category || '').trim().toLowerCase()}`;
     const idKey = (m.id || m.moduleId || '').trim();
     
@@ -1120,11 +1121,15 @@ export const api = {
     return { success: true, modules: getStoredLearningModules() };
   },
   createLearningModule: async (payload) => {
+    const title = (payload.title || '').trim();
+    if (!title) {
+      throw new Error('Module title is required. Learning modules can only be created by admin.');
+    }
     const modId = 'MOD-' + Date.now();
     const newMod = {
       id: modId,
       moduleId: modId,
-      title: payload.title || 'New Learning Module',
+      title: title,
       category: payload.category || 'Frontend',
       track: payload.track || 'ALL Tracks',
       assignedTo: payload.assignedTo || 'ALL',

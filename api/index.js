@@ -838,7 +838,10 @@ export default async function handler(req, res) {
 
       if (req.method === 'POST') {
         const modId = body.id || body.moduleId || `MOD-${Date.now()}`;
-        const title = (body.title || 'New Learning Module').trim();
+        const title = (body.title || '').trim();
+        if (!title || title.toLowerCase() === 'new learning module' || title.toLowerCase() === 'test') {
+          return res.status(400).json({ success: false, message: 'Valid module title is required. Learning modules can only be created by admin.' });
+        }
         const assignedTo = (body.assignedTo || 'ALL').trim();
 
         // Check deduplication
@@ -946,11 +949,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: 'Learning module deleted!' });
       }
 
-      // GET: return all modules (deduplicated by title + assignedTo)
+      // GET: return all modules (deduplicated by title + assignedTo, omitting generic placeholders)
       const list = await col.find({}).sort({ createdAt: -1 }).toArray();
       const seen = new Set();
       const deduped = [];
       for (const m of list) {
+        if (!m || !m.title || m.title.trim().toLowerCase() === 'new learning module' || m.title.trim().toLowerCase() === 'test') continue;
         const key = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}`;
         if (!seen.has(key)) {
           seen.add(key);
