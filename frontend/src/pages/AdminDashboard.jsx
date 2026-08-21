@@ -1277,17 +1277,19 @@ export default function AdminDashboard() {
                               <span className="whitespace-nowrap">Send Email</span>
                             </button>
 
-                            <button
-                              onClick={() => {
-                                setTargetUser(u);
-                                setSelectedRoleToAssign(u.role || 'ROLE_CLIENT');
-                                setShowEditRoleModal(true);
-                              }}
-                              className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3.5 py-2 rounded-xl text-[11px] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 border border-slate-200/60"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                              <span className="whitespace-nowrap">Change Role</span>
-                            </button>
+                            {u.username !== 'worksphere' && u.username !== 'admin' && u.role !== 'ROLE_ADMIN' && (
+                              <button
+                                onClick={() => {
+                                  setTargetUser(u);
+                                  setSelectedRoleToAssign(u.role || 'ROLE_CLIENT');
+                                  setShowEditRoleModal(true);
+                                }}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3.5 py-2 rounded-xl text-[11px] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 border border-slate-200/60"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <span className="whitespace-nowrap">Change Role</span>
+                              </button>
+                            )}
 
                             {u.username !== 'worksphere' && u.username !== 'admin' && (
                               <button
