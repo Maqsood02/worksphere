@@ -1343,6 +1343,7 @@ export default function AdminDashboard() {
                       <th className="py-4 px-5 whitespace-nowrap">Engineering Track</th>
                       <th className="py-4 px-5 whitespace-nowrap">Stipend Status</th>
                       <th className="py-4 px-5 whitespace-nowrap text-center">Deliverables</th>
+                      <th className="py-4 px-5 whitespace-nowrap text-center">Curriculum Video Progress</th>
                       <th className="py-4 px-5 whitespace-nowrap text-center">Certificate</th>
                       <th className="py-4 px-5 whitespace-nowrap text-right">Actions</th>
                     </tr>
@@ -1352,6 +1353,23 @@ export default function AdminDashboard() {
                       const isUnpaid = (intern.stipendType || '').toUpperCase() === 'UNPAID' || (intern.stipendAmount || '').toLowerCase().includes('unpaid');
                       const isPaid = !isUnpaid;
                       const isCertIssued = intern.certificateStatus === 'ISSUED';
+                      const uKey = (intern.username || '').toLowerCase().trim();
+                      const relevantModules = learningModules.filter(m => {
+                        if (!m.assignedTo || m.assignedTo === 'ALL') return true;
+                        const t = (m.assignedTo || '').toLowerCase().replace(/^@+/, '').trim();
+                        return t === uKey || t.includes(uKey) || uKey.includes(t);
+                      });
+                      let completedCount = 0;
+                      let totalPctSum = 0;
+                      relevantModules.forEach(m => {
+                        const userProg = m.progressByUser?.[uKey] || (m.assignedTo?.toLowerCase()?.includes(uKey) ? { progressPct: m.progressPct, completed: m.completed } : {});
+                        const pct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (m.assignedTo?.toLowerCase()?.includes(uKey) ? (m.progressPct || 0) : 0);
+                        const isComp = userProg.completed || pct >= 100;
+                        if (isComp) completedCount++;
+                        totalPctSum += pct;
+                      });
+                      const avgPct = relevantModules.length > 0 ? Math.round(totalPctSum / relevantModules.length) : 0;
+
                       return (
                         <tr key={intern.username} className="hover:bg-slate-50/60 transition-colors">
                           <td className="py-4 px-5 font-extrabold text-slate-900 whitespace-nowrap align-middle">
@@ -1376,6 +1394,26 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-4 px-5 whitespace-nowrap align-middle text-center font-extrabold text-slate-800">
                             {intern.tasksCompleted || 0} / {intern.tasksTotal || 0} Done
+                          </td>
+                          <td className="py-4 px-5 whitespace-nowrap align-middle text-center">
+                            {relevantModules.length === 0 ? (
+                              <span className="text-slate-400 text-xs font-normal">No modules</span>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  completedCount === relevantModules.length
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : completedCount > 0 || avgPct > 0
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                  {completedCount}/{relevantModules.length} Done ({avgPct}%)
+                                </span>
+                                <div className="w-14 bg-slate-100 rounded-full h-1 overflow-hidden">
+                                  <div className="bg-indigo-600 h-1 rounded-full" style={{ width: `${avgPct}%` }}></div>
+                                </div>
+                              </div>
+                            )}
                           </td>
                           <td className="py-4 px-5 whitespace-nowrap align-middle text-center">
                             <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold ${
@@ -1784,7 +1822,7 @@ export default function AdminDashboard() {
                       {mod.description && <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{mod.description}</p>}
                     </div>
 
-                    <div className="pt-4 border-t border-slate-200/80 space-y-2 text-xs">
+                    <div className="pt-4 border-t border-slate-200/80 space-y-3 text-xs">
                       {mod.videoUrl && (
                         <div className="flex items-center gap-2 text-indigo-600 font-bold text-[11px] truncate bg-white p-2.5 rounded-xl border border-slate-200/60">
                           <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[10px] shrink-0 font-extrabold">▶ YouTube</span>
@@ -1799,6 +1837,56 @@ export default function AdminDashboard() {
                           </a>
                         </div>
                       )}
+
+                      {/* Monitored Intern Video Watch & Completion Breakdown */}
+                      <div className="bg-white p-3 rounded-xl border border-slate-200/80 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                          <span className="flex items-center gap-1 text-indigo-700">
+                            <Eye className="w-3.5 h-3.5" /> Intern Watch Progress
+                          </span>
+                          <span className="text-slate-400">Live Monitor</span>
+                        </div>
+
+                        <div className="space-y-1.5 pt-0.5">
+                          {internsList
+                            .filter(i => {
+                              if (!mod.assignedTo || mod.assignedTo === 'ALL') return true;
+                              const target = (mod.assignedTo || '').toLowerCase().replace(/^@+/, '').trim();
+                              const u = (i.username || '').toLowerCase().trim();
+                              return u === target || target.includes(u) || u.includes(target);
+                            })
+                            .map(intern => {
+                              const uKey = (intern.username || '').toLowerCase().trim();
+                              const userProg = mod.progressByUser?.[uKey] || (mod.assignedTo?.toLowerCase()?.includes(uKey) ? { progressPct: mod.progressPct, completed: mod.completed } : {});
+                              const pct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (mod.assignedTo?.toLowerCase()?.includes(uKey) ? (mod.progressPct || 0) : 0);
+                              const isComp = userProg.completed || pct >= 100;
+
+                              return (
+                                <div key={uKey} className="bg-slate-50/80 p-2 rounded-lg border border-slate-100 flex items-center justify-between text-[11px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${isComp ? 'bg-emerald-500 shadow-xs' : pct > 0 ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
+                                    <span className="font-bold text-slate-800">{intern.name || intern.username}</span>
+                                    <span className="text-[9px] text-slate-400 font-mono">@{intern.username}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-12 bg-slate-200 rounded-full h-1 overflow-hidden hidden sm:block">
+                                      <div className={`h-1 rounded-full ${isComp ? 'bg-emerald-500' : 'bg-indigo-600'}`} style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                                      isComp 
+                                        ? 'bg-emerald-100 text-emerald-800' 
+                                        : pct > 0 
+                                          ? 'bg-indigo-100 text-indigo-800' 
+                                          : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                      {isComp ? '✓ Done (100%)' : `${pct}%`}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   ));

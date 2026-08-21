@@ -94,16 +94,23 @@ export default function InternDashboard() {
     return str.toUpperCase();
   }
 
-  const handleMarkModuleComplete = async (modId) => {
+  const handleUpdateProgress = async (modId, pct) => {
+    const progressVal = Math.min(100, Math.max(0, Number(pct) || 0));
+    const isComp = progressVal >= 100;
+    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
     try {
-      await api.updateLearningModuleProgress(modId, 100, true);
-      addToast("Module marked as 100% Completed!");
-      setSelectedModule(null);
+      await api.updateLearningModuleProgress(modId, progressVal, isComp, uKey);
+      addToast(isComp ? "🎉 Learning Module marked 100% Completed!" : `Watch progress saved: ${progressVal}%`);
+      setSelectedModule(prev => prev ? ({ ...prev, progressPct: progressVal, completed: isComp }) : null);
       fetchInternData(true);
     } catch (e) {
       console.error(e);
       addToast("Failed to update module progress.");
     }
+  };
+
+  const handleMarkModuleComplete = async (modId) => {
+    await handleUpdateProgress(modId, 100);
   };
 
   useEffect(() => {
@@ -668,6 +675,15 @@ function getAttendanceTimelineAndRate(logs) {
     if (uLower.includes('maqsood') && a.includes('maqsood')) return true;
     if (uLower.includes('chinmay') && a.includes('chinmay')) return true;
     return false;
+  }).map(m => {
+    const userProg = m.progressByUser?.[uLower] || m.progressByUser?.[uName] || {};
+    const effPct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (typeof m.progressPct === 'number' ? m.progressPct : 0);
+    const effComp = typeof userProg.completed === 'boolean' ? userProg.completed : (typeof m.completed === 'boolean' ? m.completed : (effPct >= 100));
+    return {
+      ...m,
+      progressPct: effPct,
+      completed: effComp
+    };
   });
 
   // Compute live metrics strictly based on actual user tasks & attendanceLogs arrays
@@ -1885,6 +1901,61 @@ function getAttendanceTimelineAndRate(logs) {
                 </div>
               ) : null}
 
+              {/* Interactive Video Watch Progress Tracker */}
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-indigo-600" /> Video Watch & Completion Progress
+                  </span>
+                  <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                    (selectedModule.progressPct || 0) >= 100 
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                      : (selectedModule.progressPct || 0) > 0 
+                        ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' 
+                        : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {(selectedModule.progressPct || 0)}% {(selectedModule.progressPct || 0) >= 100 ? 'Completed ✓' : 'Watched'}
+                  </span>
+                </div>
+
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${selectedModule.progressPct || 0}%` }}
+                  ></div>
+                </div>
+
+                {/* Quick Watch Selector Chips */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Log Watch Progress & Sync with Admin:</label>
+                    <span className="text-[10px] text-indigo-600 font-bold">Monitored live by mentor</span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { pct: 0, label: '0%' },
+                      { pct: 25, label: '25%' },
+                      { pct: 50, label: '50%' },
+                      { pct: 75, label: '75%' },
+                      { pct: 100, label: '100% ✓' }
+                    ].map(item => (
+                      <button
+                        key={item.pct}
+                        type="button"
+                        onClick={() => handleUpdateProgress(selectedModule.id || selectedModule.moduleId, item.pct)}
+                        className={`py-1.5 px-2 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer border ${
+                          Number(selectedModule.progressPct || 0) === item.pct
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                            : 'bg-white hover:bg-indigo-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Module Description */}
               {selectedModule.description && (
                 <div className="space-y-1.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
@@ -1917,22 +1988,24 @@ function getAttendanceTimelineAndRate(logs) {
 
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold">
-                <span className="text-slate-500">Progress:</span>
-                <span className="font-bold text-indigo-600">{selectedModule.progressPct}%</span>
+                <span className="text-slate-500">Live Status:</span>
+                <span className={`font-bold ${selectedModule.completed || selectedModule.progressPct >= 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                  {selectedModule.completed || selectedModule.progressPct >= 100 ? '✓ 100% Completed' : `${selectedModule.progressPct || 0}% Watched`}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setSelectedModule(null)}
-                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-200/60 transition-colors"
+                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-200/60 transition-colors cursor-pointer"
                 >
                   Close
                 </button>
-                {!selectedModule.completed && (
+                {!(selectedModule.completed || selectedModule.progressPct >= 100) && (
                   <button
                     type="button"
-                    onClick={() => handleMarkModuleComplete(selectedModule.id)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    onClick={() => handleMarkModuleComplete(selectedModule.id || selectedModule.moduleId)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Mark 100% Completed
                   </button>

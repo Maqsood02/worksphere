@@ -1197,15 +1197,29 @@ export const api = {
       method: 'DELETE'
     });
   },
-  updateLearningModuleProgress: async (id, progressPct, completed) => {
+  updateLearningModuleProgress: async (id, progressPct, completed, username) => {
+    let currentUser = null;
+    try {
+      const savedUser = localStorage.getItem('worksphere_user');
+      if (savedUser) currentUser = JSON.parse(savedUser);
+    } catch (e) {}
+    const uKey = (username || currentUser?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+
     try {
       let modules = getStoredLearningModules();
       modules = modules.map(m => {
         if (m.id === id || m.moduleId === id) {
+          const userProg = m.progressByUser || {};
+          userProg[uKey] = {
+            progressPct: typeof progressPct === 'number' ? progressPct : (userProg[uKey]?.progressPct || 0),
+            completed: typeof completed === 'boolean' ? completed : (userProg[uKey]?.completed || false),
+            updatedAt: new Date().toISOString()
+          };
           return {
             ...m,
             progressPct: typeof progressPct === 'number' ? progressPct : m.progressPct,
-            completed: typeof completed === 'boolean' ? completed : m.completed
+            completed: typeof completed === 'boolean' ? completed : m.completed,
+            progressByUser: userProg
           };
         }
         return m;
@@ -1216,14 +1230,14 @@ export const api = {
     try {
       await fetch('/api/learning-modules', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, progressPct, completed })
+        headers: { 'Content-Type': 'application/json', 'X-Username': uKey },
+        body: JSON.stringify({ id, progressPct, completed, username: uKey })
       });
     } catch (e) {}
 
     return request(`/api/intern/learning-modules/${id}/progress`, {
       method: 'POST',
-      body: JSON.stringify({ progressPct, completed })
+      body: JSON.stringify({ progressPct, completed, username: uKey })
     });
   },
   claimInternTask: async (taskId) => {

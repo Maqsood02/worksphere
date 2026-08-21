@@ -910,12 +910,23 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        const { id, moduleId, progressPct, completed } = body;
+        const { id, moduleId, progressPct, completed, username } = body;
         const targetId = id || moduleId;
+        const uKey = (username || req.headers['x-username'] || '').toLowerCase().replace(/^@+/, '').trim();
         if (targetId) {
           const updateFields = { updatedAt: new Date() };
-          if (typeof progressPct === 'number') updateFields.progressPct = progressPct;
-          if (typeof completed === 'boolean') updateFields.completed = completed;
+          if (typeof progressPct === 'number') {
+            updateFields.progressPct = progressPct;
+            if (uKey) updateFields[`progressByUser.${uKey}.progressPct`] = progressPct;
+          }
+          if (typeof completed === 'boolean') {
+            updateFields.completed = completed;
+            if (uKey) updateFields[`progressByUser.${uKey}.completed`] = completed;
+          }
+          if (uKey) {
+            updateFields[`progressByUser.${uKey}.updatedAt`] = new Date();
+            updateFields[`progressByUser.${uKey}.username`] = uKey;
+          }
           await col.updateOne({ $or: [{ id: targetId }, { moduleId: targetId }] }, { $set: updateFields });
         }
         return res.status(200).json({ success: true, message: 'Learning module progress updated!' });
