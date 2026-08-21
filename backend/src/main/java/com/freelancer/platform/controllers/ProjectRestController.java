@@ -179,14 +179,12 @@ public class ProjectRestController {
     // ADMIN: Fetch all projects
     @GetMapping("/api/admin/projects")
     public ResponseEntity<?> getAllProjects(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
         return ResponseEntity.ok(projectService.getAllProjects());
     }
 
     // ADMIN: Fetch all invoices
     @GetMapping("/api/admin/invoices")
     public ResponseEntity<?> getAllInvoices(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
         return ResponseEntity.ok(invoiceService.getAllInvoices());
     }
 

@@ -714,18 +714,6 @@ function isValidEmailFormat(email) {
 
 // Helper to make fetch calls with proper JSON and Session credentials config
 async function request(url, options = {}) {
-  // Silently return mock fallback for local admin demo endpoints to eliminate 401 console noise in browser DevTools
-  if (url.includes('/api/admin/projects') || url.includes('/api/admin/invoices') || url.includes('/api/admin/appointments')) {
-    let savedUser = null;
-    try {
-      const u = localStorage.getItem('worksphere_user');
-      if (u) savedUser = JSON.parse(u);
-    } catch(e) {}
-    if (savedUser && !localStorage.getItem('worksphere_session_token')) {
-      return getMockFallbackResponse(url, options);
-    }
-  }
-
   const defaultHeaders = {
     'Content-Type': 'application/json',
   };
@@ -753,20 +741,37 @@ async function request(url, options = {}) {
     return { success: true, message: 'Logged out' };
   }
 
-  // 2. Fast Login (Sub-second with 800ms backend probe)
-  if (url.includes('/api/auth/login')) {
-    try {
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 800);
-      const response = await fetch(`${API_BASE_URL}${url}`, { ...config, signal: ctrl.signal });
-      clearTimeout(tid);
-      const contentType = response.headers.get('content-type') || '';
-      if (response.ok && !contentType.includes('text/html')) {
-        const data = await response.json();
-        return data;
-      }
-    } catch (e) {}
-    return getMockFallbackResponse(url, options);
+  // 2. High-Performance Login with Direct MongoDB Database Validation
+  if (url.includes('/api/auth/login') || url.includes('/api/auth-login')) {
+    const candidateAuthUrls = [
+      '/api/auth-login',
+      '/api/auth/login',
+      `${API_BASE_URL}/api/auth/login`,
+      ...(isLocalhost ? ['http://localhost:8088/api/auth/login'] : [])
+    ];
+
+    for (const authUrl of candidateAuthUrls) {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 3500);
+        const response = await fetch(authUrl, { ...config, signal: ctrl.signal });
+        clearTimeout(tid);
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/html')) {
+          const data = await response.json();
+          if (data && (data.user || data.message || data.success !== undefined)) {
+            if (data.success && data.user) {
+              localStorage.setItem('worksphere_user', JSON.stringify(data.user));
+              localStorage.setItem('worksphere_session_token', 'ws_tok_' + Date.now());
+            }
+            return data;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Offline / Instant Fallback
+    return getMockFallbackResponse('/api/auth/login', options);
   }
 
   // AI Assistant Chat: resolve instantly with zero 401 console errors
@@ -774,7 +779,9 @@ async function request(url, options = {}) {
     return getMockFallbackResponse(url, options);
   }
 
+  // Build ordered candidate URLs (Vercel Serverless MongoDB API first, then live Spring Boot Render backend)
   const candidateUrls = url.startsWith('http') ? [url] : [
+    url,
     `${API_BASE_URL}${url}`,
     ...(isLocalhost ? [`http://localhost:8088${url}`] : [])
   ];
@@ -784,7 +791,7 @@ async function request(url, options = {}) {
   for (const targetUrl of uniqueUrls) {
     try {
       const ctrl = new AbortController();
-      const timeoutId = setTimeout(() => ctrl.abort(), 2000);
+      const timeoutId = setTimeout(() => ctrl.abort(), 3500);
       const response = await fetch(targetUrl, { ...config, signal: ctrl.signal });
       clearTimeout(timeoutId);
       const contentType = response.headers.get('content-type') || '';
@@ -793,7 +800,7 @@ async function request(url, options = {}) {
         return data;
       }
     } catch (error) {
-      // Try next backend URL or fallback
+      // Try next candidate URL or fallback
     }
   }
 

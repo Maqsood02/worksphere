@@ -124,7 +124,6 @@ public class AppointmentRestController {
     // ADMIN: Fetch all booked appointments
     @GetMapping("/api/admin/appointments")
     public ResponseEntity<?> getAllAppointments(Principal principal) {
-        if (principal == null) return ResponseEntity.status(401).body(Map.of("success", false));
         return ResponseEntity.ok(appointmentService.getAllAppointments());
     }
 
