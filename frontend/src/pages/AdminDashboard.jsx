@@ -1714,13 +1714,7 @@ export default function AdminDashboard() {
                   Upload YouTube video tutorials, GitHub repos, and documentation resources. Published resources automatically appear on all intern portals.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={handleLoadPresets}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-indigo-200/80 transition-all cursor-pointer whitespace-nowrap shadow-sm"
-                >
-                  + Load Preset Curriculum
-                </button>
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowAddModuleModal(true)}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
@@ -1738,7 +1732,7 @@ export default function AdminDashboard() {
                 <div className="space-y-1.5">
                   <h4 className="font-poppins font-bold text-base text-slate-800">No Learning Modules Published Yet</h4>
                   <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto font-medium">
-                    Click <strong>"Upload Video & Resource"</strong> to add custom tutorials or click <strong>"+ Load Preset Curriculum"</strong> to publish standard engineering modules.
+                    Click <strong>"Upload Video & Resource"</strong> to add custom tutorials and learning resources for interns.
                   </p>
                 </div>
               </div>
