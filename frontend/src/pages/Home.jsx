@@ -831,43 +831,46 @@ public class FreelanceController {
       {/* WORKSPHERE ARCHITECTURE DECK MODAL */}
       <AnimatePresence>
         {showDeckModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto" onClick={() => setShowDeckModal(false)}>
+          <div 
+            className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" 
+            onClick={() => setShowDeckModal(false)}
+          >
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col text-left"
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[88vh] flex flex-col text-left"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="p-6 sm:p-7 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shrink-0">
+              {/* Header (Sticky / Fixed Top) */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-sm">
-                    <Layers className="w-6 h-6" />
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-sm shrink-0">
+                    <Layers className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-poppins font-black text-lg sm:text-xl text-white">WorkSphere Architecture Deck</h3>
-                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">v2026 Production</span>
+                      <h3 className="font-poppins font-black text-base sm:text-lg text-white leading-tight">WorkSphere Architecture Deck</h3>
+                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">v2026</span>
                     </div>
-                    <p className="text-xs text-slate-300 font-medium">Enterprise System Blueprint & High-Performance Full-Stack Topology</p>
+                    <p className="text-[11px] text-slate-300 font-medium">Enterprise System Blueprint & High-Performance Full-Stack Topology</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowDeckModal(false)} 
-                  className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+                  className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Scrollable Content */}
-              <div className="p-6 sm:p-7 space-y-6 overflow-y-auto flex-1 text-xs text-slate-700">
+              {/* Scrollable Content Body */}
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 text-xs text-slate-700">
                 
                 {/* 4 Architectural Pillars Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-600 font-extrabold">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <div className="flex items-center gap-2 text-indigo-600 font-black">
                       <Globe className="w-4 h-4" />
                       <span>Frontend Client Tier</span>
                     </div>
@@ -876,8 +879,8 @@ public class FreelanceController {
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="flex items-center gap-2 text-emerald-600 font-extrabold">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <div className="flex items-center gap-2 text-emerald-600 font-black">
                       <Server className="w-4 h-4" />
                       <span>Microservices & Backend</span>
                     </div>
@@ -886,8 +889,8 @@ public class FreelanceController {
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="flex items-center gap-2 text-green-600 font-extrabold">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <div className="flex items-center gap-2 text-green-600 font-black">
                       <Database className="w-4 h-4" />
                       <span>Distributed Database Tier</span>
                     </div>
@@ -896,8 +899,8 @@ public class FreelanceController {
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="flex items-center gap-2 text-purple-600 font-extrabold">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <div className="flex items-center gap-2 text-purple-600 font-black">
                       <Bot className="w-4 h-4" />
                       <span>AI & Automation Engines</span>
                     </div>
@@ -908,28 +911,28 @@ public class FreelanceController {
                 </div>
 
                 {/* Performance Benchmarks */}
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <h4 className="font-poppins font-black text-xs text-slate-900 uppercase tracking-wider">Production Operational Metrics</h4>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-2xl">
-                      <span className="text-xl font-poppins font-black text-indigo-700 block">99.98%</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">High Availability Uptime</span>
+                  <div className="grid grid-cols-3 gap-2.5 text-center">
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
+                      <span className="text-lg font-poppins font-black text-indigo-700 block">99.98%</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">High Availability</span>
                     </div>
-                    <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
-                      <span className="text-xl font-poppins font-black text-emerald-700 block">&lt; 12ms</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">P95 Database Query Latency</span>
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
+                      <span className="text-lg font-poppins font-black text-emerald-700 block">&lt; 12ms</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Query Latency</span>
                     </div>
-                    <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-2xl">
-                      <span className="text-xl font-poppins font-black text-blue-700 block">256-bit</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">End-to-End Encryption</span>
+                    <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl">
+                      <span className="text-lg font-poppins font-black text-blue-700 block">256-bit</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">E2E Encrypted</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Security & Verification Credentials */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                    <span className="font-black text-slate-900 text-xs flex items-center gap-1.5">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" /> Platform Verification & Compliance
                     </span>
                     <span className="text-[10px] font-mono text-emerald-600 font-bold">Bangalore & Global</span>
@@ -940,12 +943,12 @@ public class FreelanceController {
                 </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="p-5 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/80 shrink-0">
+              {/* Footer Actions (Sticky / Fixed Bottom) */}
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowDeckModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
                 >
                   Close
                 </button>
@@ -955,7 +958,7 @@ public class FreelanceController {
                     setShowDeckModal(false);
                     navigate('/project-request?type=Enterprise%20Full-Stack%20Platform');
                   }}
-                  className="bg-primary hover:bg-indigo-700 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer text-xs flex items-center gap-1.5"
+                  className="bg-primary hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer text-xs flex items-center gap-1.5"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Request Architecture Consultation</span>
