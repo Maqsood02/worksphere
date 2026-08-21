@@ -43,32 +43,6 @@ public class AppointmentService {
 
     @PostConstruct
     public void seedAppointments() {
-        if (appointmentRepository.count() == 0) {
-            Appointment a1 = Appointment.builder()
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .clientEmail("john.doe@company.com")
-                    .title("Sprint 1 Planning - E-Commerce App")
-                    .date("2026-07-22")
-                    .timeSlot("10:00 AM - 11:00 AM")
-                    .description("Review wireframes and database connections.")
-                    .status("CONFIRMED")
-                    .build();
-
-            Appointment a2 = Appointment.builder()
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .clientEmail("john.doe@company.com")
-                    .title("Chatbot Review Session")
-                    .date("2026-07-24")
-                    .timeSlot("02:00 PM - 03:00 PM")
-                    .description("Test OpenAI prompt instructions and replies.")
-                    .status("CONFIRMED")
-                    .build();
-
-            appointmentRepository.save(a1);
-            appointmentRepository.save(a2);
-            System.out.println("[DB SEED] Default appointments seeded!");
-        }
+        // Initial state: Zero appointments (Appointments start empty until booked)
     }
 }

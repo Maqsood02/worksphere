@@ -140,9 +140,7 @@ export default function AdminDashboard() {
 
   const defaultInvoices = [];
 
-  const defaultAppointments = [
-    { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
-  ];
+  const defaultAppointments = [];
 
   const defaultInterns = [
     { username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', status: 'ACTIVE', tasksCompleted: 12, tasksTotal: 15, performance: 98, track: 'Full-Stack Software Engineering', stipendType: 'UNPAID', stipendAmount: 'Unpaid (Academic Credit)', certificateStatus: 'ISSUED' },
@@ -185,7 +183,7 @@ export default function AdminDashboard() {
         invs = invData.invoices;
       }
       if (!invs || invs.length === 0) {
-        invs = defaultInvoices;
+        invs = [];
       }
       setInvoices(invs);
       const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (i.amount || 0), 0);
@@ -206,7 +204,7 @@ export default function AdminDashboard() {
         apps = appData.appointments;
       }
       if (!apps || apps.length === 0) {
-        apps = defaultAppointments;
+        apps = [];
       }
       setAppointments(apps);
       setAppointmentsCount(apps.length);
@@ -216,8 +214,8 @@ export default function AdminDashboard() {
       setProjectsCount(defaultProjects.length);
       setInvoices([]);
       setRevenue(0);
-      setAppointments(defaultAppointments);
-      setAppointmentsCount(defaultAppointments.length);
+      setAppointments([]);
+      setAppointmentsCount(0);
     }
   };
 

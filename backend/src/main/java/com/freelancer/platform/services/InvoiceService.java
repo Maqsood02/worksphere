@@ -46,31 +46,6 @@ public class InvoiceService {
 
     @PostConstruct
     public void seedInvoices() {
-        if (invoiceRepository.count() == 0) {
-            Invoice i1 = Invoice.builder()
-                    .projectId("placeholder-1")
-                    .projectTitle("E-Commerce Web Application")
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .amount(1750.0)
-                    .dueDate("2026-07-30")
-                    .status("UNPAID")
-                    .build();
-
-            Invoice i2 = Invoice.builder()
-                    .projectId("placeholder-3")
-                    .projectTitle("Mobile Booking Utility Android App")
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .amount(4200.0)
-                    .dueDate("2026-06-15")
-                    .status("PAID")
-                    .paymentMethod("Stripe")
-                    .build();
-
-            invoiceRepository.save(i1);
-            invoiceRepository.save(i2);
-            System.out.println("[DB SEED] Default Invoices seeded!");
-        }
+        // Initial state: Zero revenue (Invoices start empty until created)
     }
 }
