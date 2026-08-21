@@ -301,8 +301,6 @@ export default function InternDashboard() {
             };
             return {
               ...m,
-              progressPct: progressVal,
-              completed: isComp,
               progressByUser: userProg
             };
           }
@@ -944,8 +942,13 @@ function getAttendanceTimelineAndRate(logs) {
     return false;
   }).map(m => {
     const userProg = m.progressByUser?.[uLower] || m.progressByUser?.[uName] || {};
-    const effPct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (typeof m.progressPct === 'number' ? m.progressPct : 0);
-    const effComp = typeof userProg.completed === 'boolean' ? userProg.completed : (typeof m.completed === 'boolean' ? m.completed : (effPct >= 100));
+    const isDirectPersonal = m.assignedTo && m.assignedTo.toLowerCase() !== 'all' && m.assignedTo.toLowerCase() !== 'unassigned';
+    const effPct = typeof userProg.progressPct === 'number' 
+      ? userProg.progressPct 
+      : (isDirectPersonal && typeof m.progressPct === 'number' ? m.progressPct : 0);
+    const effComp = typeof userProg.completed === 'boolean' 
+      ? userProg.completed 
+      : (effPct >= 100);
     return {
       ...m,
       progressPct: effPct,
@@ -2201,11 +2204,21 @@ function getAttendanceTimelineAndRate(logs) {
 
             <div className="p-5 overflow-y-auto space-y-4 text-xs font-medium text-slate-700">
               {/* Automated YouTube Video Player & Real-Time Progress Tracker */}
-              <YouTubeAutoTracker
-                videoUrl={selectedModule.videoUrl}
-                currentProgress={selectedModule.progressPct || 0}
-                onProgressChange={(pct, isComp) => handleAutoUpdateProgress(selectedModule.id || selectedModule.moduleId, pct, isComp)}
-              />
+              {(() => {
+                const userProg = selectedModule.progressByUser?.[uLower] || selectedModule.progressByUser?.[uName] || {};
+                const isDirectPersonal = selectedModule.assignedTo && selectedModule.assignedTo.toLowerCase() !== 'all' && selectedModule.assignedTo.toLowerCase() !== 'unassigned';
+                const currentProg = typeof userProg.progressPct === 'number' 
+                  ? userProg.progressPct 
+                  : (isDirectPersonal && typeof selectedModule.progressPct === 'number' ? selectedModule.progressPct : (selectedModule.progressPct || 0));
+
+                return (
+                  <YouTubeAutoTracker
+                    videoUrl={selectedModule.videoUrl}
+                    currentProgress={currentProg}
+                    onProgressChange={(pct, isComp) => handleAutoUpdateProgress(selectedModule.id || selectedModule.moduleId, pct, isComp)}
+                  />
+                );
+              })()}
 
               {/* Module Description */}
               {selectedModule.description && (
@@ -2238,12 +2251,25 @@ function getAttendanceTimelineAndRate(logs) {
             </div>
 
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                <span className="text-slate-500">Live Status:</span>
-                <span className={`font-bold ${selectedModule.completed || selectedModule.progressPct >= 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                  {selectedModule.completed || selectedModule.progressPct >= 100 ? '✓ 100% Completed' : `${selectedModule.progressPct || 0}% Watched`}
-                </span>
-              </div>
+              {(() => {
+                const userProg = selectedModule.progressByUser?.[uLower] || selectedModule.progressByUser?.[uName] || {};
+                const isDirectPersonal = selectedModule.assignedTo && selectedModule.assignedTo.toLowerCase() !== 'all' && selectedModule.assignedTo.toLowerCase() !== 'unassigned';
+                const currentProg = typeof userProg.progressPct === 'number' 
+                  ? userProg.progressPct 
+                  : (isDirectPersonal && typeof selectedModule.progressPct === 'number' ? selectedModule.progressPct : (selectedModule.progressPct || 0));
+                const isComp = typeof userProg.completed === 'boolean' 
+                  ? userProg.completed 
+                  : (selectedModule.completed || currentProg >= 100);
+
+                return (
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <span className="text-slate-500">Live Status:</span>
+                    <span className={`font-bold ${isComp ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                      {isComp ? '✓ 100% Completed' : `${currentProg}% Watched`}
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="flex items-center gap-3">
                 <button
                   type="button"

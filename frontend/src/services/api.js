@@ -1217,12 +1217,11 @@ export const api = {
           userProg[uKey] = {
             progressPct: typeof progressPct === 'number' ? progressPct : (userProg[uKey]?.progressPct || 0),
             completed: typeof completed === 'boolean' ? completed : (userProg[uKey]?.completed || false),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            username: uKey
           };
           return {
             ...m,
-            progressPct: typeof progressPct === 'number' ? progressPct : m.progressPct,
-            completed: typeof completed === 'boolean' ? completed : m.completed,
             progressByUser: userProg
           };
         }

@@ -975,17 +975,18 @@ export default async function handler(req, res) {
         const uKey = (username || req.headers['x-username'] || '').toLowerCase().replace(/^@+/, '').trim();
         if (targetId) {
           const updateFields = { updatedAt: new Date() };
-          if (typeof progressPct === 'number') {
-            updateFields.progressPct = progressPct;
-            if (uKey) updateFields[`progressByUser.${uKey}.progressPct`] = progressPct;
-          }
-          if (typeof completed === 'boolean') {
-            updateFields.completed = completed;
-            if (uKey) updateFields[`progressByUser.${uKey}.completed`] = completed;
-          }
           if (uKey) {
+            if (typeof progressPct === 'number') {
+              updateFields[`progressByUser.${uKey}.progressPct`] = progressPct;
+            }
+            if (typeof completed === 'boolean') {
+              updateFields[`progressByUser.${uKey}.completed`] = completed;
+            }
             updateFields[`progressByUser.${uKey}.updatedAt`] = new Date();
             updateFields[`progressByUser.${uKey}.username`] = uKey;
+          } else {
+            if (typeof progressPct === 'number') updateFields.progressPct = progressPct;
+            if (typeof completed === 'boolean') updateFields.completed = completed;
           }
           await col.updateOne({ $or: [{ id: targetId }, { moduleId: targetId }] }, { $set: updateFields });
         }

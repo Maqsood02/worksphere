@@ -1387,9 +1387,12 @@ export default function AdminDashboard() {
                       let completedCount = 0;
                       let totalPctSum = 0;
                       relevantModules.forEach(m => {
-                        const userProg = m.progressByUser?.[uKey] || (m.assignedTo?.toLowerCase()?.includes(uKey) ? { progressPct: m.progressPct, completed: m.completed } : {});
-                        const pct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (m.assignedTo?.toLowerCase()?.includes(uKey) ? (m.progressPct || 0) : 0);
-                        const isComp = userProg.completed || pct >= 100;
+                        const userProg = m.progressByUser?.[uKey] || {};
+                        const isDirectPersonal = m.assignedTo && m.assignedTo.toLowerCase() !== 'all' && m.assignedTo.toLowerCase() !== 'unassigned';
+                        const pct = typeof userProg.progressPct === 'number' 
+                          ? userProg.progressPct 
+                          : (isDirectPersonal && typeof m.progressPct === 'number' ? m.progressPct : 0);
+                        const isComp = typeof userProg.completed === 'boolean' ? userProg.completed : (pct >= 100);
                         if (isComp) completedCount++;
                         totalPctSum += pct;
                       });
@@ -1884,9 +1887,12 @@ export default function AdminDashboard() {
                             })
                             .map(intern => {
                               const uKey = (intern.username || '').toLowerCase().trim();
-                              const userProg = mod.progressByUser?.[uKey] || (mod.assignedTo?.toLowerCase()?.includes(uKey) ? { progressPct: mod.progressPct, completed: mod.completed } : {});
-                              const pct = typeof userProg.progressPct === 'number' ? userProg.progressPct : (mod.assignedTo?.toLowerCase()?.includes(uKey) ? (mod.progressPct || 0) : 0);
-                              const isComp = userProg.completed || pct >= 100;
+                              const userProg = mod.progressByUser?.[uKey] || {};
+                              const isDirectPersonal = mod.assignedTo && mod.assignedTo.toLowerCase() !== 'all' && mod.assignedTo.toLowerCase() !== 'unassigned';
+                              const pct = typeof userProg.progressPct === 'number' 
+                                ? userProg.progressPct 
+                                : (isDirectPersonal && typeof mod.progressPct === 'number' ? mod.progressPct : 0);
+                              const isComp = typeof userProg.completed === 'boolean' ? userProg.completed : (pct >= 100);
 
                               return (
                                 <div key={uKey} className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 space-y-2 transition-all overflow-hidden">
