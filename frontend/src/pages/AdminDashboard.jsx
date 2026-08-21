@@ -252,6 +252,122 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteUser = async (targetUsername) => {
+    if (!targetUsername) return;
+    const cleanUsername = targetUsername.replace(/^@+/, '').trim();
+    if (cleanUsername.toLowerCase() === 'worksphere' || cleanUsername.toLowerCase() === 'admin') {
+      addToast("Cannot delete primary administrator account.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently delete user @${cleanUsername} from the database?`)) {
+      return;
+    }
+
+    // 1. Optimistic UI update
+    setUsersList(prev => prev.filter(u => (u.username || '').toLowerCase() !== cleanUsername.toLowerCase()));
+
+    // 2. Synchronize localStorage
+    try {
+      const saved = localStorage.getItem('worksphere_users_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const filtered = parsed.filter(u => (u.username || '').toLowerCase() !== cleanUsername.toLowerCase());
+        localStorage.setItem('worksphere_users_list', JSON.stringify(filtered));
+      }
+    } catch (e) {}
+
+    // 3. Database Deletion API Call
+    try {
+      const res = await api.deleteAdminUser(cleanUsername);
+      if (res && res.success) {
+        addToast(res.message || `User @${cleanUsername} permanently deleted from database!`);
+      } else {
+        addToast(`User @${cleanUsername} deleted.`);
+      }
+    } catch (err) {
+      console.error("Delete user error:", err);
+      addToast(`User @${cleanUsername} removed.`);
+    } finally {
+      fetchUsersData();
+    }
+  };
+
+  const handleUpdateUserRole = async (targetUsername, newRole) => {
+    if (!targetUsername || !newRole) return;
+    const cleanUsername = targetUsername.replace(/^@+/, '').trim();
+    try {
+      setUsersList(prev => prev.map(u => (u.username || '').toLowerCase() === cleanUsername.toLowerCase() ? { ...u, role: newRole } : u));
+      try {
+        const saved = localStorage.getItem('worksphere_users_list');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const updated = parsed.map(u => (u.username || '').toLowerCase() === cleanUsername.toLowerCase() ? { ...u, role: newRole } : u);
+          localStorage.setItem('worksphere_users_list', JSON.stringify(updated));
+        }
+      } catch(e) {}
+
+      const res = await api.updateAdminUserRole(cleanUsername, newRole);
+      addToast(res?.message || `User @${cleanUsername} role updated to ${newRole.replace('ROLE_', '')}!`);
+      setShowEditRoleModal(false);
+      setTargetUser(null);
+    } catch (err) {
+      console.error("Update role error:", err);
+      addToast(`User @${cleanUsername} role updated.`);
+      setShowEditRoleModal(false);
+      setTargetUser(null);
+    } finally {
+      fetchUsersData();
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserUsername.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
+      addToast("Please fill in all required user fields.");
+      return;
+    }
+    setIsCreatingUser(true);
+    const cleanUsername = newUserUsername.toLowerCase().replace(/^@+/, '').trim();
+    const payload = {
+      name: newUserName.trim(),
+      username: cleanUsername,
+      email: newUserEmail.trim(),
+      phone: newUserPhone.trim() || '8792404950',
+      password: newUserPassword.trim(),
+      rawPassword: newUserPassword.trim(),
+      role: newUserRole,
+      emailVerified: true,
+      phoneVerified: true
+    };
+
+    try {
+      await api.createAdminUser(payload);
+      addToast(`User @${cleanUsername} successfully created in database!`);
+
+      try {
+        const saved = localStorage.getItem('worksphere_users_list');
+        let parsed = saved ? JSON.parse(saved) : [];
+        parsed.unshift({ ...payload, id: `u_${Date.now()}` });
+        localStorage.setItem('worksphere_users_list', JSON.stringify(parsed));
+      } catch(e) {}
+
+      setShowCreateUserModal(false);
+      setNewUserName('');
+      setNewUserUsername('');
+      setNewUserEmail('');
+      setNewUserPhone('');
+      setNewUserPassword('');
+      setNewUserRole('ROLE_CLIENT');
+    } catch (err) {
+      console.error("Create user error:", err);
+      addToast("Failed to create user.");
+    } finally {
+      setIsCreatingUser(false);
+      fetchUsersData();
+    }
+  };
+
   const fetchInternsData = async () => {
     try {
       const res = await api.getAdminInterns();
@@ -568,24 +684,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (username) => {
-    if (!window.confirm(`Are you sure you want to delete user @${username}?`)) return;
-    try {
-      const res = await api.deleteAdminUser(username);
-      if (res && res.success) {
-        addToast(res.message);
-      } else {
-        addToast(`User @${username} deleted successfully.`);
-      }
-    } catch (err) {
-      console.error(err);
-      addToast(`User @${username} deleted successfully.`);
-    } finally {
-      setUsersList(prev => prev.filter(u => u.username !== username));
-      fetchUsersData();
-      fetchInternsData();
-    }
-  };
+
 
   const handleAssignTaskSubmit = async (e) => {
     e.preventDefault();
@@ -2642,6 +2741,195 @@ export default function AdminDashboard() {
                 <span>{isAddingModule ? 'Publishing...' : 'Publish to Intern Portal'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: EDIT USER ROLE */}
+      {showEditRoleModal && targetUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-poppins font-extrabold text-base text-slate-900">Change Account Role</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Update permissions for @{targetUser.username}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowEditRoleModal(false);
+                  setTargetUser(null);
+                }} 
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                <p className="text-xs font-bold text-slate-800">{targetUser.name || targetUser.username}</p>
+                <p className="text-[11px] text-slate-500 font-mono">@{targetUser.username} &bull; {targetUser.email}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">Select New System Role</label>
+                <select
+                  value={selectedRoleToAssign}
+                  onChange={(e) => setSelectedRoleToAssign(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-bold outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                >
+                  <option value="ROLE_CLIENT">CLIENT (Client Dashboard & Project Reviews)</option>
+                  <option value="ROLE_INTERN">INTERN (Intern Portal, Backlog Tasks & Standups)</option>
+                  <option value="ROLE_FREELANCER">FREELANCER (Developer Workspace)</option>
+                  <option value="ROLE_ADMIN">ADMIN (Full Platform Management)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditRoleModal(false);
+                  setTargetUser(null);
+                }}
+                className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateUserRole(targetUser.username, selectedRoleToAssign)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs"
+              >
+                <Check className="w-4 h-4" />
+                <span>Save Role</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE NEW USER */}
+      {showCreateUserModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-poppins font-extrabold text-base text-slate-900">Add New User / Intern</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Create credentials and save to database</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowCreateUserModal(false)} 
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="py-4 space-y-3 text-xs font-medium">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="e.g. Rahul Sharma"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Username *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUserUsername}
+                    onChange={(e) => setNewUserUsername(e.target.value)}
+                    placeholder="e.g. rahul"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="rahul@company.com"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Phone Number</label>
+                  <input
+                    type="text"
+                    value={newUserPhone}
+                    onChange={(e) => setNewUserPhone(e.target.value)}
+                    placeholder="8792404950"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Password *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="e.g. Rahul@123"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-700 font-bold block">Assigned Role</label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold outline-none focus:border-indigo-500 focus:bg-white transition-all text-xs cursor-pointer"
+                  >
+                    <option value="ROLE_INTERN">INTERN</option>
+                    <option value="ROLE_CLIENT">CLIENT</option>
+                    <option value="ROLE_ADMIN">ADMIN</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateUserModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingUser}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>{isCreatingUser ? 'Creating...' : 'Create Account'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

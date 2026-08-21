@@ -1691,6 +1691,23 @@ export const api = {
       method: 'POST'
     }),
 
+  // Admin User Directory & Role Management
+  getAdminUsers: () => request('/api/admin/users'),
+  createAdminUser: (payload) => 
+    request('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  updateAdminUserRole: (username, role) => 
+    request(`/api/admin/users/${encodeURIComponent(username)}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role })
+    }),
+  deleteAdminUser: (username) => 
+    request(`/api/admin/users/${encodeURIComponent(username)}`, {
+      method: 'DELETE'
+    }),
+
   // Chat Logging
   getChatHistory: (withUser) => request(`/api/chat/history?withUser=${withUser}`),
   

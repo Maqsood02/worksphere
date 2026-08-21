@@ -214,20 +214,66 @@ export default async function handler(req, res) {
     // ==========================================
     // 6. ADMIN: USERS
     // ==========================================
-    if (cleanPath.endsWith('/admin/users') || cleanPath.endsWith('/admin-users')) {
+    if (cleanPath.includes('/admin/users') || cleanPath.includes('/admin-users')) {
       const col = db.collection('users');
+
+      // Update User Role: POST /api/admin/users/:username/role
+      if (cleanPath.includes('/role')) {
+        const parts = cleanPath.split('/');
+        const roleIdx = parts.indexOf('role');
+        const targetUname = (roleIdx > 0 ? parts[roleIdx - 1] : (query.username || body.username || '')).replace(/^@+/, '').trim();
+        const newRole = body.role || 'ROLE_CLIENT';
+        if (targetUname) {
+          await col.updateOne(
+            { username: new RegExp(`^${targetUname}$`, 'i') },
+            { $set: { role: newRole, updatedAt: new Date() } }
+          );
+        }
+        return res.status(200).json({ success: true, message: `User @${targetUname} role updated to ${newRole} in database!`, newRole });
+      }
+
+      if (req.method === 'DELETE') {
+        const parts = cleanPath.split('/');
+        const lastPart = parts[parts.length - 1];
+        let uname = (lastPart !== 'users' && lastPart !== 'admin-users') ? lastPart : (query.username || body.username || '');
+        uname = uname.replace(/^@+/, '').trim();
+        if (uname) {
+          if (uname.toLowerCase() === 'worksphere' || uname.toLowerCase() === 'admin') {
+            return res.status(400).json({ success: false, message: 'Cannot delete primary admin account.' });
+          }
+          const delRes = await col.deleteOne({ username: new RegExp(`^${uname}$`, 'i') });
+          console.log(`[DB DELETE USER] Deleted user @${uname}, count:`, delRes.deletedCount);
+          return res.status(200).json({ success: true, message: `User @${uname} permanently deleted from database!` });
+        }
+        return res.status(400).json({ success: false, message: 'Username required' });
+      }
+
       if (req.method === 'POST') {
-        const newUser = { ...body, id: body.id || `u_${Date.now()}`, emailVerified: true, phoneVerified: true, createdAt: new Date() };
+        const newUser = {
+          ...body,
+          id: body.id || `u_${Date.now()}`,
+          rawPassword: body.password || body.rawPassword || '123456',
+          emailVerified: true,
+          phoneVerified: true,
+          createdAt: new Date()
+        };
         await col.insertOne(newUser);
         return res.status(200).json({ success: true, user: newUser });
       }
-      if (req.method === 'DELETE') {
-        const uname = query.username || '';
-        if (uname) await col.deleteOne({ username: new RegExp(`^${uname}$`, 'i') });
-        return res.status(200).json({ success: true });
-      }
+
       const list = await col.find({}).project({ password: 0 }).sort({ createdAt: -1 }).toArray();
-      return res.status(200).json(list);
+      const sanitized = list.map(u => ({
+        id: u.id || (u._id ? u._id.toString() : u.username),
+        username: u.username,
+        name: u.name || u.username,
+        email: u.email,
+        phone: u.phone || '8792404950',
+        role: u.role || 'ROLE_CLIENT',
+        rawPassword: u.rawPassword || '123456',
+        emailVerified: u.emailVerified ?? true,
+        phoneVerified: u.phoneVerified ?? true
+      }));
+      return res.status(200).json(sanitized);
     }
 
     // ==========================================
