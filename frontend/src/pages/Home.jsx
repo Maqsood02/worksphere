@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -751,61 +752,70 @@ public class FreelanceController {
       </section>
 
       {/* PORTFOLIO PREVIEW MODAL (WITH INDIAN RUPEES DUAL PRICING) */}
-      <AnimatePresence>
-        {selectedProject && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedProject(null)}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedProject && (
+            <div 
+              className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto" 
+              onClick={() => setSelectedProject(null)}
             >
-              <div className="p-6 sm:p-8 space-y-5 text-left">
-                <div className="flex justify-between items-start">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[85vh] flex flex-col text-left relative z-10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
                   <div>
                     <span className="bg-primary/10 text-primary text-[10px] font-extrabold py-1 px-3 rounded-full uppercase border border-primary/20">
                       {selectedProject.badge}
                     </span>
-                    <h3 className="font-poppins font-black text-2xl text-slate-900 mt-2">{selectedProject.title}</h3>
+                    <h3 className="font-poppins font-black text-xl text-slate-900 mt-1.5">{selectedProject.title}</h3>
                   </div>
-                  <button onClick={() => setSelectedProject(null)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                  <button onClick={() => setSelectedProject(null)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-600 leading-relaxed">{selectedProject.desc}</p>
+                {/* Modal Scrollable Body */}
+                <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+                  <p className="text-slate-600 leading-relaxed">{selectedProject.desc}</p>
 
-                <div className="space-y-2 py-2">
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Architecture Deliverables</h4>
-                  <ul className="text-xs text-slate-600 space-y-1.5">
-                    {selectedProject.deliverables?.map((d, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>{d}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  <div className="space-y-2 py-1">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Architecture Deliverables</h4>
+                    <ul className="text-xs text-slate-600 space-y-1.5">
+                      {selectedProject.deliverables?.map((d, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                {/* MODAL DUAL CURRENCY BOX */}
-                <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100 text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Estimated Cost (USD / INR)</span>
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="font-black text-sm text-slate-900">{selectedProject.usd}</span>
-                      <span className="font-extrabold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        {selectedProject.inr}
-                      </span>
+                  {/* MODAL DUAL CURRENCY BOX */}
+                  <div className="grid grid-cols-2 gap-4 py-3.5 border-y border-slate-100 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Estimated Cost (USD / INR)</span>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className="font-black text-sm text-slate-900">{selectedProject.usd}</span>
+                        <span className="font-extrabold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          {selectedProject.inr}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Tech Stack</span>
+                      <span className="font-bold text-primary">{selectedProject.stack}</span>
                     </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Tech Stack</span>
-                    <span className="font-bold text-primary">{selectedProject.stack}</span>
-                  </div>
                 </div>
 
-                <div className="pt-2 flex gap-3 text-xs font-bold">
+                {/* Modal Footer */}
+                <div className="p-4 sm:p-5 border-t border-slate-100 flex gap-3 text-xs font-bold bg-slate-50/80 shrink-0">
                   <button 
                     onClick={() => {
                       setSelectedProject(null);
@@ -817,157 +827,162 @@ public class FreelanceController {
                   </button>
                   <button 
                     onClick={() => setSelectedProject(null)} 
-                    className="px-5 border border-slate-200 text-slate-700 py-3 rounded-xl hover:bg-slate-50 cursor-pointer"
+                    className="px-5 border border-slate-200 text-slate-700 py-3 rounded-xl hover:bg-slate-100 cursor-pointer"
                   >
                     Close
                   </button>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* WORKSPHERE ARCHITECTURE DECK MODAL */}
-      <AnimatePresence>
-        {showDeckModal && (
-          <div 
-            className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" 
-            onClick={() => setShowDeckModal(false)}
-          >
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[88vh] flex flex-col text-left"
-              onClick={(e) => e.stopPropagation()}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showDeckModal && (
+            <div 
+              className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto" 
+              onClick={() => setShowDeckModal(false)}
             >
-              {/* Header (Sticky / Fixed Top) */}
-              <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-sm shrink-0">
-                    <Layers className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-poppins font-black text-base sm:text-lg text-white leading-tight">WorkSphere Architecture Deck</h3>
-                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">v2026</span>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[85vh] flex flex-col text-left relative z-10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header (Sticky / Fixed Top) */}
+                <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-sm shrink-0">
+                      <Layers className="w-5 h-5" />
                     </div>
-                    <p className="text-[11px] text-slate-300 font-medium">Enterprise System Blueprint & High-Performance Full-Stack Topology</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setShowDeckModal(false)} 
-                  className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Scrollable Content Body */}
-              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 text-xs text-slate-700">
-                
-                {/* 4 Architectural Pillars Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex items-center gap-2 text-indigo-600 font-black">
-                      <Globe className="w-4 h-4" />
-                      <span>Frontend Client Tier</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-poppins font-black text-base sm:text-lg text-white leading-tight">WorkSphere Architecture Deck</h3>
+                        <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">v2026</span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 font-medium">Enterprise System Blueprint & High-Performance Full-Stack Topology</p>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      React 19 SPA, Vite build pipeline, Tailwind CSS v4, dynamic Framer Motion transitions, and multi-role localized cache synchronization.
-                    </p>
                   </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex items-center gap-2 text-emerald-600 font-black">
-                      <Server className="w-4 h-4" />
-                      <span>Microservices & Backend</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Java 17/21 & Spring Boot 3 enterprise REST APIs with Spring Security JWT tokens, CORS protection, and consolidated serverless gateways.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex items-center gap-2 text-green-600 font-black">
-                      <Database className="w-4 h-4" />
-                      <span>Distributed Database Tier</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      MongoDB Atlas multi-region document clusters, compound indexing, aggregation pipelines, and real-time ACID multi-document transactions.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex items-center gap-2 text-purple-600 font-black">
-                      <Bot className="w-4 h-4" />
-                      <span>AI & Automation Engines</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      OpenAI GPT-4o embeddings pipeline for real-time automated proposal quotations, document search, and instant SMTP email dispatch.
-                    </p>
-                  </div>
+                  <button 
+                    onClick={() => setShowDeckModal(false)} 
+                    className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
 
-                {/* Performance Benchmarks */}
-                <div className="space-y-2">
-                  <h4 className="font-poppins font-black text-xs text-slate-900 uppercase tracking-wider">Production Operational Metrics</h4>
-                  <div className="grid grid-cols-3 gap-2.5 text-center">
-                    <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
-                      <span className="text-lg font-poppins font-black text-indigo-700 block">99.98%</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">High Availability</span>
+                {/* Scrollable Content Body */}
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 text-xs text-slate-700">
+                  
+                  {/* 4 Architectural Pillars Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center gap-2 text-indigo-600 font-black">
+                        <Globe className="w-4 h-4" />
+                        <span>Frontend Client Tier</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        React 19 SPA, Vite build pipeline, Tailwind CSS v4, dynamic Framer Motion transitions, and multi-role localized cache synchronization.
+                      </p>
                     </div>
-                    <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
-                      <span className="text-lg font-poppins font-black text-emerald-700 block">&lt; 12ms</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">Query Latency</span>
+
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center gap-2 text-emerald-600 font-black">
+                        <Server className="w-4 h-4" />
+                        <span>Microservices & Backend</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Java 17/21 & Spring Boot 3 enterprise REST APIs with Spring Security JWT tokens, CORS protection, and consolidated serverless gateways.
+                      </p>
                     </div>
-                    <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl">
-                      <span className="text-lg font-poppins font-black text-blue-700 block">256-bit</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">E2E Encrypted</span>
+
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center gap-2 text-green-600 font-black">
+                        <Database className="w-4 h-4" />
+                        <span>Distributed Database Tier</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        MongoDB Atlas multi-region document clusters, compound indexing, aggregation pipelines, and real-time ACID multi-document transactions.
+                      </p>
                     </div>
+
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center gap-2 text-purple-600 font-black">
+                        <Bot className="w-4 h-4" />
+                        <span>AI & Automation Engines</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        OpenAI GPT-4o embeddings pipeline for real-time automated proposal quotations, document search, and instant SMTP email dispatch.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Performance Benchmarks */}
+                  <div className="space-y-2">
+                    <h4 className="font-poppins font-black text-xs text-slate-900 uppercase tracking-wider">Production Operational Metrics</h4>
+                    <div className="grid grid-cols-3 gap-2.5 text-center">
+                      <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
+                        <span className="text-lg font-poppins font-black text-indigo-700 block">99.98%</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">High Availability</span>
+                      </div>
+                      <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
+                        <span className="text-lg font-poppins font-black text-emerald-700 block">&lt; 12ms</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">Query Latency</span>
+                      </div>
+                      <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl">
+                        <span className="text-lg font-poppins font-black text-blue-700 block">256-bit</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">E2E Encrypted</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security & Verification Credentials */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-slate-900 text-xs flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Platform Verification & Compliance
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-600 font-bold">Bangalore & Global</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Designed and architected by <strong>Maqsood MD</strong> (Lead Platform Architect). WorkSphere enforces strict isolation across Admin consoles, Intern portals, and Client invoice review workspaces.
+                    </p>
                   </div>
                 </div>
 
-                {/* Security & Verification Credentials */}
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-slate-900 text-xs flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" /> Platform Verification & Compliance
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold">Bangalore & Global</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Designed and architected by <strong>Maqsood MD</strong> (Lead Platform Architect). WorkSphere enforces strict isolation across Admin consoles, Intern portals, and Client invoice review workspaces.
-                  </p>
+                {/* Footer Actions (Sticky / Fixed Bottom) */}
+                <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeckModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeckModal(false);
+                      navigate('/project-request?type=Enterprise%20Full-Stack%20Platform');
+                    }}
+                    className="bg-primary hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer text-xs flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Request Architecture Consultation</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Footer Actions (Sticky / Fixed Bottom) */}
-              <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowDeckModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-white transition-colors cursor-pointer text-xs"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeckModal(false);
-                    navigate('/project-request?type=Enterprise%20Full-Stack%20Platform');
-                  }}
-                  className="bg-primary hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer text-xs flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Request Architecture Consultation</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* 7. FAQ SECTION */}
       <section id="faq" className="py-20 px-6 max-w-4xl mx-auto space-y-14">
