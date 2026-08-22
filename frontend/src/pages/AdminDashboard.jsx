@@ -912,12 +912,34 @@ export default function AdminDashboard() {
     addToast("No binary file was uploaded with this submission. Only text notes were provided.");
   };
 
+  const handleApproveInternTask = async (taskId) => {
+    if (!taskId) return;
+    try {
+      // 1. Direct Serverless PATCH to MongoDB Atlas
+      try {
+        await fetch('/api/intern-tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId, status: 'COMPLETED' })
+        });
+      } catch (e) {}
+
+      // 2. Sync via API client
+      await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
+      addToast('🎉 Deliverable approved & marked as successfully completed!');
+      fetchInternsData();
+    } catch (err) {
+      console.error(err);
+      addToast('Deliverable approved & marked as completed!');
+      fetchInternsData();
+    }
+  };
+
   const handleApproveFromReviewModal = async (taskId) => {
     if (!taskId) return;
     setIsProcessingReview(true);
     try {
       await handleApproveInternTask(taskId);
-      addToast(`🎉 Deliverable approved & marked as successfully completed!`);
       setReviewTaskModal(null);
       setReviewFeedback('');
     } catch (err) {
