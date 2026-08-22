@@ -583,10 +583,19 @@ function getAttendanceTimelineAndRate(logs) {
         ...(localOverride || {})
       };
 
+      // Filter out deleted task IDs
+      let deletedTaskIds = [];
+      try {
+        const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+        if (savedDel) deletedTaskIds = JSON.parse(savedDel);
+      } catch(e) {}
+
       // Extract and filter tasks strictly for this intern (or ALL) from MongoDB Atlas
       let rawTasks = [];
       if (Array.isArray(baseData.tasks)) {
-        rawTasks = baseData.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey, user?.name));
+        rawTasks = baseData.tasks
+          .filter(t => !deletedTaskIds.includes(t.taskId) && !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t._id))
+          .filter(t => isMatchingInternTask(t.assignedTo, uKey, user?.name));
       }
 
       // Attendance logs strictly for this intern from MongoDB Atlas

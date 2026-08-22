@@ -877,6 +877,45 @@ export const api = {
   getAdminInvoices: () => request('/api/admin/invoices'),
   getAdminAppointments: () => request('/api/admin/appointments'),
 
+  deleteInternTask: async (taskId) => {
+    try {
+      await fetch(`/api/intern-tasks?id=${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    try {
+      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+      let deletedList = savedDel ? JSON.parse(savedDel) : [];
+      if (!deletedList.includes(taskId)) {
+        deletedList.push(taskId);
+        localStorage.setItem('worksphere_deleted_tasks', JSON.stringify(deletedList));
+      }
+      localStorage.removeItem(`worksphere_file_${taskId}`);
+
+      const gSaved = localStorage.getItem('worksphere_global_tasks');
+      if (gSaved) {
+        const parsed = JSON.parse(gSaved).filter(t => t.id !== taskId && t.taskId !== taskId);
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(parsed));
+      }
+
+      const allKeys = Object.keys(localStorage);
+      for (const k of allKeys) {
+        if (k.startsWith('worksphere_tasks_')) {
+          const userSaved = localStorage.getItem(k);
+          if (userSaved) {
+            const parsed = JSON.parse(userSaved).filter(t => t.id !== taskId && t.taskId !== taskId);
+            localStorage.setItem(k, JSON.stringify(parsed));
+          }
+        }
+      }
+    } catch (e) {}
+
+    return { success: true, message: 'Task deleted successfully.' };
+  },
+
+  deleteAdminInternTask: async (taskId) => {
+    return api.deleteInternTask(taskId);
+  },
+
   getInternAttendance: async (username) => {
     try {
       const uParam = username ? `?username=${encodeURIComponent(username)}` : '?username=all';
@@ -982,23 +1021,40 @@ export const api = {
     }
     res.profile = p;
 
+    // Filter out deleted task IDs
+    let deletedTaskIds = [];
+    try {
+      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+      if (savedDel) deletedTaskIds = JSON.parse(savedDel);
+    } catch(e) {}
+
     // Merge tasks from MongoDB Atlas Database
     let realTasks = [];
     if (serverlessTasks && Array.isArray(serverlessTasks) && serverlessTasks.length > 0) {
-      realTasks = serverlessTasks.filter(t => isMatchingInternTask(t.assignedTo, uKey)).map(t => ({
-        id: t.taskId || t.id || t._id,
-        taskId: t.taskId || t.id || t._id,
-        assignedTo: t.assignedTo,
-        title: t.title,
-        description: t.description,
-        deadline: t.deadline,
-        priority: t.priority,
-        status: t.status,
-        submissionUrl: t.submissionUrl || '',
-        submissionNotes: t.submissionNotes || ''
-      }));
+      realTasks = serverlessTasks
+        .filter(t => !deletedTaskIds.includes(t.taskId) && !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t._id))
+        .filter(t => isMatchingInternTask(t.assignedTo, uKey))
+        .map(t => ({
+          id: t.taskId || t.id || t._id,
+          taskId: t.taskId || t.id || t._id,
+          assignedTo: t.assignedTo,
+          title: t.title,
+          description: t.description,
+          deadline: t.deadline,
+          priority: t.priority,
+          status: t.status,
+          adminFeedback: t.adminFeedback || '',
+          fileName: t.fileName || '',
+          fileSize: t.fileSize || '',
+          fileType: t.fileType || '',
+          fileData: t.fileData || '',
+          submissionUrl: t.submissionUrl || '',
+          submissionNotes: t.submissionNotes || ''
+        }));
     } else if (Array.isArray(res.tasks) && res.tasks.length > 0) {
-      realTasks = res.tasks.filter(t => isMatchingInternTask(t.assignedTo, uKey));
+      realTasks = res.tasks
+        .filter(t => !deletedTaskIds.includes(t.taskId) && !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t._id))
+        .filter(t => isMatchingInternTask(t.assignedTo, uKey));
     }
 
     res.tasks = realTasks;

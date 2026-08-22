@@ -1084,8 +1084,18 @@ export default async function handler(req, res) {
 
       if (req.method === 'DELETE') {
         const id = query.id || query.taskId || body.taskId || body.id;
-        if (id) await col.deleteOne({ $or: [{ taskId: id }, { id: id }] });
-        return res.status(200).json({ success: true, message: `Task deleted!` });
+        if (id) {
+          const cleanId = String(id).trim();
+          await col.deleteMany({
+            $or: [
+              { taskId: cleanId },
+              { id: cleanId },
+              { taskId: new RegExp(`^${cleanId}$`, 'i') },
+              { id: new RegExp(`^${cleanId}$`, 'i') }
+            ]
+          });
+        }
+        return res.status(200).json({ success: true, message: `Task deleted from database!` });
       }
     }
 
