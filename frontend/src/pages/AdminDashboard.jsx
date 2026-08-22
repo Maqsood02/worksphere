@@ -140,11 +140,7 @@ export default function AdminDashboard() {
     { id: 'u4', username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
-  const defaultProjects = [
-    { id: 'proj_101', title: 'WorkSphere Web Platform', clientName: 'Maqsood MD', category: 'Full-Stack Development', status: 'IN_PROGRESS', progress: 75, budget: 125000, deadline: '2026-09-15' },
-    { id: 'proj_102', title: 'AI Co-Pilot Assistant', clientName: 'Tech Corp', category: 'AI & Automation', status: 'COMPLETED', progress: 100, budget: 180000, deadline: '2026-08-01' },
-    { id: 'proj_103', title: 'Mobile Client Workspace App', clientName: 'Innovate LLC', category: 'Frontend', status: 'PLANNING', progress: 25, budget: 150000, deadline: '2026-10-30' }
-  ];
+  const defaultProjects = [];
 
   const defaultInvoices = [];
 
@@ -171,16 +167,23 @@ export default function AdminDashboard() {
         projList = projData.projects;
       }
       if (!projList || projList.length === 0) {
-        projList = defaultProjects;
+        projList = [];
       }
       setProjects(projList);
       setProjectsCount(projList.length);
 
-      // Clients for Chat
-      const clients = Array.from(new Set(projList.map(p => p.clientName).filter(Boolean)));
-      setClientList(clients.length > 0 ? clients : ['Maqsood']);
-      if (!selectedClient) {
-        setSelectedClient(clients[0] || 'Maqsood');
+      // Clients for Chat - only real client accounts, filter out admin names or empty
+      const registeredClients = (usersList || []).filter(u => (u.role || '').toUpperCase().includes('CLIENT')).map(u => u.username);
+      const projClients = (projList || []).map(p => p.clientId || p.clientName).filter(Boolean);
+      const clients = Array.from(new Set([...registeredClients, ...projClients]))
+        .filter(c => c.toLowerCase() !== 'maqsood md' && c.toLowerCase() !== 'maqsood' && c.toLowerCase() !== 'worksphere' && c.toLowerCase() !== 'admin');
+      setClientList(clients);
+      if (clients.length > 0) {
+        if (!selectedClient || !clients.includes(selectedClient)) {
+          setSelectedClient(clients[0]);
+        }
+      } else {
+        setSelectedClient(null);
       }
 
       // Normalize Invoices
@@ -2385,36 +2388,48 @@ export default function AdminDashboard() {
 
         {/* TAB: ACTIVE PROJECTS */}
         {activeTab === 'projects' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-            <h3 className="font-poppins font-bold text-lg text-text-dark">Active Client Work Orders</h3>
-            <div className="space-y-4">
-              {projects.map((p) => (
-                <div key={p.id} className="border border-slate-100 p-5 rounded-2xl space-y-3 hover:border-slate-300 transition-all bg-slate-50/50">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] text-primary font-mono bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{p.id}</span>
-                      <h4 className="font-bold text-slate-800 text-base mt-1">{p.title}</h4>
-                    </div>
-                    <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase border ${
-                      p.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                    }`}>{p.status}</span>
-                  </div>
-
-                  <p className="text-xs text-text-light leading-relaxed">{p.description}</p>
-                  
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-                    <span className="text-text-light font-medium">Budget: <strong className="text-text-dark">${p.budget?.toLocaleString()}</strong></span>
-                    <div className="space-x-2">
-                      {p.status !== 'COMPLETED' && (
-                        <button onClick={() => updateStatus(p.id, 'COMPLETED')} className="bg-emerald-600 text-white font-bold px-3 py-1 rounded-lg text-[11px] hover:bg-emerald-500 transition-all">
-                          Mark Completed
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-poppins font-bold text-lg text-text-dark">Active Client Work Orders</h3>
+                <p className="text-xs text-slate-500">Overview of client proposals and committed technical milestones.</p>
+              </div>
             </div>
+            {projects.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs font-semibold bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                No active client work orders at this time.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projects.map((p) => (
+                  <div key={p.id} className="border border-slate-100 p-5 rounded-2xl space-y-3 hover:border-slate-300 transition-all bg-slate-50/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] text-primary font-mono bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{p.id}</span>
+                        <h4 className="font-bold text-slate-800 text-base mt-1">{p.title}</h4>
+                      </div>
+                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase border ${
+                        p.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                      }`}>{p.status}</span>
+                    </div>
+
+                    <p className="text-xs text-text-light leading-relaxed">{p.description}</p>
+                    
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
+                      <span className="text-text-light font-medium">Budget: <strong className="text-text-dark">${p.budget?.toLocaleString()}</strong></span>
+                      <div className="space-x-2">
+                        {p.status !== 'COMPLETED' && (
+                          <button onClick={() => updateStatus(p.id, 'COMPLETED')} className="bg-emerald-600 text-white font-bold px-3 py-1 rounded-lg text-[11px] hover:bg-emerald-500 transition-all cursor-pointer">
+                            Mark Completed
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -2439,46 +2454,67 @@ export default function AdminDashboard() {
         {/* TAB: HELP DESK CHAT */}
         {activeTab === 'chat' && (
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-            <h3 className="font-poppins font-bold text-lg text-text-dark">Client Help Desk Live Chat</h3>
-            <div className="flex space-x-2 pb-2 overflow-x-auto">
-              {clientList.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setSelectedClient(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    selectedClient === c ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  @{c}
-                </button>
-              ))}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-poppins font-bold text-lg text-text-dark">Client Help Desk Live Chat</h3>
+                <p className="text-xs text-slate-500">Live communication channel with registered platform clients.</p>
+              </div>
             </div>
 
-            <div ref={chatViewportRef} className="h-64 overflow-y-auto bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
-              {(chatMessages || []).filter(Boolean).map((msg, idx) => (
-                <div key={msg.id || idx} className={`flex ${(msg?.senderId || '') === (user?.username || '') ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] p-3 rounded-2xl ${
-                    (msg?.senderId || '') === (user?.username || '') ? 'bg-primary text-white' : 'bg-white text-slate-800 border border-slate-200'
-                  }`}>
-                    <p>{msg?.content || ''}</p>
-                    <span className="text-[9px] opacity-70 block text-right mt-1">{msg?.timestamp || ''}</span>
-                  </div>
+            {clientList.length > 0 && (
+              <div className="flex space-x-2 pb-2 overflow-x-auto">
+                {clientList.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setSelectedClient(c)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedClient === c ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    @{c}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!selectedClient || clientList.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs font-semibold bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                No active client conversations at this time. Clients can start a live chat from their portal.
+              </div>
+            ) : (
+              <>
+                <div ref={chatViewportRef} className="h-64 overflow-y-auto bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
+                  {(chatMessages || []).length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 italic">No message logs with @{selectedClient}.</div>
+                  ) : (
+                    (chatMessages || []).filter(Boolean).map((msg, idx) => (
+                      <div key={msg.id || idx} className={`flex ${(msg?.senderId || '') === (user?.username || '') ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[75%] p-3 rounded-2xl ${
+                          (msg?.senderId || '') === (user?.username || '') ? 'bg-primary text-white' : 'bg-white text-slate-800 border border-slate-200'
+                        }`}>
+                          <p>{msg?.content || ''}</p>
+                          <span className="text-[9px] opacity-70 block text-right mt-1">{msg?.timestamp || ''}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
 
-            <form onSubmit={handleSendMessage} className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type reply to client..."
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-primary"
-              />
-              <button type="submit" className="bg-primary text-white p-2.5 rounded-xl hover:bg-indigo-700 transition-colors">
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={`Type reply to @${selectedClient}...`}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-primary"
+                  />
+                  <button type="submit" className="bg-primary text-white p-2.5 rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer">
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         )}
 
