@@ -473,13 +473,13 @@ export default function ClientDashboard() {
               {chatMessages.length === 0 ? (
                 <div className="py-12 text-center text-text-light italic">No message logs. Type a query below to start!</div>
               ) : (
-                chatMessages.map((msg, idx) => {
-                  const isMe = msg.senderId === user.username;
+                (chatMessages || []).filter(Boolean).map((msg, idx) => {
+                  const isMe = (msg?.senderId || '') === (user?.username || '');
                   return (
                     <div key={idx} className={`flex flex-col ${isMe ? 'items-end text-right' : 'items-start text-left'}`}>
-                      <span className="text-[9px] text-text-light pb-1 font-bold">{isMe ? 'You' : msg.senderName}</span>
+                      <span className="text-[9px] text-text-light pb-1 font-bold">{isMe ? 'You' : (msg?.senderName || msg?.senderId || 'Support')}</span>
                       <div className={`p-3 rounded-2xl max-w-[80%] inline-block shadow-sm ${isMe ? 'bg-primary text-white rounded-tr-none ml-auto' : 'bg-white text-text-dark rounded-tl-none border border-slate-200'}`}>
-                        {msg.content}
+                        {msg?.content || ''}
                       </div>
                     </div>
                   );

@@ -114,8 +114,8 @@ export default function FloatingChat() {
                 </div>
               </div>
 
-              {(messages || []).map((msg, idx) => {
-                const isAi = msg.senderId === 'ai';
+              {(messages || []).filter(Boolean).map((msg, idx) => {
+                const isAi = (msg?.senderId || 'ai') === 'ai';
                 return (
                   <div key={idx} className={`flex items-start space-x-2 ${!isAi ? 'justify-end text-right' : ''}`}>
                     {isAi && (
@@ -124,7 +124,7 @@ export default function FloatingChat() {
                       </div>
                     )}
                     <div className={`p-3 rounded-2xl shadow-sm max-w-[80%] inline-block text-left ${isAi ? 'bg-white text-text-dark rounded-tl-none border border-slate-100' : 'bg-primary text-white rounded-tr-none ml-auto'}`}>
-                      {msg.content}
+                      {msg?.content || ''}
                     </div>
                   </div>
                 );

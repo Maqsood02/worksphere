@@ -2455,13 +2455,13 @@ export default function AdminDashboard() {
             </div>
 
             <div ref={chatViewportRef} className="h-64 overflow-y-auto bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 text-xs">
-              {chatMessages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.senderId === user.username ? 'justify-end' : 'justify-start'}`}>
+              {(chatMessages || []).filter(Boolean).map((msg, idx) => (
+                <div key={msg.id || idx} className={`flex ${(msg?.senderId || '') === (user?.username || '') ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[75%] p-3 rounded-2xl ${
-                    msg.senderId === user.username ? 'bg-primary text-white' : 'bg-white text-slate-800 border border-slate-200'
+                    (msg?.senderId || '') === (user?.username || '') ? 'bg-primary text-white' : 'bg-white text-slate-800 border border-slate-200'
                   }`}>
-                    <p>{msg.content}</p>
-                    <span className="text-[9px] opacity-70 block text-right mt-1">{msg.timestamp}</span>
+                    <p>{msg?.content || ''}</p>
+                    <span className="text-[9px] opacity-70 block text-right mt-1">{msg?.timestamp || ''}</span>
                   </div>
                 </div>
               ))}
