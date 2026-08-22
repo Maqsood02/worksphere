@@ -1661,32 +1661,32 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Header Console Banner */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-slate-100 pb-6">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                       Automated 1-Day Submission Reminder Engine Active
                     </span>
                     <span className="text-xs text-slate-500 font-semibold">• {allInternTasks.length} Total Deliverables</span>
                   </div>
-                  <h3 className="font-poppins font-extrabold text-xl text-slate-900 flex items-center gap-2.5 mt-1.5">
+                  <h3 className="font-poppins font-extrabold text-2xl text-slate-900 flex items-center gap-2.5">
                     <ClipboardList className="w-6 h-6 text-indigo-600" /> Assigned Deliverables & Task Reviews
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
+                  <p className="text-xs text-slate-500 font-medium max-w-2xl leading-relaxed">
                     Assign sprint backlog deliverables, review submitted GitHub repositories & project folders, trigger 1-day submission deadline reminders, and approve completed work.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap shrink-0">
                   <button
                     onClick={handleScanDeadlineReminders}
                     disabled={isScanningDeadlines}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                     title="Scan all active deliverables and auto-dispatch 1-day deadline reminder emails to interns"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isScanningDeadlines ? 'animate-spin' : ''}`} />
-                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send 1-Day Reminders'}</span>
+                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send Reminders'}</span>
                   </button>
 
                   <button
@@ -1694,7 +1694,7 @@ export default function AdminDashboard() {
                       setTargetInternUsername('');
                       setShowAssignTaskModal(true);
                     }}
-                    className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0"
+                    className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer"
                   >
                     <PlusCircle className="w-4 h-4" /> Assign Task to Intern
                   </button>
@@ -1702,16 +1702,16 @@ export default function AdminDashboard() {
               </div>
 
               {/* Automated Deadline Alert Notification Card */}
-              <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-orange-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm">
-                    <Bell className="w-4 h-4" />
+              <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-orange-50 border border-amber-200/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="p-2.5 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm">
+                    <Bell className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="font-extrabold text-amber-900 block text-xs">
+                    <span className="font-extrabold text-amber-900 block text-sm">
                       1-Day Project Submission Deadline Reminder Engine
                     </span>
-                    <span className="text-amber-800/90 text-[11px]">
+                    <span className="text-amber-800/90 text-xs leading-relaxed block mt-0.5">
                       The platform automatically emails interns 1 day before their deadline reminding them to submit all task-related files, folders, and repositories without fail from <strong>worksphere.ac.in@gmail.com</strong>.
                     </span>
                   </div>
@@ -1719,49 +1719,49 @@ export default function AdminDashboard() {
 
                 <button
                   onClick={() => setTaskStatusFilter(taskStatusFilter === 'DUE_TOMORROW' ? 'ALL' : 'DUE_TOMORROW')}
-                  className={`px-3.5 py-1.5 rounded-xl font-extrabold text-[11px] transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
                     taskStatusFilter === 'DUE_TOMORROW'
                       ? 'bg-rose-600 text-white border-rose-600 shadow-md'
                       : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100/60 shadow-sm'
                   }`}
                 >
-                  {taskStatusFilter === 'DUE_TOMORROW' ? 'Showing Due Tomorrow' : 'Filter Tasks Due Tomorrow'}
+                  {taskStatusFilter === 'DUE_TOMORROW' ? '✓ Showing Due Tomorrow' : 'Filter Tasks Due Tomorrow'}
                 </button>
               </div>
 
               {/* Deliverables Stats Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
                 <div 
                   onClick={() => setTaskStatusFilter('ALL')} 
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'ALL' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'ALL' ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
                 >
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Backlog</span>
-                  <span className="font-extrabold text-lg text-slate-900">{allInternTasks.length}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Backlog</span>
+                  <span className="font-extrabold text-xl text-slate-900 mt-1 block">{allInternTasks.length}</span>
                 </div>
                 <div 
                   onClick={() => setTaskStatusFilter('IN_PROGRESS')} 
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'IN_PROGRESS' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'IN_PROGRESS' ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
                 >
-                  <span className="text-[10px] font-bold text-amber-600 uppercase block">In Progress</span>
-                  <span className="font-extrabold text-lg text-amber-700">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">In Progress</span>
+                  <span className="font-extrabold text-xl text-amber-700 mt-1 block">
                     {allInternTasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'PENDING').length}
                   </span>
                 </div>
                 <div 
                   onClick={() => setTaskStatusFilter('SUBMITTED')} 
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'SUBMITTED' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'SUBMITTED' ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
                 >
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase block">Submitted (Needs Review)</span>
-                  <span className="font-extrabold text-lg text-indigo-700">
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Submitted (Needs Review)</span>
+                  <span className="font-extrabold text-xl text-indigo-700 mt-1 block">
                     {allInternTasks.filter(t => t.status === 'SUBMITTED' || t.status === 'UNDER_REVIEW').length}
                   </span>
                 </div>
                 <div 
                   onClick={() => setTaskStatusFilter('COMPLETED')} 
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'COMPLETED' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'COMPLETED' ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
                 >
-                  <span className="text-[10px] font-bold text-emerald-600 uppercase block">Approved / Completed</span>
-                  <span className="font-extrabold text-lg text-emerald-700">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Approved / Completed</span>
+                  <span className="font-extrabold text-xl text-emerald-700 mt-1 block">
                     {allInternTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length}
                   </span>
                 </div>
@@ -1776,7 +1776,7 @@ export default function AdminDashboard() {
                     value={taskSearchTerm}
                     onChange={(e) => setTaskSearchTerm(e.target.value)}
                     placeholder="Search deliverables by title, ID, intern..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-medium focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
                   />
                   {taskSearchTerm && (
                     <button onClick={() => setTaskSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -1786,7 +1786,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center gap-2.5 w-full md:w-auto">
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700">
                     <Filter className="w-3.5 h-3.5 text-slate-400" />
                     <select
                       value={taskInternFilter}
@@ -1800,7 +1800,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700">
                     <select
                       value={taskStatusFilter}
                       onChange={(e) => setTaskStatusFilter(e.target.value)}
@@ -1818,11 +1818,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* Task Deliverables Grid */}
-            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
                   <h3 className="font-poppins font-bold text-base text-slate-800">Deliverable Submissions & Reviews</h3>
-                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono text-[11px] font-extrabold px-2 py-0.5 rounded-md">
+                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg">
                     {filteredTasks.length} Showing
                   </span>
                 </div>
@@ -1860,7 +1860,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                   {filteredTasks.map((task, idx) => {
                     const deadlineInfo = getDeadlineStatus(task.deadline, task.status);
                     const isDueTomorrow = deadlineInfo.isTomorrow;
@@ -1870,97 +1870,111 @@ export default function AdminDashboard() {
                     return (
                       <div 
                         key={task.id || task.taskId || idx} 
-                        className={`bg-slate-50 border rounded-2xl p-5 space-y-3 flex flex-col justify-between transition-all hover:shadow-md ${
-                          isDueTomorrow ? 'border-rose-300 ring-2 ring-rose-400/20 bg-rose-50/20' : 
-                          isOverdue ? 'border-rose-200' : 'border-slate-200'
+                        className={`bg-white border rounded-2xl p-5 sm:p-6 space-y-4 flex flex-col justify-between transition-all hover:shadow-md ${
+                          isDueTomorrow ? 'border-rose-300 ring-2 ring-rose-400/20 bg-gradient-to-b from-rose-50/30 to-white' : 
+                          isOverdue ? 'border-rose-200' : 'border-slate-200/90'
                         }`}
                       >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-[10px] font-bold">
-                            <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">
-                              {formatDisplayId(task.id, 'TSK', idx)} • @{task.assignedTo || 'intern'}
-                            </span>
-                            <div className="flex items-center gap-1.5">
+                        <div className="space-y-3">
+                          {/* Card Top Header */}
+                          <div className="flex items-center justify-between gap-2 flex-wrap pb-2.5 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-mono font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2.5 py-1 rounded-lg">
+                                {formatDisplayId(task.id, 'TSK', idx)}
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                @{task.assignedTo || 'intern'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
                               {isDueTomorrow && (
-                                <span className="bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded uppercase font-extrabold animate-pulse flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 text-rose-600" /> Due Tomorrow (Submit Without Fail)
+                                <span className="bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase flex items-center gap-1 animate-pulse">
+                                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Due Tomorrow
                                 </span>
                               )}
-                              <span className={`px-2 py-0.5 rounded uppercase ${
-                                task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 font-bold' :
-                                task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700 font-bold animate-pulse' :
-                                'bg-slate-200 text-slate-700'
-                              }`}>{task.status}</span>
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
+                                task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' :
+                                'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>{task.status.replace('_', ' ')}</span>
                             </div>
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800">{task.title}</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed">{task.description}</p>
+
+                          {/* Task Title & Description */}
+                          <h4 className="font-poppins font-bold text-base text-slate-900 leading-snug">{task.title}</h4>
+                          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{task.description}</p>
                         </div>
 
+                        {/* Submitted Deliverables Details */}
                         {task.submissionUrl && (
-                          <div className="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
-                            <span className="font-bold text-slate-700 block">Submitted Deliverable:</span>
+                          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                            <span className="font-bold text-slate-800 block text-[11px]">Submitted Project Deliverable:</span>
                             <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-semibold flex items-center gap-1 text-[11px] truncate">
-                              <ExternalLink className="w-3 h-3 shrink-0" /> {task.submissionUrl}
+                              <ExternalLink className="w-3.5 h-3.5 shrink-0" /> {task.submissionUrl}
                             </a>
                             {task.submissionNotes && (
-                              <p className="text-[11px] text-slate-500 font-normal italic pt-1 border-t border-slate-100 mt-1">
+                              <p className="text-[11px] text-slate-500 font-normal italic pt-1 border-t border-slate-200/60 mt-1">
                                 "{task.submissionNotes}"
                               </p>
                             )}
                           </div>
                         )}
 
-                        <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3">
+                        {/* Card Action Footer */}
+                        <div className="pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          {/* Due Date Badge */}
                           <div className="flex items-center gap-2">
-                            <span className={`font-medium ${isDueTomorrow || isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                              Due: {task.deadline}
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                              isDueTomorrow ? 'bg-rose-50 text-rose-700 border border-rose-200' : 
+                              isOverdue ? 'bg-rose-50 text-rose-700 border border-rose-200' : 
+                              'bg-slate-50 text-slate-700 border border-slate-200'
+                            }`}>
+                              <Calendar className={`w-3.5 h-3.5 shrink-0 ${isDueTomorrow ? 'text-rose-600' : 'text-slate-400'}`} />
+                              <span>Due: <strong>{task.deadline}</strong></span>
                             </span>
-                            {isDueTomorrow ? (
-                              <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-extrabold">
-                                1-Day Notice
-                              </span>
-                            ) : null}
                           </div>
                           
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Buttons Group */}
+                          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
                             <button
                               type="button"
                               onClick={() => handleSendTaskReminder(task)}
                               disabled={isSendingThisReminder}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-sm disabled:opacity-50 active:scale-95"
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
                               title="Send 1-day submission deadline reminder email to assigned intern"
                             >
-                              <Mail className={`w-3.5 h-3.5 text-indigo-600 ${isSendingThisReminder ? 'animate-spin' : ''}`} />
+                              <Mail className={`w-3.5 h-3.5 text-indigo-600 shrink-0 ${isSendingThisReminder ? 'animate-spin' : ''}`} />
                               <span>{isSendingThisReminder ? 'Sending...' : 'Send Reminder'}</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteInternTask(task.id)}
-                              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition-all cursor-pointer active:scale-95"
-                              title="Delete this assigned deliverable task"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" /> Delete
-                            </button>
-
                             {task.status === 'COMPLETED' ? (
-                              <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-xl text-[11px] border border-emerald-200/80 flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved
+                              <span className="bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl text-xs border border-emerald-200 flex items-center gap-1 whitespace-nowrap">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Approved
                               </span>
                             ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
                               <button
                                 type="button"
                                 onClick={() => handleApproveInternTask(task.id)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve Task
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve Task
                               </button>
                             ) : (
-                              <span className="bg-amber-50 text-amber-700 font-bold px-2.5 py-1.5 rounded-xl text-[11px] border border-amber-200/80 flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-amber-600" /> In Progress
+                              <span className="bg-amber-50 text-amber-700 font-bold px-3 py-1.5 rounded-xl text-xs border border-amber-200 flex items-center gap-1 whitespace-nowrap">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" /> In Progress
                               </span>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInternTask(task.id)}
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                              title="Delete this assigned deliverable task"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="hidden sm:inline">Delete</span>
+                            </button>
                           </div>
                         </div>
                       </div>

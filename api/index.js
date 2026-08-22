@@ -249,71 +249,110 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
 
   const htmlContent = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Project Submission Due Tomorrow - WorkSphere</title>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; margin: 0; padding: 30px 15px; color: #f8fafc; }
-        .container { max-width: 580px; margin: 0 auto; background: #131c2e; border-radius: 20px; border: 1px solid #ef4444; padding: 32px 24px; box-shadow: 0 20px 40px -15px rgba(239, 68, 68, 0.35); }
-        .logo-box { text-align: center; margin-bottom: 20px; }
-        .logo-title { font-size: 26px; font-weight: 800; color: #f87171; letter-spacing: -0.5px; }
-        .tagline { font-size: 11px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
-        .urgent-banner { background: linear-gradient(135deg, #7f1d1d, #991b1b); border: 1px solid #ef4444; border-radius: 12px; padding: 14px 16px; margin: 18px 0; text-align: center; }
-        .urgent-text { font-size: 13px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
-        .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
-        .text { font-size: 13.5px; color: #cbd5e1; line-height: 1.65; margin-bottom: 16px; }
-        .highlight-box { background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; padding: 14px 16px; border-radius: 10px; margin: 16px 0; font-size: 13px; color: #fecaca; line-height: 1.6; }
-        .task-card { background: #090e1a; border: 1px solid #f87171; border-radius: 16px; padding: 20px; margin: 18px 0; }
-        .badge { display: inline-block; background: #991b1b; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-right: 6px; }
-        .badge-due { display: inline-block; background: #f59e0b; color: #78350f; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
-        .task-title { font-size: 17px; font-weight: 800; color: #ffffff; margin: 12px 0 8px 0; }
-        .task-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #131c2e; padding: 12px; border-radius: 10px; border-left: 3px solid #ef4444; margin: 12px 0; }
-        .btn-box { text-align: center; margin: 24px 0 12px 0; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff !important; font-weight: 800; font-size: 14px; text-decoration: none; padding: 13px 30px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.5); }
-        .notice { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: #fde68a; margin-top: 16px; line-height: 1.55; }
-        .footer { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #283654; font-size: 11px; color: #64748b; }
+        body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; background-color: #f1f5f9; padding: 40px 12px; }
+        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+        .top-gradient { height: 6px; background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%); }
+        .header { padding: 32px 32px 20px 32px; text-align: center; }
+        .logo-text { font-size: 26px; font-weight: 800; color: #1e1b4b; letter-spacing: -0.5px; }
+        .logo-text span { color: #4f46e5; }
+        .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+        
+        .alert-pill-box { padding: 0 32px 16px 32px; }
+        .alert-pill { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border: 1px solid #fecdd3; border-radius: 16px; padding: 14px 18px; text-align: center; }
+        .alert-pill-title { font-size: 13px; font-weight: 800; color: #e11d48; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .alert-pill-sub { font-size: 12px; font-weight: 600; color: #9f1239; }
+
+        .content { padding: 8px 32px 28px 32px; font-size: 14px; line-height: 1.65; color: #334155; }
+        .greeting { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+        
+        .highlight-notice { background: #f8fafc; border-left: 4px solid #4f46e5; border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-size: 13.5px; color: #1e293b; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; }
+        .highlight-notice strong { color: #4338ca; }
+
+        .task-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px; margin: 20px 0; }
+        .badges-row { margin-bottom: 12px; }
+        .badge-priority { display: inline-block; background: #e0e7ff; color: #4338ca; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; margin-right: 6px; letter-spacing: 0.5px; }
+        .badge-deadline { display: inline-block; background: #fee2e2; color: #b91c1c; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; letter-spacing: 0.5px; }
+        .task-name { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 8px; line-height: 1.4; }
+        .task-desc-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #475569; line-height: 1.6; margin: 10px 0; }
+        .task-meta { font-size: 12px; color: #64748b; margin-top: 10px; font-weight: 500; }
+        .task-meta strong { color: #4f46e5; }
+
+        .checklist-box { background: #fdf4ff; border: 1px solid #f5d0fe; border-radius: 16px; padding: 16px 18px; margin: 20px 0; }
+        .checklist-title { font-size: 12px; font-weight: 800; color: #86198f; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+        .checklist-item { font-size: 12.5px; color: #701a75; font-weight: 600; margin: 4px 0; display: flex; align-items: center; }
+
+        .btn-wrapper { text-align: center; margin: 28px 0 16px 0; }
+        .cta-btn { display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; font-size: 15px; font-weight: 800; text-decoration: none; padding: 15px 36px; border-radius: 14px; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.45); letter-spacing: 0.2px; }
+
+        .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 32px; text-align: center; font-size: 11.5px; color: #64748b; line-height: 1.6; }
+        .footer strong { color: #334155; }
       </style>
     </head>
     <body>
-      <div class="container">
-        <div class="logo-box">
-          <div class="logo-title">WorkSphere</div>
-          <div class="tagline">PROJECT SUBMISSION REMINDER</div>
-        </div>
+      <div class="wrapper">
+        <div class="card">
+          <div class="top-gradient"></div>
+          
+          <div class="header">
+            <div class="logo-text">Work<span>Sphere</span></div>
+            <div class="sub-tag">Academic & Industry Internship Portal</div>
+          </div>
 
-        <div class="urgent-banner">
-          <span class="urgent-text">⚠️ ACTION REQUIRED: SUBMIT TASK-RELATED FILES & FOLDERS WITHOUT FAIL</span>
-        </div>
+          <div class="alert-pill-box">
+            <div class="alert-pill">
+              <span class="alert-pill-title">⚠️ Project Submission Due Tomorrow</span>
+              <span class="alert-pill-sub">Submit all task-related files & folders without fail</span>
+            </div>
+          </div>
 
-        <div class="greeting">Hello ${internName || username || 'Intern'},</div>
-        
-        <div class="text">
-          This email notification is sent to you 1 day before your project submission deadline. The official submission date for your assigned deliverable is <strong>tomorrow (${deadline})</strong>.
-        </div>
+          <div class="content">
+            <div class="greeting">Hello ${internName || username || 'Intern'},</div>
+            
+            <p style="margin: 0 0 12px 0;">
+              This is an official notice sent <strong>1 day before</strong> your project submission deadline. The assigned project deliverable deadline is <strong>tomorrow (${deadline})</strong>.
+            </p>
 
-        <div class="highlight-box">
-          <strong>Without fail</strong>, please submit all your task-related files, project folders, code repositories (GitHub/GitLab), and documentation before the deadline tomorrow (<strong>${deadline}</strong>). Timely submission is required to evaluate your work and grant internship completion credits.
-        </div>
+            <div class="highlight-notice">
+              <strong>📌 Submission Requirement:</strong> Without fail, please ensure all task-related source code files, project folders, GitHub/GitLab repositories, and documentation are uploaded and submitted before tomorrow's deadline.
+            </div>
 
-        <div class="task-card">
-          <span class="badge">${priority || 'HIGH'} PRIORITY</span>
-          <span class="badge-due">SUBMISSION DEADLINE: TOMORROW (${deadline || 'Tomorrow'})</span>
-          <div class="task-title">📌 ${taskTitle}</div>
-          <div class="task-desc">${description || 'Complete the deliverables and submit all related files, folders, code repositories, or preview links through your intern dashboard.'}</div>
-          <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">Assigned Intern: <strong style="color: #fca5a5;">@${username || 'intern'}</strong></div>
-        </div>
+            <!-- Task Deliverables Card -->
+            <div class="task-box">
+              <div class="badges-row">
+                <span class="badge-priority">${priority || 'HIGH'} Priority</span>
+                <span class="badge-deadline">Due: Tomorrow (${deadline})</span>
+              </div>
+              <div class="task-name">📌 ${taskTitle}</div>
+              <div class="task-desc-box">${description || 'Complete the assigned project deliverables and submit the repository or files through your intern portal.'}</div>
+              <div class="task-meta">Assigned Intern: <strong>@${username || 'intern'}</strong></div>
+            </div>
 
-        <div class="btn-box">
-          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Task Files & Folders Now ↗</a>
-        </div>
+            <!-- Checklist of items to submit -->
+            <div class="checklist-box">
+              <span class="checklist-title">📋 Checklist — Please Submit Without Fail:</span>
+              <div class="checklist-item">📁 All project source code files and compressed folders</div>
+              <div class="checklist-item">🔗 GitHub / GitLab repository URL & live demo link</div>
+              <div class="checklist-item">📄 Project documentation or brief summary report</div>
+            </div>
 
-        <div class="notice">
-          <strong>📁 Submission Instructions:</strong> Please upload and submit all project files, zip folders, GitHub/GitLab repositories, or live demo URLs directly through the <em>Assigned Deliverables</em> portal in your intern dashboard before the deadline tomorrow without fail.
-        </div>
+            <!-- Call to Action Button -->
+            <div class="btn-wrapper">
+              <a href="https://worksphere-two.vercel.app/intern/dashboard" class="cta-btn">Submit Task Files & Folders Now ↗</a>
+            </div>
+          </div>
 
-        <div class="footer">
-          &copy; 2026 WorkSphere Platform. All rights reserved.<br/>
-          Official 1-day submission deadline reminder dispatched from worksphere.ac.in@gmail.com
+          <div class="footer">
+            <strong>WorkSphere Platform</strong> • Automated Deliverables Notification System<br/>
+            Dispatched officially from <strong>worksphere.ac.in@gmail.com</strong> for @${username || 'intern'}.<br/>
+            &copy; 2026 WorkSphere. All rights reserved.
+          </div>
         </div>
       </div>
     </body>
