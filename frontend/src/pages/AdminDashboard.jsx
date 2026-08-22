@@ -49,12 +49,14 @@ export default function AdminDashboard() {
   const [newTaskPriority, setNewTaskPriority] = useState('HIGH');
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Deliverables Tab Filtering & 24h Deadline Reminder States
+  // Deliverables Tab Filtering & Review States
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskInternFilter, setTaskInternFilter] = useState('ALL');
   const [taskStatusFilter, setTaskStatusFilter] = useState('ALL');
   const [isSendingReminderId, setIsSendingReminderId] = useState(null);
   const [isScanningDeadlines, setIsScanningDeadlines] = useState(false);
+  const [selectedReviewTask, setSelectedReviewTask] = useState(null);
+  const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -900,11 +902,49 @@ export default function AdminDashboard() {
       return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'rose', isTomorrow: false, isOverdue: true, isToday: false };
     } else if (diffDays === 0 || deadline === todayStr) {
       return { label: 'Due Today', color: 'amber', isTomorrow: false, isOverdue: false, isToday: true };
-    } else if (diffDays === 1) {
-      return { label: 'Due Tomorrow (Submit Without Fail)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
     } else {
       return { label: `Due in ${diffDays} days`, color: 'indigo', isTomorrow: false, isOverdue: false, isToday: false };
     }
+  };
+
+  const parseSubmissionArtifacts = (submissionUrl = '', submissionNotes = '') => {
+    const fileNames = [];
+    const links = [];
+    const raw = (submissionUrl || '').trim();
+
+    if (raw.includes('Report File:') || raw.includes('File:')) {
+      const parts = raw.split(/\||;/);
+      parts.forEach(part => {
+        const p = part.trim();
+        if (p.toLowerCase().startsWith('report file:') || p.toLowerCase().startsWith('file:')) {
+          const fname = p.replace(/^report file:\s*/i, '').replace(/^file:\s*/i, '').trim();
+          if (fname) fileNames.push(fname);
+        } else if (p.startsWith('http://') || p.startsWith('https://')) {
+          links.push(p);
+        } else if (p) {
+          if (/\.(pdf|zip|rar|docx?|xlsx?|pptx?|tar\.gz|png|jpg|txt)$/i.test(p)) {
+            fileNames.push(p);
+          } else if (p.includes('.') && !p.includes(' ')) {
+            links.push(p.startsWith('http') ? p : `https://${p}`);
+          }
+        }
+      });
+    } else if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      links.push(raw);
+    } else if (raw) {
+      if (/\.(pdf|zip|rar|docx?|xlsx?|pptx?|tar\.gz|png|jpg|txt)$/i.test(raw)) {
+        fileNames.push(raw);
+      } else {
+        links.push(raw.startsWith('http') ? raw : `https://${raw}`);
+      }
+    }
+
+    return {
+      fileNames,
+      links,
+      notes: (submissionNotes || '').trim(),
+      hasArtifacts: fileNames.length > 0 || links.length > 0 || Boolean((submissionNotes || '').trim())
+    };
   };
 
   const fetchAttendanceData = async () => {
@@ -1950,25 +1990,85 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Submitted Deliverables Details (if submitted) */}
-                        {task.submissionUrl && (
-                          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-800 text-[11px]">Submitted Deliverable:</span>
-                              <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-bold flex items-center gap-1 text-[11px]">
-                                Open Link <ExternalLink className="w-3 h-3" />
-                              </a>
+                        {/* Submitted Deliverables & Files Inspector */}
+                        {(() => {
+                          const artifacts = parseSubmissionArtifacts(task.submissionUrl, task.submissionNotes);
+                          const isSubmitted = task.status === 'SUBMITTED' || task.status === 'UNDER_REVIEW' || task.status === 'PENDING_APPROVAL';
+
+                          if (!artifacts.hasArtifacts && !isSubmitted) return null;
+
+                          return (
+                            <div className="bg-gradient-to-b from-slate-50 to-indigo-50/40 p-4 rounded-2xl border border-indigo-100 shadow-2xs space-y-2.5">
+                              <div className="flex items-center justify-between gap-2 border-b border-indigo-100/70 pb-2">
+                                <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Submitted Deliverables & Files
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedReviewTask(task)}
+                                  className="text-indigo-700 hover:text-indigo-900 font-extrabold flex items-center gap-1 text-[11px] hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs transition-all active:scale-95"
+                                >
+                                  <Eye className="w-3 h-3 text-indigo-600" /> Review Details ↗
+                                </button>
+                              </div>
+
+                              {/* Uploaded File Attachments */}
+                              {artifacts.fileNames.map((file, fIdx) => (
+                                <div key={fIdx} className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shrink-0 font-black text-[10px]">
+                                      📄
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-bold text-slate-800 text-xs block truncate" title={file}>
+                                        {file}
+                                      </span>
+                                      <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                                        <CheckCircle2 className="w-2.5 h-2.5" /> Attached by Intern
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedReviewTask(task)}
+                                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-[10px] shrink-0 transition-colors cursor-pointer flex items-center gap-1"
+                                  >
+                                    <Eye className="w-3 h-3" /> Inspect
+                                  </button>
+                                </div>
+                              ))}
+
+                              {/* External Repository / Live URLs */}
+                              {artifacts.links.map((link, lIdx) => (
+                                <div key={lIdx} className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <ExternalLink className="w-4 h-4 text-indigo-600 shrink-0" />
+                                    <span className="font-mono text-xs text-indigo-700 font-bold truncate">
+                                      {link}
+                                    </span>
+                                  </div>
+                                  <a
+                                    href={link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shrink-0 transition-colors flex items-center gap-1"
+                                  >
+                                    Open ↗
+                                  </a>
+                                </div>
+                              ))}
+
+                              {/* Submission Notes Preview */}
+                              {artifacts.notes && (
+                                <div className="bg-white/80 p-2 rounded-xl border border-slate-200/70 text-[11px] text-slate-600 leading-relaxed italic">
+                                  <span className="font-bold text-slate-700 not-italic block mb-0.5">Intern Notes:</span>
+                                  "{artifacts.notes}"
+                                </div>
+                              )}
                             </div>
-                            <div className="text-slate-600 text-[11px] truncate font-mono bg-white p-1.5 rounded border border-slate-200/80">
-                              {task.submissionUrl}
-                            </div>
-                            {task.submissionNotes && (
-                              <p className="text-[11px] text-slate-500 font-normal italic pt-1 border-t border-slate-200/60 mt-1">
-                                "{task.submissionNotes}"
-                              </p>
-                            )}
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Card Action Footer */}
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
@@ -1984,16 +2084,20 @@ export default function AdminDashboard() {
                           </button>
 
                           {task.status === 'COMPLETED' ? (
-                            <span className="bg-emerald-50 text-emerald-700 font-bold px-3 py-2 rounded-xl text-xs border border-emerald-200 flex items-center gap-1 whitespace-nowrap">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Approved
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedReviewTask(task)}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold px-3 py-2 rounded-xl text-xs border border-emerald-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-colors"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Verified & Done
+                            </button>
                           ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
                             <button
                               type="button"
-                              onClick={() => handleApproveInternTask(task.id)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                              onClick={() => setSelectedReviewTask(task)}
+                              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 whitespace-nowrap animate-pulse"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve Task
+                              <Sparkles className="w-3.5 h-3.5 shrink-0" /> Review Task ↗
                             </button>
                           ) : (
                             <span className="bg-amber-50 text-amber-700 font-bold px-3 py-2 rounded-xl text-xs border border-amber-200 flex items-center gap-1 whitespace-nowrap">
@@ -3546,6 +3650,205 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: REVIEW & INSPECT INTERN DELIVERABLE */}
+      {selectedReviewTask && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden space-y-0 max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50/90 via-white to-indigo-50/50 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-mono font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg">
+                    {selectedReviewTask.id || selectedReviewTask.taskId || 'TSK-001'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg">
+                    Assigned: <strong>@{selectedReviewTask.assignedTo || 'intern'}</strong>
+                  </span>
+                  <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${
+                    selectedReviewTask.status === 'COMPLETED' 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                      : selectedReviewTask.status === 'SUBMITTED'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
+                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  }`}>
+                    {selectedReviewTask.status}
+                  </span>
+                </div>
+                <h3 className="text-xl font-poppins font-black text-slate-900 pt-1">
+                  {selectedReviewTask.title}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedReviewTask(null)}
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
+              {/* Task Requirements Overview */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                  Original Task Requirements & Objective
+                </span>
+                <p className="text-slate-800 font-medium leading-relaxed">
+                  {selectedReviewTask.description || 'No task description provided.'}
+                </p>
+                <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" /> Deadline: <strong>{selectedReviewTask.deadline || '2026-08-31'}</strong>
+                  </span>
+                  <span className="font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                    Priority: {selectedReviewTask.priority || 'HIGH'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Submitted Deliverables & Attached Files */}
+              {(() => {
+                const artifacts = parseSubmissionArtifacts(selectedReviewTask.submissionUrl, selectedReviewTask.submissionNotes);
+
+                return (
+                  <div className="space-y-4">
+                    <h4 className="font-poppins font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-600" /> Submitted Project Files & Repository Links
+                    </h4>
+
+                    {/* Files List */}
+                    {artifacts.fileNames.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-slate-600">Attached Deliverable Files:</span>
+                        {artifacts.fileNames.map((file, idx) => (
+                          <div key={idx} className="bg-gradient-to-r from-slate-50 to-indigo-50/40 p-4 rounded-2xl border border-indigo-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 font-black text-xs shadow-sm">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <span className="font-extrabold text-slate-900 text-sm block">
+                                  {file}
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-semibold">
+                                  Verified Document Attachment • Uploaded by @{selectedReviewTask.assignedTo}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Open preview in new tab
+                                  const textContent = `WORKSPEHERE OFFICIAL DELIVERABLE PREVIEW\n\nTask ID: ${selectedReviewTask.id || selectedReviewTask.taskId || 'TSK'}\nTitle: ${selectedReviewTask.title}\nAssigned Intern: @${selectedReviewTask.assignedTo}\nSubmission Date: ${new Date().toLocaleDateString()}\nStatus: ${selectedReviewTask.status}\nFile Attached: ${file}\n\nSubmission Notes:\n${selectedReviewTask.submissionNotes || 'No notes provided.'}\n\n========================================\nVerified by WorkSphere Platform Admin.`;
+                                  const blob = new Blob([textContent], { type: 'text/plain' });
+                                  const url = URL.createObjectURL(blob);
+                                  window.open(url, '_blank');
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View Deliverable
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Repository Links */}
+                    {artifacts.links.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-slate-600">Live URLs & Git Repositories:</span>
+                        {artifacts.links.map((link, idx) => (
+                          <div key={idx} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <ExternalLink className="w-4 h-4 text-indigo-600 shrink-0" />
+                              <span className="font-mono text-xs text-indigo-700 font-bold truncate">
+                                {link}
+                              </span>
+                            </div>
+
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-colors"
+                            >
+                              Open Link ↗
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No files or links placeholder */}
+                    {!artifacts.hasArtifacts && (
+                      <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 font-semibold">
+                        No files or URLs uploaded yet.
+                      </div>
+                    )}
+
+                    {/* Submission Notes */}
+                    {artifacts.notes && (
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-[11px] font-bold text-slate-700">Intern's Submission Notes & Documentation:</span>
+                        <div className="bg-amber-50/60 p-4 rounded-2xl border border-amber-200 text-slate-800 leading-relaxed font-medium">
+                          "{artifacts.notes}"
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Action Footer */}
+            <div className="p-5 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-bold text-slate-700">
+                  Supervisor Assessment & Completion Status
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReviewTask(null)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+
+                {selectedReviewTask.status !== 'COMPLETED' ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsUpdatingReviewStatus(true);
+                      await handleApproveInternTask(selectedReviewTask.id || selectedReviewTask.taskId);
+                      setIsUpdatingReviewStatus(false);
+                      setSelectedReviewTask(null);
+                    }}
+                    disabled={isUpdatingReviewStatus}
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isUpdatingReviewStatus ? 'Approving...' : 'Approve & Mark Completed'}</span>
+                  </button>
+                ) : (
+                  <span className="bg-emerald-50 text-emerald-700 font-bold px-4 py-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Deliverable Approved
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

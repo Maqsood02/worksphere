@@ -1594,12 +1594,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload || {})
     }),
-  updateAdminInternTaskStatus: async (taskId, status) => {
+  updateAdminInternTaskStatus: async (taskId, status, notes = '') => {
+    try {
+      await fetch('/api/intern-tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, status, feedbackNotes: notes })
+      });
+    } catch(e) {}
+
     try {
       const globalSaved = localStorage.getItem('worksphere_global_tasks');
       if (globalSaved) {
         let globalList = JSON.parse(globalSaved);
-        globalList = globalList.map(t => t.id === taskId || t.title === taskId ? { ...t, status } : t);
+        globalList = globalList.map(t => (t.id === taskId || t.taskId === taskId || t.title === taskId) ? { ...t, status } : t);
         localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
       }
     } catch(e) {}
