@@ -407,6 +407,7 @@ export default function AdminDashboard() {
           const sData = await sRes.json();
           if (sData && Array.isArray(sData.tasks)) {
             rawTasks = sData.tasks.map(t => ({
+              ...t,
               id: t.taskId || t.id || t._id,
               taskId: t.taskId || t.id || t._id,
               assignedTo: (t.assignedTo || '').replace(/^@+/, ''),
@@ -416,7 +417,11 @@ export default function AdminDashboard() {
               priority: t.priority,
               status: t.status,
               submissionUrl: t.submissionUrl || '',
-              submissionNotes: t.submissionNotes || ''
+              submissionNotes: t.submissionNotes || '',
+              fileName: t.fileName || '',
+              fileSize: t.fileSize || '',
+              fileType: t.fileType || '',
+              fileData: t.fileData || ''
             }));
           }
         }
