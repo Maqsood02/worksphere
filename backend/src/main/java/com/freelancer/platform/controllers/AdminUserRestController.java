@@ -46,10 +46,6 @@ public class AdminUserRestController {
         if (!existingUsernames.contains("chinmaykv")) {
             users.add(User.builder().username("Chinmaykv").name("Chinmay K V").email("chinmaykv555@gmail.com").phone("7760674555").role("ROLE_INTERN").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
         }
-        boolean hasClient = existingUsernames.contains("client");
-        if (!hasClient) {
-            users.add(User.builder().username("client").name("Maqsood MD").email("maqsoodmdhrl@gmail.com").phone("8792404950").role("ROLE_CLIENT").rawPassword("123456").emailVerified(true).phoneVerified(true).build());
-        }
 
         // Deduplicate users strictly by lowercase username AND email
         Map<String, User> uniqueUserMap = new LinkedHashMap<>();

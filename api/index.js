@@ -1591,6 +1591,37 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, appointments: apps });
     }
 
+    // ==========================================
+    // 15. USERS (/api/admin/users)
+    // ==========================================
+    if (cleanPath.includes('admin/users') || cleanPath.includes('users')) {
+      const col = db.collection('users');
+      if (req.method === 'POST') {
+        const newUser = { ...body, createdAt: new Date() };
+        await col.insertOne(newUser);
+        return res.status(200).json({ success: true, user: newUser });
+      }
+      if (req.method === 'DELETE') {
+        const targetU = query.username || body.username;
+        if (targetU) {
+          await col.deleteOne({ username: new RegExp(`^${targetU}$`, 'i') });
+        }
+        return res.status(200).json({ success: true, message: 'User deleted' });
+      }
+      const rawUsers = await col.find({}).toArray();
+      const mapped = rawUsers.map(u => ({
+        id: u._id || u.username,
+        username: u.username,
+        name: u.name || u.username,
+        email: u.email || `${u.username}@worksphere.ac.in`,
+        phone: u.phone || '+91 8792404950',
+        role: u.role || 'ROLE_INTERN',
+        emailVerified: true,
+        phoneVerified: true
+      }));
+      return res.status(200).json({ success: true, users: mapped });
+    }
+
     // Default Fallback
     return res.status(200).json({ success: true, message: 'WorkSphere API Ready' });
   } catch (err) {
