@@ -1327,24 +1327,28 @@ function getAttendanceTimelineAndRate(logs) {
                       <p className="text-xs text-slate-600 leading-relaxed">{task.description}</p>
                     </div>
 
-                    {/* 24h Deadline Urgent Alert Banner */}
+                    {/* 1-Day Before Deadline Urgent Alert Banner */}
                     {isTomorrow && !isCompleted && (
-                      <div className="bg-rose-50 border border-rose-200/90 rounded-2xl p-3 text-xs font-semibold text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+                      <div className="bg-rose-50 border border-rose-200/90 rounded-2xl p-3.5 text-xs font-semibold text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 bg-rose-500 text-white rounded-lg shrink-0 animate-pulse">
-                            <Bell className="w-3.5 h-3.5" />
+                          <div className="p-2 bg-rose-500 text-white rounded-xl shrink-0 animate-pulse">
+                            <Bell className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="font-extrabold text-rose-950 block text-[11px]">⏰ Submission Due Tomorrow ({task.deadline})</span>
-                            <span className="text-[10px] text-rose-800 font-medium">An automated 24-hour reminder email was sent to your registered inbox.</span>
+                            <span className="font-extrabold text-rose-950 block text-xs">
+                              ⚠️ Project Submission Due Tomorrow ({task.deadline}) — Submit Without Fail
+                            </span>
+                            <span className="text-[11px] text-rose-800 font-medium">
+                              An official reminder was sent to your email. Please submit all task-related files, folders, and repositories before the deadline tomorrow.
+                            </span>
                           </div>
                         </div>
                         {isAssignedToMe && (
                           <button
                             onClick={() => setSelectedTask(task)}
-                            className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[11px] transition-all shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs transition-all shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
                           >
-                            Submit Deliverable Now ↗
+                            Submit Task Files ↗
                           </button>
                         )}
                       </div>

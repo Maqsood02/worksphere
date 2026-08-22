@@ -911,7 +911,7 @@ public class EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(senderEmail, "WorkSphere Submission Reminders");
             helper.setTo(toEmail);
-            helper.setSubject("⏰ [URGENT 24h REMINDER] Tomorrow is the deadline for: " + taskTitle);
+            helper.setSubject("[IMPORTANT] Submit Task Files & Folders Without Fail - Project Deadline Tomorrow: " + taskTitle);
 
             String htmlContent = """
                 <!DOCTYPE html>
@@ -919,15 +919,16 @@ public class EmailService {
                 <head>
                     <meta charset="UTF-8">
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; margin: 0; padding: 40px 15px; color: #f8fafc; }
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; margin: 0; padding: 40px 15px; color: #f8fafc; }
                         .container { max-width: 580px; margin: 0 auto; background: #131c2e; border-radius: 24px; border: 1px solid #ef4444; padding: 36px 28px; box-shadow: 0 20px 40px -15px rgba(239, 68, 68, 0.35); }
                         .logo-box { text-align: center; margin-bottom: 24px; }
                         .logo-title { font-size: 28px; font-weight: 800; color: #f87171; letter-spacing: -0.5px; }
-                        .tagline { font-size: 10px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+                        .tagline { font-size: 11px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
                         .urgent-banner { background: linear-gradient(135deg, #7f1d1d, #991b1b); border: 1px solid #ef4444; border-radius: 12px; padding: 14px 16px; margin: 20px 0; text-align: center; }
                         .urgent-text { font-size: 13px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
                         .greeting { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
-                        .text { font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; }
+                        .text { font-size: 14px; color: #cbd5e1; line-height: 1.65; margin-bottom: 16px; }
+                        .highlight-box { background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; padding: 14px 16px; border-radius: 10px; margin: 16px 0; font-size: 13.5px; color: #fecaca; line-height: 1.6; }
                         .task-card { background: #090e1a; border: 1px solid #f87171; border-radius: 18px; padding: 22px; margin: 20px 0; }
                         .badge { display: inline-block; background: #991b1b; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-right: 6px; }
                         .badge-due { display: inline-block; background: #f59e0b; color: #78350f; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
@@ -935,6 +936,7 @@ public class EmailService {
                         .task-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #131c2e; padding: 14px; border-radius: 10px; border-left: 3px solid #ef4444; margin: 14px 0; }
                         .btn-box { text-align: center; margin: 28px 0 16px 0; }
                         .btn { display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff !important; font-weight: 800; font-size: 14px; text-decoration: none; padding: 14px 32px; border-radius: 14px; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.5); }
+                        .notice { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; padding: 12px 14px; border-radius: 8px; font-size: 12px; color: #fde68a; margin-top: 16px; line-height: 1.55; }
                         .footer { text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #283654; font-size: 11px; color: #64748b; }
                     </style>
                 </head>
@@ -942,31 +944,42 @@ public class EmailService {
                     <div class="container">
                         <div class="logo-box">
                             <div class="logo-title">WorkSphere</div>
-                            <div class="tagline">⏰ 24-HOUR SUBMISSION DEADLINE REMINDER</div>
+                            <div class="tagline">PROJECT SUBMISSION REMINDER</div>
                         </div>
 
                         <div class="urgent-banner">
-                            <span class="urgent-text">⚠️ ACTION REQUIRED: Deliverable Submission Due Tomorrow!</span>
+                            <span class="urgent-text">⚠️ ACTION REQUIRED: SUBMIT TASK-RELATED FILES & FOLDERS WITHOUT FAIL</span>
                         </div>
 
                         <div class="greeting">Hello %s,</div>
-                        <div class="text">This is an automated 24-hour reminder that your assigned project deliverable deadline is <strong>tomorrow (%s)</strong>. Please ensure your work is submitted before the deadline to receive evaluation credit and maintain your internship timeline.</div>
+
+                        <div class="text">
+                            This email notification is sent to you 1 day before your project submission deadline. The official submission date for your assigned deliverable is <strong>tomorrow (%s)</strong>.
+                        </div>
+
+                        <div class="highlight-box">
+                            <strong>Without fail</strong>, please submit all your task-related files, project folders, code repositories (GitHub/GitLab), and documentation before the deadline tomorrow (<strong>%s</strong>). Timely submission is required to evaluate your work and grant internship completion credits.
+                        </div>
 
                         <div class="task-card">
                             <span class="badge">%s PRIORITY</span>
-                            <span class="badge-due">DUE DATE: %s</span>
+                            <span class="badge-due">SUBMISSION DEADLINE: TOMORROW (%s)</span>
                             <div class="task-title">📌 %s</div>
                             <div class="task-desc">%s</div>
-                            <div style="font-size: 12px; color: #94a3b8; margin-top: 12px;">Assigned Target: <strong style="color: #fca5a5;">@%s</strong></div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 12px;">Assigned Intern: <strong style="color: #fca5a5;">@%s</strong></div>
                         </div>
 
                         <div class="btn-box">
-                            <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Deliverable Now ↗</a>
+                            <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Task Files & Folders Now ↗</a>
+                        </div>
+
+                        <div class="notice">
+                            <strong>📁 Submission Instructions:</strong> Please upload and submit all project files, zip folders, GitHub/GitLab repositories, or live demo URLs directly through the <em>Assigned Deliverables</em> portal in your intern dashboard before the deadline tomorrow without fail.
                         </div>
 
                         <div class="footer">
                             &copy; 2026 WorkSphere Platform. All rights reserved. <br/>
-                            Automated 24h deadline notification sent from worksphere.ac.in@gmail.com
+                            Official 1-day submission deadline reminder dispatched from worksphere.ac.in@gmail.com
                         </div>
                     </div>
                 </body>
@@ -974,19 +987,20 @@ public class EmailService {
                 """.formatted(
                     internName != null ? internName : username,
                     deadline != null ? deadline : "Tomorrow",
+                    deadline != null ? deadline : "Tomorrow",
                     priority != null ? priority : "HIGH",
                     deadline != null ? deadline : "Tomorrow",
                     taskTitle,
-                    description != null && !description.isBlank() ? description : "Complete the deliverables and submit the project link through your intern dashboard.",
+                    description != null && !description.isBlank() ? description : "Complete the deliverables and submit all related files, folders, code repositories, or preview links through your intern dashboard.",
                     username
                 );
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-            System.out.println("[EMAIL SUCCESS] 24h deadline reminder delivered to: " + toEmail);
+            System.out.println("[EMAIL SUCCESS] Deadline reminder delivered to: " + toEmail);
             return true;
         } catch (Exception e) {
-            System.err.println("[EMAIL ERROR] Failed to send 24h deadline reminder to " + toEmail + ": " + e.getMessage());
+            System.err.println("[EMAIL ERROR] Failed to send deadline reminder to " + toEmail + ": " + e.getMessage());
             return false;
         }
     }

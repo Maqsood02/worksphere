@@ -823,10 +823,10 @@ export default function AdminDashboard() {
     setIsSendingReminderId(taskId);
     try {
       const internUsername = (task.assignedTo || 'intern').replace(/^@+/, '').trim();
-      addToast(`Dispatching 24h deadline reminder email to @${internUsername}...`);
+      addToast(`Dispatching deadline reminder email to @${internUsername}...`);
       const res = await api.sendTaskDeadlineReminder(taskId, task);
       if (res && res.success) {
-        addToast(`🎉 ${res.message || `24h Deadline reminder email delivered to @${internUsername}!`}`);
+        addToast(`🎉 ${res.message || `Deadline reminder email delivered to @${internUsername}!`}`);
       } else {
         addToast(res?.message || `Deadline reminder dispatched for "${task.title}"!`);
       }
@@ -842,12 +842,12 @@ export default function AdminDashboard() {
   const handleScanDeadlineReminders = async () => {
     setIsScanningDeadlines(true);
     try {
-      addToast("Scanning deliverables for 24-hour upcoming deadlines...");
+      addToast("Scanning deliverables for upcoming deadlines tomorrow...");
       const res = await api.checkAndSendDeadlineReminders();
       if (res && res.message) {
         addToast(`⏰ ${res.message}`);
       } else {
-        addToast("24-hour deadline scan complete. Automated emails sent to eligible interns.");
+        addToast("1-Day deadline scan complete. Reminder emails sent to eligible interns.");
       }
       fetchInternsData();
     } catch (err) {
@@ -867,7 +867,7 @@ export default function AdminDashboard() {
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     
     if (deadline === tomorrowStr) {
-      return { label: 'Due Tomorrow (24h Alert)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
+      return { label: 'Due Tomorrow (Submit Without Fail)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
     }
     const d = new Date(deadline);
     const diffTime = d.getTime() - now.getTime();
@@ -878,7 +878,7 @@ export default function AdminDashboard() {
     } else if (diffDays === 0 || deadline === todayStr) {
       return { label: 'Due Today', color: 'amber', isTomorrow: false, isOverdue: false, isToday: true };
     } else if (diffDays === 1) {
-      return { label: 'Due Tomorrow (24h Alert)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
+      return { label: 'Due Tomorrow (Submit Without Fail)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
     } else {
       return { label: `Due in ${diffDays} days`, color: 'indigo', isTomorrow: false, isOverdue: false, isToday: false };
     }
@@ -1666,7 +1666,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                      Automated 24h Email Alert Engine Active
+                      Automated 1-Day Submission Reminder Engine Active
                     </span>
                     <span className="text-xs text-slate-500 font-semibold">• {allInternTasks.length} Total Deliverables</span>
                   </div>
@@ -1674,7 +1674,7 @@ export default function AdminDashboard() {
                     <ClipboardList className="w-6 h-6 text-indigo-600" /> Assigned Deliverables & Task Reviews
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-1">
-                    Assign sprint backlog deliverables, review submitted GitHub repositories, trigger 24h automated deadline reminders, and approve completed work.
+                    Assign sprint backlog deliverables, review submitted GitHub repositories & project folders, trigger 1-day submission deadline reminders, and approve completed work.
                   </p>
                 </div>
 
@@ -1683,10 +1683,10 @@ export default function AdminDashboard() {
                     onClick={handleScanDeadlineReminders}
                     disabled={isScanningDeadlines}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                    title="Scan all active deliverables and auto-dispatch 24h deadline reminder emails to interns"
+                    title="Scan all active deliverables and auto-dispatch 1-day deadline reminder emails to interns"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isScanningDeadlines ? 'animate-spin' : ''}`} />
-                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send 24h Reminders'}</span>
+                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send 1-Day Reminders'}</span>
                   </button>
 
                   <button
@@ -1709,10 +1709,10 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <span className="font-extrabold text-amber-900 block text-xs">
-                      Automated 1-Day (24h) Submission Deadline Reminder System
+                      1-Day Project Submission Deadline Reminder Engine
                     </span>
                     <span className="text-amber-800/90 text-[11px]">
-                      The platform automatically sends official reminder emails to assigned intern inboxes 1 day prior to their project deadline from <strong>worksphere.ac.in@gmail.com</strong>.
+                      The platform automatically emails interns 1 day before their deadline reminding them to submit all task-related files, folders, and repositories without fail from <strong>worksphere.ac.in@gmail.com</strong>.
                     </span>
                   </div>
                 </div>
@@ -1810,7 +1810,7 @@ export default function AdminDashboard() {
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="SUBMITTED">Submitted (Needs Review)</option>
                       <option value="COMPLETED">Approved & Completed</option>
-                      <option value="DUE_TOMORROW">⚠️ Due Tomorrow (24h Alert)</option>
+                      <option value="DUE_TOMORROW">⚠️ Due Tomorrow (Submit Without Fail)</option>
                     </select>
                   </div>
                 </div>
@@ -1883,7 +1883,7 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-1.5">
                               {isDueTomorrow && (
                                 <span className="bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded uppercase font-extrabold animate-pulse flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 text-rose-600" /> Due Tomorrow (24h)
+                                  <AlertCircle className="w-3 h-3 text-rose-600" /> Due Tomorrow (Submit Without Fail)
                                 </span>
                               )}
                               <span className={`px-2 py-0.5 rounded uppercase ${
@@ -1918,7 +1918,7 @@ export default function AdminDashboard() {
                             </span>
                             {isDueTomorrow ? (
                               <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-extrabold">
-                                24h Alert
+                                1-Day Notice
                               </span>
                             ) : null}
                           </div>
@@ -1929,10 +1929,10 @@ export default function AdminDashboard() {
                               onClick={() => handleSendTaskReminder(task)}
                               disabled={isSendingThisReminder}
                               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-sm disabled:opacity-50 active:scale-95"
-                              title="Send urgent 24-hour deadline reminder email to assigned intern"
+                              title="Send 1-day submission deadline reminder email to assigned intern"
                             >
                               <Mail className={`w-3.5 h-3.5 text-indigo-600 ${isSendingThisReminder ? 'animate-spin' : ''}`} />
-                              <span>{isSendingThisReminder ? 'Sending...' : 'Send 24h Reminder'}</span>
+                              <span>{isSendingThisReminder ? 'Sending...' : 'Send Reminder'}</span>
                             </button>
 
                             <button

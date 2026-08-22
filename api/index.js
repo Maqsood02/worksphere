@@ -243,7 +243,7 @@ async function sendCredentialsNotification({ toEmail, name, username, password, 
   }
 }
 
-// Helper: Send 24-Hour / 1-Day-Before Deadline Reminder Email
+// Helper: Send 1-Day-Before Project Submission Deadline Reminder Email
 async function sendDeadlineReminderNotification({ toEmail, internName, username, taskTitle, description, deadline, priority, daysLeft = 1 }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
@@ -257,11 +257,12 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
         .container { max-width: 580px; margin: 0 auto; background: #131c2e; border-radius: 20px; border: 1px solid #ef4444; padding: 32px 24px; box-shadow: 0 20px 40px -15px rgba(239, 68, 68, 0.35); }
         .logo-box { text-align: center; margin-bottom: 20px; }
         .logo-title { font-size: 26px; font-weight: 800; color: #f87171; letter-spacing: -0.5px; }
-        .tagline { font-size: 10px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+        .tagline { font-size: 11px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
         .urgent-banner { background: linear-gradient(135deg, #7f1d1d, #991b1b); border: 1px solid #ef4444; border-radius: 12px; padding: 14px 16px; margin: 18px 0; text-align: center; }
         .urgent-text { font-size: 13px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
-        .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 10px; }
-        .text { font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-bottom: 16px; }
+        .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+        .text { font-size: 13.5px; color: #cbd5e1; line-height: 1.65; margin-bottom: 16px; }
+        .highlight-box { background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; padding: 14px 16px; border-radius: 10px; margin: 16px 0; font-size: 13px; color: #fecaca; line-height: 1.6; }
         .task-card { background: #090e1a; border: 1px solid #f87171; border-radius: 16px; padding: 20px; margin: 18px 0; }
         .badge { display: inline-block; background: #991b1b; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-right: 6px; }
         .badge-due { display: inline-block; background: #f59e0b; color: #78350f; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
@@ -269,7 +270,7 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
         .task-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #131c2e; padding: 12px; border-radius: 10px; border-left: 3px solid #ef4444; margin: 12px 0; }
         .btn-box { text-align: center; margin: 24px 0 12px 0; }
         .btn { display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff !important; font-weight: 800; font-size: 14px; text-decoration: none; padding: 13px 30px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.5); }
-        .notice { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; padding: 12px 14px; border-radius: 8px; font-size: 11px; color: #fde68a; margin-top: 16px; line-height: 1.5; }
+        .notice { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: #fde68a; margin-top: 16px; line-height: 1.55; }
         .footer { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #283654; font-size: 11px; color: #64748b; }
       </style>
     </head>
@@ -277,35 +278,42 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
       <div class="container">
         <div class="logo-box">
           <div class="logo-title">WorkSphere</div>
-          <div class="tagline">⏰ 24-HOUR SUBMISSION DEADLINE REMINDER</div>
+          <div class="tagline">PROJECT SUBMISSION REMINDER</div>
         </div>
 
         <div class="urgent-banner">
-          <span class="urgent-text">⚠️ ACTION REQUIRED: Deliverable Submission Due Tomorrow!</span>
+          <span class="urgent-text">⚠️ ACTION REQUIRED: SUBMIT TASK-RELATED FILES & FOLDERS WITHOUT FAIL</span>
         </div>
 
         <div class="greeting">Hello ${internName || username || 'Intern'},</div>
-        <div class="text">This is an automated 24-hour reminder that your assigned project deliverable deadline is <strong>tomorrow (${deadline})</strong>. Please ensure your work is submitted before the deadline to receive evaluation credit and maintain your internship timeline.</div>
+        
+        <div class="text">
+          This email notification is sent to you 1 day before your project submission deadline. The official submission date for your assigned deliverable is <strong>tomorrow (${deadline})</strong>.
+        </div>
+
+        <div class="highlight-box">
+          <strong>Without fail</strong>, please submit all your task-related files, project folders, code repositories (GitHub/GitLab), and documentation before the deadline tomorrow (<strong>${deadline}</strong>). Timely submission is required to evaluate your work and grant internship completion credits.
+        </div>
 
         <div class="task-card">
           <span class="badge">${priority || 'HIGH'} PRIORITY</span>
-          <span class="badge-due">DUE DATE: ${deadline || 'Tomorrow'}</span>
+          <span class="badge-due">SUBMISSION DEADLINE: TOMORROW (${deadline || 'Tomorrow'})</span>
           <div class="task-title">📌 ${taskTitle}</div>
-          <div class="task-desc">${description || 'Complete the deliverables and submit the project repository or preview link through your intern dashboard.'}</div>
-          <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">Assigned To: <strong style="color: #fca5a5;">@${username || 'intern'}</strong></div>
+          <div class="task-desc">${description || 'Complete the deliverables and submit all related files, folders, code repositories, or preview links through your intern dashboard.'}</div>
+          <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">Assigned Intern: <strong style="color: #fca5a5;">@${username || 'intern'}</strong></div>
         </div>
 
         <div class="btn-box">
-          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Deliverable Now ↗</a>
+          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Task Files & Folders Now ↗</a>
         </div>
 
         <div class="notice">
-          <strong>Tip:</strong> You can attach your GitHub repository URL, live preview link, or project deliverables file directly from the <em>Assigned Deliverables</em> section in your intern dashboard.
+          <strong>📁 Submission Instructions:</strong> Please upload and submit all project files, zip folders, GitHub/GitLab repositories, or live demo URLs directly through the <em>Assigned Deliverables</em> portal in your intern dashboard before the deadline tomorrow without fail.
         </div>
 
         <div class="footer">
           &copy; 2026 WorkSphere Platform. All rights reserved.<br/>
-          Automated 24h deadline notification sent from worksphere.ac.in@gmail.com
+          Official 1-day submission deadline reminder dispatched from worksphere.ac.in@gmail.com
         </div>
       </div>
     </body>
@@ -316,13 +324,13 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
     const info = await transporter.sendMail({
       from: '"WorkSphere Submission Reminders" <worksphere.ac.in@gmail.com>',
       to: toEmail,
-      subject: `⏰ [URGENT 24h REMINDER] Tomorrow is the deadline for: ${taskTitle}`,
+      subject: `[IMPORTANT] Submit Task Files & Folders Without Fail - Project Deadline Tomorrow: ${taskTitle}`,
       html: htmlContent
     });
-    console.log(`[EMAIL DISPATCH SUCCESS] 24h Deadline reminder mail sent to ${toEmail}, id: ${info.messageId}`);
+    console.log(`[EMAIL DISPATCH SUCCESS] Deadline reminder mail sent to ${toEmail}, id: ${info.messageId}`);
     return true;
   } catch (err) {
-    console.error(`[EMAIL DISPATCH ERROR] Failed to send 24h deadline reminder to ${toEmail}:`, err);
+    console.error(`[EMAIL DISPATCH ERROR] Failed to send deadline reminder to ${toEmail}:`, err);
     return false;
   }
 }
