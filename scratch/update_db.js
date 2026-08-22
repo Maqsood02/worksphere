@@ -4,21 +4,64 @@ async function updateDb() {
   try {
     const { db } = await connectToDatabase();
     const usersCol = db.collection('users');
-    
-    const result = await usersCol.updateMany(
-      { username: { $in: ['worksphere', 'workshpere', 'admin'] } },
-      { $set: { 
-          rawPassword: 'Worksphere@123',
-          password: '$2a$10$8u14oPms8wU0320s0v9nTePqN35lqZ.qRkI5M3G9T3zU76I1qXzC6' // BCrypt placeholder or will be encoded
-        } 
-      }
+    const profilesCol = db.collection('intern_profiles');
+
+    await profilesCol.updateOne(
+      { username: 'chinmaykv' },
+      {
+        $set: {
+          username: 'chinmaykv',
+          name: 'Chinmay K V',
+          email: 'chinmaykv555@gmail.com',
+          phone: '7760674555',
+          track: 'Full-Stack Software Engineering',
+          stipendType: 'UNPAID',
+          stipendAmount: 'Unpaid (Academic Credit)',
+          mentorName: 'Unassigned Mentor',
+          mentorEmail: 's.jenkins@worksphere.ac.in',
+          startDate: '2026-06-01',
+          endDate: '2026-08-31',
+          performanceRating: 'Active Intern',
+          certificateStatus: 'NOT_ISSUED',
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
     );
 
-    console.log('MongoDB update count:', result.modifiedCount);
-    const users = await usersCol.find({}).toArray();
-    console.log('All Users in MongoDB:');
-    users.forEach(u => {
-      console.log(`- @${u.username} (${u.role}): rawPassword=${u.rawPassword}, email=${u.email}`);
+    await profilesCol.updateOne(
+      { username: 'maqsood' },
+      {
+        $set: {
+          username: 'maqsood',
+          name: 'Maqsood MD',
+          email: 'maqsoodmd.ac.in@gmail.com',
+          phone: '8792404950',
+          track: 'Full-Stack Software Engineering',
+          stipendType: 'UNPAID',
+          stipendAmount: 'Unpaid (Academic Credit)',
+          mentorName: 'Unassigned Mentor',
+          mentorEmail: 's.jenkins@worksphere.ac.in',
+          startDate: '2026-06-01',
+          endDate: '2026-08-31',
+          performanceRating: 'Active Intern',
+          certificateStatus: 'NOT_ISSUED',
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    const modulesCol = db.collection('learning_modules');
+    await modulesCol.updateMany(
+      { assignedTo: { $regex: /^all$/i } },
+      { $set: { progressPct: 0, completed: false } }
+    );
+
+    const mods = await modulesCol.find({}).toArray();
+    console.log('MongoDB Learning Modules:');
+    mods.forEach(m => {
+      console.log(`- [${m.id}] "${m.title}" (assignedTo: ${m.assignedTo}): rootProgress=${m.progressPct}%, progressByUser=${JSON.stringify(m.progressByUser)}`);
     });
     process.exit(0);
   } catch (err) {

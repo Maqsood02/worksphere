@@ -243,6 +243,90 @@ async function sendCredentialsNotification({ toEmail, name, username, password, 
   }
 }
 
+// Helper: Send 24-Hour / 1-Day-Before Deadline Reminder Email
+async function sendDeadlineReminderNotification({ toEmail, internName, username, taskTitle, description, deadline, priority, daysLeft = 1 }) {
+  if (!toEmail || !toEmail.includes('@')) return false;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; margin: 0; padding: 30px 15px; color: #f8fafc; }
+        .container { max-width: 580px; margin: 0 auto; background: #131c2e; border-radius: 20px; border: 1px solid #ef4444; padding: 32px 24px; box-shadow: 0 20px 40px -15px rgba(239, 68, 68, 0.35); }
+        .logo-box { text-align: center; margin-bottom: 20px; }
+        .logo-title { font-size: 26px; font-weight: 800; color: #f87171; letter-spacing: -0.5px; }
+        .tagline { font-size: 10px; font-weight: 800; color: #fb7185; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+        .urgent-banner { background: linear-gradient(135deg, #7f1d1d, #991b1b); border: 1px solid #ef4444; border-radius: 12px; padding: 14px 16px; margin: 18px 0; text-align: center; }
+        .urgent-text { font-size: 13px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
+        .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 10px; }
+        .text { font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-bottom: 16px; }
+        .task-card { background: #090e1a; border: 1px solid #f87171; border-radius: 16px; padding: 20px; margin: 18px 0; }
+        .badge { display: inline-block; background: #991b1b; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; margin-right: 6px; }
+        .badge-due { display: inline-block; background: #f59e0b; color: #78350f; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
+        .task-title { font-size: 17px; font-weight: 800; color: #ffffff; margin: 12px 0 8px 0; }
+        .task-desc { font-size: 13px; color: #cbd5e1; line-height: 1.6; background: #131c2e; padding: 12px; border-radius: 10px; border-left: 3px solid #ef4444; margin: 12px 0; }
+        .btn-box { text-align: center; margin: 24px 0 12px 0; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff !important; font-weight: 800; font-size: 14px; text-decoration: none; padding: 13px 30px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.5); }
+        .notice { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #f59e0b; padding: 12px 14px; border-radius: 8px; font-size: 11px; color: #fde68a; margin-top: 16px; line-height: 1.5; }
+        .footer { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #283654; font-size: 11px; color: #64748b; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo-box">
+          <div class="logo-title">WorkSphere</div>
+          <div class="tagline">⏰ 24-HOUR SUBMISSION DEADLINE REMINDER</div>
+        </div>
+
+        <div class="urgent-banner">
+          <span class="urgent-text">⚠️ ACTION REQUIRED: Deliverable Submission Due Tomorrow!</span>
+        </div>
+
+        <div class="greeting">Hello ${internName || username || 'Intern'},</div>
+        <div class="text">This is an automated 24-hour reminder that your assigned project deliverable deadline is <strong>tomorrow (${deadline})</strong>. Please ensure your work is submitted before the deadline to receive evaluation credit and maintain your internship timeline.</div>
+
+        <div class="task-card">
+          <span class="badge">${priority || 'HIGH'} PRIORITY</span>
+          <span class="badge-due">DUE DATE: ${deadline || 'Tomorrow'}</span>
+          <div class="task-title">📌 ${taskTitle}</div>
+          <div class="task-desc">${description || 'Complete the deliverables and submit the project repository or preview link through your intern dashboard.'}</div>
+          <div style="font-size: 11px; color: #94a3b8; margin-top: 10px;">Assigned To: <strong style="color: #fca5a5;">@${username || 'intern'}</strong></div>
+        </div>
+
+        <div class="btn-box">
+          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn">Submit Deliverable Now ↗</a>
+        </div>
+
+        <div class="notice">
+          <strong>Tip:</strong> You can attach your GitHub repository URL, live preview link, or project deliverables file directly from the <em>Assigned Deliverables</em> section in your intern dashboard.
+        </div>
+
+        <div class="footer">
+          &copy; 2026 WorkSphere Platform. All rights reserved.<br/>
+          Automated 24h deadline notification sent from worksphere.ac.in@gmail.com
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: '"WorkSphere Submission Reminders" <worksphere.ac.in@gmail.com>',
+      to: toEmail,
+      subject: `⏰ [URGENT 24h REMINDER] Tomorrow is the deadline for: ${taskTitle}`,
+      html: htmlContent
+    });
+    console.log(`[EMAIL DISPATCH SUCCESS] 24h Deadline reminder mail sent to ${toEmail}, id: ${info.messageId}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL DISPATCH ERROR] Failed to send 24h deadline reminder to ${toEmail}:`, err);
+    return false;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -688,9 +772,82 @@ export default async function handler(req, res) {
     // ==========================================
     if (cleanPath.includes('intern-tasks') || cleanPath.includes('/interns/tasks')) {
       const col = db.collection('intern_tasks');
+      const usersCol = db.collection('users');
+
       if (req.method === 'GET') {
         const { username } = query;
         const allTasks = await col.find({}).sort({ createdAt: -1 }).toArray();
+
+        // Background automatic 1-day-before deadline reminder checker
+        (async () => {
+          try {
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+            for (const t of allTasks) {
+              if (t.status === 'COMPLETED') continue;
+              const dueStr = t.deadline || '';
+              const isDueTomorrow = dueStr === tomorrowStr;
+              
+              // Also check if date diff is within ~24 hours
+              let isWithin24Hours = false;
+              if (dueStr) {
+                const dueDate = new Date(dueStr);
+                const diffTime = dueDate.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 1 || isDueTomorrow) isWithin24Hours = true;
+              }
+
+              if (isWithin24Hours && t.lastReminderSentDate !== todayStr) {
+                const targetClean = (t.assignedTo || 'intern').replace(/^@+/, '').trim().toLowerCase();
+                let targetEmail = '';
+                let targetName = targetClean;
+
+                if (targetClean === 'all') {
+                  const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
+                  for (const i of interns) {
+                    if (i.email) {
+                      await sendDeadlineReminderNotification({
+                        toEmail: i.email,
+                        internName: i.name,
+                        username: i.username,
+                        taskTitle: t.title,
+                        description: t.description,
+                        deadline: t.deadline,
+                        priority: t.priority,
+                        daysLeft: 1
+                      });
+                    }
+                  }
+                } else {
+                  const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
+                  targetEmail = found?.email || (targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com');
+                  targetName = found?.name || targetClean;
+                  await sendDeadlineReminderNotification({
+                    toEmail: targetEmail,
+                    internName: targetName,
+                    username: targetClean,
+                    taskTitle: t.title,
+                    description: t.description,
+                    deadline: t.deadline,
+                    priority: t.priority,
+                    daysLeft: 1
+                  });
+                }
+
+                await col.updateOne(
+                  { $or: [{ taskId: t.taskId || t.id }, { id: t.taskId || t.id }] },
+                  { $set: { deadlineReminderSent: true, lastReminderSentDate: todayStr, lastReminderSentAt: new Date() } }
+                );
+              }
+            }
+          } catch (e) {
+            console.error('[AUTO DEADLINE REMINDER BACKGROUND ERROR]:', e);
+          }
+        })();
+
         if (!username || username === 'all' || username === 'admin') {
           return res.status(200).json({ success: true, tasks: allTasks });
         }
@@ -711,13 +868,13 @@ export default async function handler(req, res) {
         const newTaskDoc = {
           taskId, id: taskId, assignedTo, title: title.trim(), description: description.trim(),
           deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
+          deadlineReminderSent: false,
           createdAt: new Date(), updatedAt: new Date()
         };
         await col.insertOne(newTaskDoc);
 
         // Auto-dispatch email notification
         try {
-          const usersCol = db.collection('users');
           const targetClean = assignedTo.replace(/^@+/, '').trim().toLowerCase();
           let targetEmail = '';
           if (targetClean === 'all') {
@@ -740,11 +897,14 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        const { taskId, status, submissionUrl, submissionNotes, assignedTo } = body;
+        const { taskId, status, submissionUrl, submissionNotes, assignedTo, deadline, priority, deadlineReminderSent } = body;
         if (!taskId) return res.status(400).json({ success: false, message: 'TaskId required' });
         const updateFields = { updatedAt: new Date() };
         if (status) updateFields.status = status;
         if (assignedTo) updateFields.assignedTo = assignedTo.replace(/^@+/, '').trim();
+        if (deadline) updateFields.deadline = deadline;
+        if (priority) updateFields.priority = priority;
+        if (deadlineReminderSent !== undefined) updateFields.deadlineReminderSent = deadlineReminderSent;
         if (submissionUrl !== undefined) updateFields.submissionUrl = submissionUrl;
         if (submissionNotes !== undefined) updateFields.submissionNotes = submissionNotes;
         await col.updateOne({ $or: [{ taskId: taskId }, { id: taskId }] }, { $set: updateFields });
@@ -756,6 +916,136 @@ export default async function handler(req, res) {
         if (id) await col.deleteOne({ $or: [{ taskId: id }, { id: id }] });
         return res.status(200).json({ success: true, message: `Task deleted!` });
       }
+    }
+
+    // ==========================================
+    // 8B. DEADLINE REMINDERS: (/api/deadline-reminders or /api/send-deadline-reminder)
+    // ==========================================
+    if (cleanPath.includes('deadline-reminders') || cleanPath.includes('send-deadline-reminder') || cleanPath.includes('deadline-reminder')) {
+      const col = db.collection('intern_tasks');
+      const usersCol = db.collection('users');
+
+      const taskId = body.taskId || query.taskId;
+      const targetUser = body.username || query.username;
+      const customEmail = body.toEmail || body.email;
+
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      // Single specific task reminder triggered
+      if (taskId) {
+        const task = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
+        const taskTitle = task?.title || body.taskTitle || 'Project Deliverable';
+        const taskDesc = task?.description || body.description || '';
+        const taskDeadline = task?.deadline || body.deadline || tomorrowStr;
+        const taskPriority = task?.priority || body.priority || 'HIGH';
+        const rawAssigned = (task?.assignedTo || targetUser || 'intern').replace(/^@+/, '').trim().toLowerCase();
+
+        let recipientEmail = customEmail;
+        let recipientName = rawAssigned;
+
+        if (!recipientEmail) {
+          if (rawAssigned.includes('chinmay')) {
+            recipientEmail = 'chinmaykv555@gmail.com';
+          } else if (rawAssigned.includes('maqsood')) {
+            recipientEmail = 'maqsoodmd.ac.in@gmail.com';
+          } else {
+            const found = await usersCol.findOne({ username: new RegExp(`^${rawAssigned}$`, 'i') });
+            recipientEmail = found?.email || 'maqsoodmd.ac.in@gmail.com';
+            recipientName = found?.name || rawAssigned;
+          }
+        }
+
+        const sent = await sendDeadlineReminderNotification({
+          toEmail: recipientEmail,
+          internName: recipientName,
+          username: rawAssigned,
+          taskTitle,
+          description: taskDesc,
+          deadline: taskDeadline,
+          priority: taskPriority,
+          daysLeft: 1
+        });
+
+        if (task) {
+          await col.updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }] },
+            { $set: { deadlineReminderSent: true, lastReminderSentDate: todayStr, lastReminderSentAt: new Date() } }
+          );
+        }
+
+        return res.status(200).json({
+          success: sent,
+          message: sent 
+            ? `24-hour deadline reminder email successfully delivered to ${recipientEmail}!`
+            : `Failed to dispatch reminder to ${recipientEmail}.`,
+          recipientEmail,
+          taskId
+        });
+      }
+
+      // Bulk automatic check and send across all active deliverables
+      const allTasks = await col.find({ status: { $ne: 'COMPLETED' } }).toArray();
+      const dispatched = [];
+
+      for (const t of allTasks) {
+        const dueStr = t.deadline || '';
+        const isDueTomorrow = dueStr === tomorrowStr;
+        let isWithin24Hours = false;
+        if (dueStr) {
+          const dueDate = new Date(dueStr);
+          const diffTime = dueDate.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays === 1 || isDueTomorrow) isWithin24Hours = true;
+        }
+
+        // Send if 1 day away or forceSend
+        if (isWithin24Hours || body.forceAll === true) {
+          const rawAssigned = (t.assignedTo || 'intern').replace(/^@+/, '').trim().toLowerCase();
+          let recipientEmail = '';
+          let recipientName = rawAssigned;
+
+          if (rawAssigned.includes('chinmay')) {
+            recipientEmail = 'chinmaykv555@gmail.com';
+          } else if (rawAssigned.includes('maqsood')) {
+            recipientEmail = 'maqsoodmd.ac.in@gmail.com';
+          } else {
+            const found = await usersCol.findOne({ username: new RegExp(`^${rawAssigned}$`, 'i') });
+            recipientEmail = found?.email || 'maqsoodmd.ac.in@gmail.com';
+            recipientName = found?.name || rawAssigned;
+          }
+
+          const sent = await sendDeadlineReminderNotification({
+            toEmail: recipientEmail,
+            internName: recipientName,
+            username: rawAssigned,
+            taskTitle: t.title,
+            description: t.description,
+            deadline: t.deadline,
+            priority: t.priority,
+            daysLeft: 1
+          });
+
+          if (sent) {
+            dispatched.push({ taskId: t.taskId || t.id, title: t.title, to: recipientEmail, intern: rawAssigned });
+            await col.updateOne(
+              { $or: [{ taskId: t.taskId || t.id }, { id: t.taskId || t.id }] },
+              { $set: { deadlineReminderSent: true, lastReminderSentDate: todayStr, lastReminderSentAt: new Date() } }
+            );
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: dispatched.length > 0
+          ? `Automated 24h deadline scan complete: ${dispatched.length} reminder email(s) dispatched!`
+          : `Automated scan complete: All intern tasks up to date, no pending 24h reminders required.`,
+        dispatchedCount: dispatched.length,
+        dispatched
+      });
     }
 
     // ==========================================

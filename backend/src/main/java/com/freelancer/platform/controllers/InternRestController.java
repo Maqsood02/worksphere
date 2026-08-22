@@ -706,6 +706,42 @@ public class InternRestController {
         return deleteInternTask(taskId);
     }
 
+    @PostMapping({"/api/admin/interns/tasks/send-reminder", "/api/admin/interns/send-deadline-reminder"})
+    public synchronized ResponseEntity<?> sendDeadlineReminder(@RequestBody Map<String, Object> payload) {
+        String taskId = (String) payload.get("taskId");
+        String username = (String) payload.get("username");
+        String taskTitle = (String) payload.getOrDefault("taskTitle", "Assigned Project Deliverable");
+        String description = (String) payload.getOrDefault("description", "");
+        String deadline = (String) payload.getOrDefault("deadline", "Tomorrow");
+        String priority = (String) payload.getOrDefault("priority", "HIGH");
+        String customEmail = (String) payload.get("email");
+
+        String targetUser = username != null ? username.replaceAll("^@+", "").trim() : "intern";
+        Optional<User> uOpt = userService.findByUsername(targetUser);
+        String name = uOpt.map(User::getName).orElse(targetUser);
+        String email = customEmail;
+
+        if (email == null || email.isBlank() || !email.contains("@")) {
+            email = uOpt.map(User::getEmail).filter(e -> e != null && !e.isBlank() && !e.endsWith("@worksphere.ac.in")).orElse(null);
+            if (email == null || email.isBlank()) {
+                if (targetUser.toLowerCase().contains("chinmay")) email = "chinmaykv555@gmail.com";
+                else if (targetUser.toLowerCase().contains("worksphere") || targetUser.toLowerCase().contains("admin")) email = "worksphere.ac.in@gmail.com";
+                else email = "maqsoodmd.ac.in@gmail.com";
+            }
+        }
+
+        boolean sent = emailService.sendTaskDeadlineReminderEmail(email, name, targetUser, taskTitle, description, deadline, priority);
+
+        return ResponseEntity.ok(Map.of(
+            "success", sent,
+            "message", sent 
+                ? "24-hour deadline reminder email successfully delivered to " + email + "!"
+                : "Failed to dispatch deadline reminder to " + email + ".",
+            "email", email,
+            "taskId", taskId != null ? taskId : ""
+        ));
+    }
+
     // LEARNING MODULES ENDPOINTS
     @GetMapping("/api/admin/learning-modules")
     public synchronized ResponseEntity<?> getLearningModules() {

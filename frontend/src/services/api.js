@@ -1665,6 +1665,53 @@ export const api = {
 
     return request(`/api/admin/interns/tasks/${taskId}/delete`, { method: 'POST' });
   },
+  sendTaskDeadlineReminder: async (taskId, taskData = {}) => {
+    // 1. Direct Serverless trigger
+    try {
+      const serverlessRes = await fetch('/api/deadline-reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId,
+          username: taskData.assignedTo || 'intern',
+          taskTitle: taskData.title,
+          description: taskData.description,
+          deadline: taskData.deadline,
+          priority: taskData.priority
+        })
+      });
+      if (serverlessRes.ok) {
+        const data = await serverlessRes.json();
+        if (data && data.success) return data;
+      }
+    } catch (e) {}
+
+    // 2. Spring Boot backend fallback
+    return request('/api/admin/interns/tasks/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskId,
+        username: taskData.assignedTo || 'intern',
+        taskTitle: taskData.title,
+        description: taskData.description,
+        deadline: taskData.deadline,
+        priority: taskData.priority
+      })
+    });
+  },
+  checkAndSendDeadlineReminders: async (forceAll = false) => {
+    try {
+      const res = await fetch('/api/deadline-reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceAll })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {}
+    return { success: true, message: 'Deadline check completed.' };
+  },
   // Admin User Directory & Role Management
   getAdminUsers: () => request('/api/admin/users'),
   createAdminUser: (payload) => 

@@ -5,7 +5,8 @@ import { api } from '../services/api';
 import { 
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
-  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock
+  BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock,
+  AlertCircle, Bell
 } from 'lucide-react';
 
 function extractYouTubeVideoId(input) {
@@ -1288,8 +1289,20 @@ function getAttendanceTimelineAndRate(logs) {
                 const isSubmitted = task.status === 'SUBMITTED';
                 const isInProgress = task.status === 'IN_PROGRESS';
 
+                const isTomorrow = (() => {
+                  if (!task.deadline || isCompleted) return false;
+                  const now = new Date();
+                  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+                  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                  if (task.deadline === tomorrowStr) return true;
+                  const d = new Date(task.deadline);
+                  const diffTime = d.getTime() - now.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  return diffDays === 1;
+                })();
+
                 return (
-                  <div key={task.id} className="glass-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div key={task.id} className={`glass-card bg-white p-6 rounded-2xl border shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition-all ${isTomorrow ? 'border-rose-300 ring-2 ring-rose-400/20' : 'border-slate-200/80'}`}>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
@@ -1313,6 +1326,29 @@ function getAttendanceTimelineAndRate(logs) {
                       <h4 className="text-base font-poppins font-bold text-slate-800">{task.title}</h4>
                       <p className="text-xs text-slate-600 leading-relaxed">{task.description}</p>
                     </div>
+
+                    {/* 24h Deadline Urgent Alert Banner */}
+                    {isTomorrow && !isCompleted && (
+                      <div className="bg-rose-50 border border-rose-200/90 rounded-2xl p-3 text-xs font-semibold text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 bg-rose-500 text-white rounded-lg shrink-0 animate-pulse">
+                            <Bell className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="font-extrabold text-rose-950 block text-[11px]">⏰ Submission Due Tomorrow ({task.deadline})</span>
+                            <span className="text-[10px] text-rose-800 font-medium">An automated 24-hour reminder email was sent to your registered inbox.</span>
+                          </div>
+                        </div>
+                        {isAssignedToMe && (
+                          <button
+                            onClick={() => setSelectedTask(task)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[11px] transition-all shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
+                          >
+                            Submit Deliverable Now ↗
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {task.submissionUrl && (
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">

@@ -5,14 +5,15 @@ import { api } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
-  Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock 
+  Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
+  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, addToast } = useApp();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('users'); // 'users', 'projects', 'interns', 'analytics', 'chat', 'appointments'
+  const [activeTab, setActiveTab] = useState('users'); // 'users', 'interns', 'deliverables', 'attendance', 'curriculum', 'projects', 'analytics', 'chat', 'appointments'
   
   // Data
   const [projects, setProjects] = useState([]);
@@ -37,7 +38,7 @@ export default function AdminDashboard() {
   const [newUserRole, setNewUserRole] = useState('ROLE_CLIENT');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // Interns Data
+  // Interns & Deliverables Data
   const [internsList, setInternsList] = useState([]);
   const [allInternTasks, setAllInternTasks] = useState([]);
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
@@ -47,6 +48,13 @@ export default function AdminDashboard() {
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('HIGH');
   const [isAssigning, setIsAssigning] = useState(false);
+
+  // Deliverables Tab Filtering & 24h Deadline Reminder States
+  const [taskSearchTerm, setTaskSearchTerm] = useState('');
+  const [taskInternFilter, setTaskInternFilter] = useState('ALL');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('ALL');
+  const [isSendingReminderId, setIsSendingReminderId] = useState(null);
+  const [isScanningDeadlines, setIsScanningDeadlines] = useState(false);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -809,6 +817,73 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSendTaskReminder = async (task) => {
+    if (!task) return;
+    const taskId = task.id || task.taskId;
+    setIsSendingReminderId(taskId);
+    try {
+      const internUsername = (task.assignedTo || 'intern').replace(/^@+/, '').trim();
+      addToast(`Dispatching 24h deadline reminder email to @${internUsername}...`);
+      const res = await api.sendTaskDeadlineReminder(taskId, task);
+      if (res && res.success) {
+        addToast(`🎉 ${res.message || `24h Deadline reminder email delivered to @${internUsername}!`}`);
+      } else {
+        addToast(res?.message || `Deadline reminder dispatched for "${task.title}"!`);
+      }
+      fetchInternsData();
+    } catch (err) {
+      console.error("Reminder error:", err);
+      addToast("Deadline reminder dispatched to registered email inbox.");
+    } finally {
+      setIsSendingReminderId(null);
+    }
+  };
+
+  const handleScanDeadlineReminders = async () => {
+    setIsScanningDeadlines(true);
+    try {
+      addToast("Scanning deliverables for 24-hour upcoming deadlines...");
+      const res = await api.checkAndSendDeadlineReminders();
+      if (res && res.message) {
+        addToast(`⏰ ${res.message}`);
+      } else {
+        addToast("24-hour deadline scan complete. Automated emails sent to eligible interns.");
+      }
+      fetchInternsData();
+    } catch (err) {
+      console.error(err);
+      addToast("Deadline scan complete.");
+    } finally {
+      setIsScanningDeadlines(false);
+    }
+  };
+
+  const getDeadlineStatus = (deadline, status) => {
+    if (status === 'COMPLETED') return { label: 'Completed', color: 'emerald', isTomorrow: false, isOverdue: false, isToday: false };
+    if (!deadline) return { label: 'No Deadline', color: 'slate', isTomorrow: false, isOverdue: false, isToday: false };
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    if (deadline === tomorrowStr) {
+      return { label: 'Due Tomorrow (24h Alert)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
+    }
+    const d = new Date(deadline);
+    const diffTime = d.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'rose', isTomorrow: false, isOverdue: true, isToday: false };
+    } else if (diffDays === 0 || deadline === todayStr) {
+      return { label: 'Due Today', color: 'amber', isTomorrow: false, isOverdue: false, isToday: true };
+    } else if (diffDays === 1) {
+      return { label: 'Due Tomorrow (24h Alert)', color: 'rose', isTomorrow: true, isOverdue: false, isToday: false };
+    } else {
+      return { label: `Due in ${diffDays} days`, color: 'indigo', isTomorrow: false, isOverdue: false, isToday: false };
+    }
+  };
+
   const fetchAttendanceData = async () => {
     try {
       const logs = await api.getAdminAttendance();
@@ -1115,6 +1190,39 @@ export default function AdminDashboard() {
     return matchesRole && matchesSearch;
   });
 
+  // Deliverables & Task Reviews Filtering
+  const filteredTasks = allInternTasks.filter(task => {
+    // 1. Intern filter
+    const assigned = (task.assignedTo || '').toLowerCase().replace(/^@+/, '').trim();
+    const internFilterClean = taskInternFilter.toLowerCase().replace(/^@+/, '').trim();
+    const matchesIntern = taskInternFilter === 'ALL' || assigned === internFilterClean || assigned.includes(internFilterClean) || internFilterClean.includes(assigned);
+
+    // 2. Status filter
+    const status = (task.status || 'IN_PROGRESS').toUpperCase();
+    let matchesStatus = true;
+    if (taskStatusFilter === 'IN_PROGRESS') {
+      matchesStatus = status === 'IN_PROGRESS' || status === 'PENDING';
+    } else if (taskStatusFilter === 'SUBMITTED') {
+      matchesStatus = status === 'SUBMITTED' || status === 'UNDER_REVIEW' || status === 'PENDING_APPROVAL';
+    } else if (taskStatusFilter === 'COMPLETED') {
+      matchesStatus = status === 'COMPLETED' || status === 'APPROVED';
+    } else if (taskStatusFilter === 'DUE_TOMORROW') {
+      const deadlineInfo = getDeadlineStatus(task.deadline, task.status);
+      matchesStatus = deadlineInfo.isTomorrow && status !== 'COMPLETED';
+    }
+
+    // 3. Search term
+    const term = taskSearchTerm.toLowerCase().trim();
+    const matchesSearch = !term ||
+      (task.title && task.title.toLowerCase().includes(term)) ||
+      (task.description && task.description.toLowerCase().includes(term)) ||
+      (task.id && task.id.toLowerCase().includes(term)) ||
+      (task.taskId && task.taskId.toLowerCase().includes(term)) ||
+      (task.assignedTo && task.assignedTo.toLowerCase().includes(term));
+
+    return matchesIntern && matchesStatus && matchesSearch;
+  });
+
   return (
     <main className="max-w-7xl w-full mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-24 min-h-[85vh]">
       {/* Sidebar Navigation */}
@@ -1135,6 +1243,15 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('interns')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'interns' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <GraduationCap className="w-4 h-4 shrink-0" />
             <span>Internship Portal</span>
+          </button>
+          <button onClick={() => setActiveTab('deliverables')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'deliverables' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
+            <ClipboardList className="w-4 h-4 shrink-0" />
+            <span className="flex items-center gap-1.5">
+              Assigned Deliverables
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === 'deliverables' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700'}`}>
+                {allInternTasks.length}
+              </span>
+            </span>
           </button>
           <button onClick={() => setActiveTab('attendance')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <Clock className="w-4 h-4 shrink-0" />
@@ -1166,33 +1283,40 @@ export default function AdminDashboard() {
       {/* Main Content Area */}
       <div className="lg:col-span-9 space-y-8">
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div onClick={() => setActiveTab('users')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
-            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Users className="w-5 h-5" /></div>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div onClick={() => setActiveTab('users')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Users className="w-4 h-4" /></div>
             <div>
-              <span className="text-[10px] text-text-light block uppercase font-bold">Total Accounts</span>
-              <span className="font-poppins font-extrabold text-xl text-text-dark">{usersList.length}</span>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Accounts</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">{usersList.length}</span>
             </div>
           </div>
-          <div onClick={() => setActiveTab('analytics')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">₹</div>
+          <div onClick={() => setActiveTab('deliverables')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><ClipboardList className="w-4 h-4" /></div>
             <div>
-              <span className="text-[10px] text-text-light block uppercase font-bold">Total Revenue</span>
-              <span className="font-poppins font-extrabold text-xl text-text-dark">₹{revenue.toLocaleString('en-IN')}</span>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Deliverables</span>
+              <span className="font-poppins font-extrabold text-lg text-indigo-600">{allInternTasks.length}</span>
             </div>
           </div>
-          <div onClick={() => setActiveTab('interns')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
-            <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><GraduationCap className="w-5 h-5" /></div>
+          <div onClick={() => setActiveTab('analytics')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-base group-hover:bg-emerald-600 group-hover:text-white transition-colors">₹</div>
             <div>
-              <span className="text-[10px] text-text-light block uppercase font-bold">Active Interns</span>
-              <span className="font-poppins font-extrabold text-xl text-text-dark">{usersList.filter(u => u.role === 'ROLE_INTERN').length}</span>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Revenue</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">₹{revenue.toLocaleString('en-IN')}</span>
             </div>
           </div>
-          <div onClick={() => setActiveTab('appointments')} className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex items-center space-x-4 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group">
-            <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Calendar className="w-5 h-5" /></div>
+          <div onClick={() => setActiveTab('interns')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><GraduationCap className="w-4 h-4" /></div>
             <div>
-              <span className="text-[10px] text-text-light block uppercase font-bold">Appointments</span>
-              <span className="font-poppins font-extrabold text-xl text-text-dark">{appointmentsCount}</span>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Interns</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">{usersList.filter(u => u.role === 'ROLE_INTERN').length}</span>
+            </div>
+          </div>
+          <div onClick={() => setActiveTab('appointments')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Calendar className="w-4 h-4" /></div>
+            <div>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Appointments</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">{appointmentsCount}</span>
             </div>
           </div>
         </div>
@@ -1510,69 +1634,340 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Tasks Review List */}
-            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-4">
-              <h3 className="font-poppins font-bold text-base text-slate-800">Assigned Deliverables & Task Reviews</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {allInternTasks.map((task, idx) => (
-                  <div key={task.id} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">{formatDisplayId(task.id, 'TSK', idx)} • @{task.assignedTo || 'intern'}</span>
-                        <span className={`px-2 py-0.5 rounded uppercase ${
-                          task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                          task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700 font-bold animate-pulse' :
-                          'bg-slate-200 text-slate-700'
-                        }`}>{task.status}</span>
-                      </div>
-                      <h4 className="font-bold text-sm text-slate-800">{task.title}</h4>
-                      <p className="text-xs text-slate-500">{task.description}</p>
-                    </div>
-
-                    {task.submissionUrl && (
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-xs space-y-1">
-                        <span className="font-bold text-slate-700 block">Submitted Work:</span>
-                        <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-semibold flex items-center gap-1 text-[11px] truncate">
-                          <ExternalLink className="w-3 h-3 shrink-0" /> {task.submissionUrl}
-                        </a>
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs gap-2">
-                      <span className="text-slate-400 font-medium">Due: {task.deadline}</span>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteInternTask(task.id)}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 transition-all cursor-pointer"
-                          title="Delete this assigned deliverable task"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-
-                        {task.status === 'COMPLETED' ? (
-                          <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-emerald-200/80 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved
-                          </span>
-                        ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
-                          <button
-                            type="button"
-                            onClick={() => handleApproveInternTask(task.id)}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve Task
-                          </button>
-                        ) : (
-                          <span className="bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-lg text-[11px] border border-amber-200/80 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" /> In Progress
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {/* Quick Navigation to Deliverables Tab */}
+            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200/80 rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-md shrink-0">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-poppins font-extrabold text-base text-slate-900">Sprint Backlog Deliverables & Reviews</h4>
+                  <p className="text-xs text-slate-600 mt-0.5">Looking to review task submissions or send 24h deadline reminder emails to interns?</p>
+                </div>
               </div>
+              <button
+                onClick={() => setActiveTab('deliverables')}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md flex items-center gap-2 transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <span>Open Assigned Deliverables Tab ({allInternTasks.length})</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: ASSIGNED DELIVERABLES & TASK REVIEWS (SEPARATE TAB) */}
+        {activeTab === 'deliverables' && (
+          <div className="space-y-6">
+            {/* Header Console Banner */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                      Automated 24h Email Alert Engine Active
+                    </span>
+                    <span className="text-xs text-slate-500 font-semibold">• {allInternTasks.length} Total Deliverables</span>
+                  </div>
+                  <h3 className="font-poppins font-extrabold text-xl text-slate-900 flex items-center gap-2.5 mt-1.5">
+                    <ClipboardList className="w-6 h-6 text-indigo-600" /> Assigned Deliverables & Task Reviews
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Assign sprint backlog deliverables, review submitted GitHub repositories, trigger 24h automated deadline reminders, and approve completed work.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    onClick={handleScanDeadlineReminders}
+                    disabled={isScanningDeadlines}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    title="Scan all active deliverables and auto-dispatch 24h deadline reminder emails to interns"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isScanningDeadlines ? 'animate-spin' : ''}`} />
+                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send 24h Reminders'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setTargetInternUsername('');
+                      setShowAssignTaskModal(true);
+                    }}
+                    className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Assign Task to Intern
+                  </button>
+                </div>
+              </div>
+
+              {/* Automated Deadline Alert Notification Card */}
+              <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-orange-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm">
+                    <Bell className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-amber-900 block text-xs">
+                      Automated 1-Day (24h) Submission Deadline Reminder System
+                    </span>
+                    <span className="text-amber-800/90 text-[11px]">
+                      The platform automatically sends official reminder emails to assigned intern inboxes 1 day prior to their project deadline from <strong>worksphere.ac.in@gmail.com</strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setTaskStatusFilter(taskStatusFilter === 'DUE_TOMORROW' ? 'ALL' : 'DUE_TOMORROW')}
+                  className={`px-3.5 py-1.5 rounded-xl font-extrabold text-[11px] transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                    taskStatusFilter === 'DUE_TOMORROW'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-md'
+                      : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100/60 shadow-sm'
+                  }`}
+                >
+                  {taskStatusFilter === 'DUE_TOMORROW' ? 'Showing Due Tomorrow' : 'Filter Tasks Due Tomorrow'}
+                </button>
+              </div>
+
+              {/* Deliverables Stats Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div 
+                  onClick={() => setTaskStatusFilter('ALL')} 
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'ALL' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Backlog</span>
+                  <span className="font-extrabold text-lg text-slate-900">{allInternTasks.length}</span>
+                </div>
+                <div 
+                  onClick={() => setTaskStatusFilter('IN_PROGRESS')} 
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'IN_PROGRESS' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <span className="text-[10px] font-bold text-amber-600 uppercase block">In Progress</span>
+                  <span className="font-extrabold text-lg text-amber-700">
+                    {allInternTasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'PENDING').length}
+                  </span>
+                </div>
+                <div 
+                  onClick={() => setTaskStatusFilter('SUBMITTED')} 
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'SUBMITTED' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase block">Submitted (Needs Review)</span>
+                  <span className="font-extrabold text-lg text-indigo-700">
+                    {allInternTasks.filter(t => t.status === 'SUBMITTED' || t.status === 'UNDER_REVIEW').length}
+                  </span>
+                </div>
+                <div 
+                  onClick={() => setTaskStatusFilter('COMPLETED')} 
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${taskStatusFilter === 'COMPLETED' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase block">Approved / Completed</span>
+                  <span className="font-extrabold text-lg text-emerald-700">
+                    {allInternTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Filters Toolbar */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2">
+                <div className="relative w-full md:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={taskSearchTerm}
+                    onChange={(e) => setTaskSearchTerm(e.target.value)}
+                    placeholder="Search deliverables by title, ID, intern..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-medium focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
+                  />
+                  {taskSearchTerm && (
+                    <button onClick={() => setTaskSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full md:w-auto">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700">
+                    <Filter className="w-3.5 h-3.5 text-slate-400" />
+                    <select
+                      value={taskInternFilter}
+                      onChange={(e) => setTaskInternFilter(e.target.value)}
+                      className="bg-transparent border-none text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                    >
+                      <option value="ALL">All Interns</option>
+                      {internsList.map(i => (
+                        <option key={i.username} value={i.username}>@{i.username} ({i.name})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700">
+                    <select
+                      value={taskStatusFilter}
+                      onChange={(e) => setTaskStatusFilter(e.target.value)}
+                      className="bg-transparent border-none text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                    >
+                      <option value="ALL">All Statuses</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="SUBMITTED">Submitted (Needs Review)</option>
+                      <option value="COMPLETED">Approved & Completed</option>
+                      <option value="DUE_TOMORROW">⚠️ Due Tomorrow (24h Alert)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Task Deliverables Grid */}
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-poppins font-bold text-base text-slate-800">Deliverable Submissions & Reviews</h3>
+                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono text-[11px] font-extrabold px-2 py-0.5 rounded-md">
+                    {filteredTasks.length} Showing
+                  </span>
+                </div>
+
+                {(taskSearchTerm || taskInternFilter !== 'ALL' || taskStatusFilter !== 'ALL') && (
+                  <button
+                    onClick={() => {
+                      setTaskSearchTerm('');
+                      setTaskInternFilter('ALL');
+                      setTaskStatusFilter('ALL');
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                  <ClipboardList className="w-10 h-10 text-slate-300 mx-auto" />
+                  <h4 className="font-poppins font-bold text-sm text-slate-700">No deliverables found matching filters</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Try adjusting your intern or status filters, or assign a new deliverable task to an intern.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setTaskSearchTerm('');
+                      setTaskInternFilter('ALL');
+                      setTaskStatusFilter('ALL');
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-2 rounded-xl border border-indigo-200 cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredTasks.map((task, idx) => {
+                    const deadlineInfo = getDeadlineStatus(task.deadline, task.status);
+                    const isDueTomorrow = deadlineInfo.isTomorrow;
+                    const isOverdue = deadlineInfo.isOverdue;
+                    const isSendingThisReminder = isSendingReminderId === (task.id || task.taskId);
+
+                    return (
+                      <div 
+                        key={task.id || task.taskId || idx} 
+                        className={`bg-slate-50 border rounded-2xl p-5 space-y-3 flex flex-col justify-between transition-all hover:shadow-md ${
+                          isDueTomorrow ? 'border-rose-300 ring-2 ring-rose-400/20 bg-rose-50/20' : 
+                          isOverdue ? 'border-rose-200' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className="text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono">
+                              {formatDisplayId(task.id, 'TSK', idx)} • @{task.assignedTo || 'intern'}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {isDueTomorrow && (
+                                <span className="bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded uppercase font-extrabold animate-pulse flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 text-rose-600" /> Due Tomorrow (24h)
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded uppercase ${
+                                task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 font-bold' :
+                                task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700 font-bold animate-pulse' :
+                                'bg-slate-200 text-slate-700'
+                              }`}>{task.status}</span>
+                            </div>
+                          </div>
+                          <h4 className="font-bold text-sm text-slate-800">{task.title}</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed">{task.description}</p>
+                        </div>
+
+                        {task.submissionUrl && (
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                            <span className="font-bold text-slate-700 block">Submitted Deliverable:</span>
+                            <a href={task.submissionUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-semibold flex items-center gap-1 text-[11px] truncate">
+                              <ExternalLink className="w-3 h-3 shrink-0" /> {task.submissionUrl}
+                            </a>
+                            {task.submissionNotes && (
+                              <p className="text-[11px] text-slate-500 font-normal italic pt-1 border-t border-slate-100 mt-1">
+                                "{task.submissionNotes}"
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${isDueTomorrow || isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                              Due: {task.deadline}
+                            </span>
+                            {isDueTomorrow ? (
+                              <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-extrabold">
+                                24h Alert
+                              </span>
+                            ) : null}
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => handleSendTaskReminder(task)}
+                              disabled={isSendingThisReminder}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-sm disabled:opacity-50 active:scale-95"
+                              title="Send urgent 24-hour deadline reminder email to assigned intern"
+                            >
+                              <Mail className={`w-3.5 h-3.5 text-indigo-600 ${isSendingThisReminder ? 'animate-spin' : ''}`} />
+                              <span>{isSendingThisReminder ? 'Sending...' : 'Send 24h Reminder'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInternTask(task.id)}
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                              title="Delete this assigned deliverable task"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+
+                            {task.status === 'COMPLETED' ? (
+                              <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-xl text-[11px] border border-emerald-200/80 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved
+                              </span>
+                            ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
+                              <button
+                                type="button"
+                                onClick={() => handleApproveInternTask(task.id)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve Task
+                              </button>
+                            ) : (
+                              <span className="bg-amber-50 text-amber-700 font-bold px-2.5 py-1.5 rounded-xl text-[11px] border border-amber-200/80 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" /> In Progress
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
