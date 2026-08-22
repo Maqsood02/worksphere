@@ -772,7 +772,8 @@ function getAttendanceTimelineAndRate(logs) {
             submissionNotes: submissionNotes,
             fileName: uploadedFileName,
             fileSize: uploadedFileSize,
-            fileType: uploadedFileType
+            fileType: uploadedFileType,
+            fileData: uploadedFileData
           })
         });
       } catch(e) {}

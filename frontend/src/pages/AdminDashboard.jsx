@@ -814,10 +814,12 @@ export default function AdminDashboard() {
 
     // Check stored file in localStorage
     try {
-      const storedFile = localStorage.getItem(`worksphere_file_${task?.id}`);
+      const keyId = task?.id || task?.taskId;
+      const keyTaskId = task?.taskId || task?.id;
+      const storedFile = localStorage.getItem(`worksphere_file_${keyId}`) || (keyTaskId ? localStorage.getItem(`worksphere_file_${keyTaskId}`) : null);
       if (storedFile) {
         const parsed = JSON.parse(storedFile);
-        if (parsed.data) fileData = parsed.data;
+        if (parsed.data && !fileData) fileData = parsed.data;
         if (parsed.name && !fileName) fileName = parsed.name;
         if (parsed.size && !fileSize) fileSize = parsed.size;
         if (parsed.type && !fileType) fileType = parsed.type;
