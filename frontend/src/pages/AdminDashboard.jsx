@@ -139,8 +139,7 @@ export default function AdminDashboard() {
   const defaultUsersList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
+    { id: 'u3', username: 'Chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
   const defaultProjects = [];
@@ -175,11 +174,14 @@ export default function AdminDashboard() {
       setProjects(projList);
       setProjectsCount(projList.length);
 
-      // Clients for Chat - only real client accounts, filter out admin names or empty
+      // Clients for Chat - only real client accounts, filter out admin names, intern names, or dummy placeholder
       const registeredClients = (usersList || []).filter(u => (u.role || '').toUpperCase().includes('CLIENT')).map(u => u.username);
       const projClients = (projList || []).map(p => p.clientId || p.clientName).filter(Boolean);
       const clients = Array.from(new Set([...registeredClients, ...projClients]))
-        .filter(c => c.toLowerCase() !== 'maqsood md' && c.toLowerCase() !== 'maqsood' && c.toLowerCase() !== 'worksphere' && c.toLowerCase() !== 'admin');
+        .filter(c => {
+          const cl = c.toLowerCase().trim();
+          return cl !== 'maqsood md' && cl !== 'maqsood' && cl !== 'worksphere' && cl !== 'admin' && cl !== 'client' && cl !== 'chinmaykv';
+        });
       setClientList(clients);
       if (clients.length > 0) {
         if (!selectedClient || !clients.includes(selectedClient)) {

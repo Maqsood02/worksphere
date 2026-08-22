@@ -107,28 +107,6 @@ public class ChatService {
 
     @PostConstruct
     public void seedMessages() {
-        if (messageRepository.count() == 0) {
-            Message m1 = Message.builder()
-                    .senderId("admin")
-                    .senderName("Alex Developer")
-                    .receiverId("client")
-                    .content("Hi John! Welcome to the client portal. How is the design roadmap for the E-Commerce Web Application looking?")
-                    .timestamp(LocalDateTime.now().minusDays(2))
-                    .isRead(true)
-                    .build();
-
-            Message m2 = Message.builder()
-                    .senderId("client")
-                    .senderName("John Doe")
-                    .receiverId("admin")
-                    .content("Hi Alex! It looks fantastic. We are ready to finalize the database schemas for the catalog and checkout systems.")
-                    .timestamp(LocalDateTime.now().minusDays(1))
-                    .isRead(true)
-                    .build();
-
-            messageRepository.save(m1);
-            messageRepository.save(m2);
-            System.out.println("[DB SEED] Chat history seeded!");
-        }
+        // Initial state: Chat starts empty until users send messages
     }
 }

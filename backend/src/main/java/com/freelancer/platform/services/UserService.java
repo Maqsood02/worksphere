@@ -360,33 +360,6 @@ public class UserService {
             });
         }
 
-        // Ensure Client user 'Maqsood' exists in MongoDB
-        if (userRepository.findByUsername("Maqsood").isEmpty()) {
-            User client = User.builder()
-                    .username("Maqsood")
-                    .password(passwordEncoder.encode("123456"))
-                    .rawPassword("123456")
-                    .name("Maqsood MD")
-                    .email("maqsoodmdhrl@gmail.com")
-                    .phone("8792404950")
-                    .role("ROLE_CLIENT")
-                    .emailVerified(true)
-                    .phoneVerified(true)
-                    .build();
-            userRepository.save(client);
-            System.out.println("[DB SEED] Client created! Username: Maqsood, Password: 123456");
-        } else {
-            userRepository.findByUsername("Maqsood").ifPresent(u -> {
-                u.setName("Maqsood MD");
-                u.setEmail("maqsoodmdhrl@gmail.com");
-                u.setPhone("8792404950");
-                if (u.getRawPassword() == null || u.getRawPassword().isBlank()) {
-                    u.setRawPassword("123456");
-                    u.setPassword(passwordEncoder.encode("123456"));
-                }
-                userRepository.save(u);
-            });
-        }
     }
 }
 

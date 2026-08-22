@@ -24,8 +24,7 @@ function getStoredUsersList() {
   const defaultList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true }
+    { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
   const saved = localStorage.getItem('worksphere_users_list');
@@ -33,7 +32,10 @@ function getStoredUsersList() {
     try {
       let parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        parsed = parsed.filter(u => (u.username || '').toLowerCase() !== 'workshpere');
+        parsed = parsed.filter(u => {
+          const uname = (u.username || '').toLowerCase().trim();
+          return uname !== 'workshpere' && uname !== 'client';
+        });
         parsed = parsed.map(u => {
           const uname = (u.username || '').toLowerCase().trim();
           if (uname === 'maqsood') {
@@ -44,9 +46,6 @@ function getStoredUsersList() {
           }
           if (uname === 'worksphere' || uname === 'admin') {
             return { ...u, username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123' };
-          }
-          if (uname === 'client') {
-            return { ...u, username: 'client', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_CLIENT', rawPassword: u.rawPassword || '123456' };
           }
           return u;
         });
