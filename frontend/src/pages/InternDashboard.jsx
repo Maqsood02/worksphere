@@ -645,11 +645,29 @@ function getAttendanceTimelineAndRate(logs) {
         localStorage.setItem(`worksphere_attendance_${uKey}`, JSON.stringify(uniqueLogs));
       } catch(e) {}
 
-      // Extract and merge learning modules from MongoDB Atlas
+      // Extract and merge learning modules from MongoDB Atlas / API
       let rawModules = Array.isArray(baseData.learningModules) ? baseData.learningModules : [];
-      if (directMods.status === 'fulfilled' && directMods.value && Array.isArray(directMods.value.modules)) {
+      let directList = [];
+      if (directMods.status === 'fulfilled' && directMods.value) {
+        if (Array.isArray(directMods.value)) {
+          directList = directMods.value;
+        } else if (Array.isArray(directMods.value.modules)) {
+          directList = directMods.value.modules;
+        }
+      }
+      if (directList.length === 0 && rawModules.length === 0) {
+        try {
+          const saved = localStorage.getItem('worksphere_learning_modules');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) directList = parsed;
+          }
+        } catch (e) {}
+      }
+
+      if (directList.length > 0) {
         const modMap = new Map();
-        [...rawModules, ...directMods.value.modules].forEach(m => {
+        [...rawModules, ...directList].forEach(m => {
           if (m && (m.id || m.moduleId)) {
             modMap.set(m.id || m.moduleId, m);
           }

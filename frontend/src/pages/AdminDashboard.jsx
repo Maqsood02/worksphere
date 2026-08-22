@@ -516,21 +516,41 @@ export default function AdminDashboard() {
   const fetchLearningModules = async () => {
     try {
       const res = await api.getLearningModules();
-      if (res && res.modules) {
-        // Strict deduplication by title + target intern
-        const seen = new Set();
-        const unique = [];
-        for (const m of res.modules) {
-          const key = `${(m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}:::${(m.category || '').trim().toLowerCase()}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            unique.push(m);
-          }
-        }
-        setLearningModules(unique);
+      let list = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (res && Array.isArray(res.modules)) {
+        list = res.modules;
+      } else if (res && Array.isArray(res.data)) {
+        list = res.data;
+      } else {
+        try {
+          const saved = localStorage.getItem('worksphere_learning_modules');
+          if (saved) list = JSON.parse(saved);
+        } catch (e) {}
       }
+
+      // Deduplication by id / moduleId / title + assignedTo
+      const seen = new Set();
+      const unique = [];
+      for (const m of list) {
+        if (!m || !m.title) continue;
+        const key = `${(m.id || m.moduleId || m.title || '').trim().toLowerCase()}:::${(m.assignedTo || 'ALL').trim().toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(m);
+        }
+      }
+      setLearningModules(unique);
     } catch (err) {
-      console.error(err);
+      console.error("fetchLearningModules error:", err);
+      try {
+        const saved = localStorage.getItem('worksphere_learning_modules');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setLearningModules(parsed);
+        }
+      } catch (e) {}
     }
   };
 
