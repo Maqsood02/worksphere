@@ -954,9 +954,60 @@ export default function AdminDashboard() {
     if (!taskId) return;
     setIsProcessingReview(true);
     try {
-      const feedback = reviewFeedback.trim() || 'Please revise your deliverables/files with updated documentation and resubmit for evaluation.';
-      await api.updateAdminInternTaskStatus(taskId, 'IN_PROGRESS');
-      addToast(`⚠️ Revision request dispatched to intern with feedback!`);
+      const feedback = reviewFeedback.trim() || 'Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.';
+      const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
+      const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+      const taskTitle = taskObj.title || 'Project Deliverable';
+      const deadline = taskObj.deadline || '2026-08-31';
+
+      // 1. Direct Serverless Revision Email & MongoDB status update
+      try {
+        await fetch('/api/send-revision-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId,
+            username: targetUser,
+            taskTitle,
+            deadline,
+            feedbackNotes: feedback
+          })
+        });
+      } catch (e) {}
+
+      // 2. Direct Serverless PATCH to MongoDB Atlas
+      try {
+        await fetch('/api/intern-tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId,
+            status: 'REVISION_REQUESTED',
+            adminFeedback: feedback
+          })
+        });
+      } catch (e) {}
+
+      // 3. Local task store update
+      try {
+        const updateTaskObj = (t) => {
+          if (t.id === taskId || t.taskId === taskId) {
+            return { ...t, status: 'REVISION_REQUESTED', adminFeedback: feedback };
+          }
+          return t;
+        };
+        const uClean = targetUser.toLowerCase();
+        const userSaved = localStorage.getItem(`worksphere_tasks_${uClean}`);
+        if (userSaved) {
+          localStorage.setItem(`worksphere_tasks_${uClean}`, JSON.stringify(JSON.parse(userSaved).map(updateTaskObj)));
+        }
+        const globalSaved = localStorage.getItem('worksphere_global_tasks');
+        if (globalSaved) {
+          localStorage.setItem('worksphere_global_tasks', JSON.stringify(JSON.parse(globalSaved).map(updateTaskObj)));
+        }
+      } catch (e) {}
+
+      addToast(`⚠️ Revision request & feedback email dispatched to @${targetUser}!`);
       setReviewTaskModal(null);
       setReviewFeedback('');
       fetchInternsData();
@@ -2081,8 +2132,9 @@ export default function AdminDashboard() {
                               <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
                                 task.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                 task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse' :
+                                task.status === 'REVISION_REQUESTED' ? 'bg-rose-50 text-rose-700 border border-rose-200 font-bold' :
                                 'bg-slate-100 text-slate-700 border border-slate-200'
-                              }`}>{task.status.replace('_', ' ')}</span>
+                              }`}>{task.status === 'REVISION_REQUESTED' ? 'Revision Requested' : task.status.replace('_', ' ')}</span>
                             </div>
                           </div>
 
@@ -2111,6 +2163,18 @@ export default function AdminDashboard() {
                             )}
                           </div>
                         </div>
+
+                        {/* Revision Feedback Notice (if revision was requested) */}
+                        {task.status === 'REVISION_REQUESTED' && (
+                          <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-3.5 rounded-2xl border border-rose-200 shadow-2xs space-y-1.5 text-xs">
+                            <div className="flex items-center gap-1.5 font-extrabold text-rose-900 text-[11px] uppercase tracking-wide">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Requested from Intern
+                            </div>
+                            <p className="text-rose-950 font-medium italic bg-white/90 p-2 rounded-xl border border-rose-100">
+                              "{task.adminFeedback || 'Revisions requested by administrator.'}"
+                            </p>
+                          </div>
+                        )}
 
                         {/* Submitted Deliverables Details (if submitted or in review) */}
                         {(task.submissionUrl || task.submissionNotes || task.status === 'SUBMITTED') && (() => {
@@ -2207,11 +2271,15 @@ export default function AdminDashboard() {
                           ) : (task.status === 'SUBMITTED' || task.status === 'PENDING' || task.status === 'PENDING_APPROVAL' || task.status === 'UNDER_REVIEW') ? (
                             <button
                               type="button"
-                              onClick={() => handleApproveInternTask(task.id)}
+                              onClick={() => handleApproveInternTask(task.id || task.taskId)}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve Task
                             </button>
+                          ) : task.status === 'REVISION_REQUESTED' ? (
+                            <span className="bg-rose-50 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs border border-rose-200 flex items-center gap-1 whitespace-nowrap">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Sent
+                            </span>
                           ) : (
                             <span className="bg-amber-50 text-amber-700 font-bold px-3 py-2 rounded-xl text-xs border border-amber-200 flex items-center gap-1 whitespace-nowrap">
                               <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" /> In Progress
@@ -2220,7 +2288,7 @@ export default function AdminDashboard() {
 
                           <button
                             type="button"
-                            onClick={() => handleDeleteInternTask(task.id)}
+                            onClick={() => handleDeleteInternTask(task.id || task.taskId)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
                             title="Delete this assigned deliverable task"
                           >

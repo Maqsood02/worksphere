@@ -372,6 +372,124 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
     console.error(`[EMAIL DISPATCH ERROR] Failed to send deadline reminder to ${toEmail}:`, err);
     return false;
   }
+// Helper: Send Deliverable Revision Request Email to Intern
+async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes }) {
+  if (!toEmail || !toEmail.includes('@')) return false;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Deliverable Revision Requested - WorkSphere</title>
+      <style>
+        body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; background-color: #f1f5f9; padding: 40px 12px; }
+        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+        .top-gradient { height: 6px; background: linear-gradient(90deg, #f59e0b 0%, #d97706 50%, #dc2626 100%); }
+        .header { padding: 32px 32px 20px 32px; text-align: center; }
+        .logo-text { font-size: 26px; font-weight: 800; color: #1e1b4b; letter-spacing: -0.5px; }
+        .logo-text span { color: #d97706; }
+        .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+        
+        .alert-pill-box { padding: 0 32px 16px 32px; }
+        .alert-pill { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 16px; padding: 14px 18px; text-align: center; }
+        .alert-pill-title { font-size: 13px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .alert-pill-sub { font-size: 12px; font-weight: 600; color: #78350f; }
+
+        .content { padding: 8px 32px 28px 32px; font-size: 14px; line-height: 1.65; color: #334155; }
+        .greeting { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+        
+        .highlight-notice { background: #fffbeb; border-left: 4px solid #d97706; border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-size: 13.5px; color: #1e293b; border-top: 1px solid #fef3c7; border-right: 1px solid #fef3c7; border-bottom: 1px solid #fef3c7; }
+        .highlight-title { font-weight: 800; color: #b45309; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+        .task-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px; margin: 20px 0; }
+        .task-title { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 10px; }
+        .task-desc { font-size: 13.5px; color: #475569; margin-bottom: 14px; line-height: 1.6; }
+        
+        .meta-row { display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 8px; font-size: 12.5px; color: #64748b; }
+        .meta-label { font-weight: 600; }
+        .meta-val { font-weight: 800; color: #0f172a; }
+
+        .btn-box { text-align: center; margin: 30px 0 10px 0; }
+        .btn-action { display: inline-block; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: #ffffff !important; font-weight: 800; font-size: 14.5px; text-decoration: none; padding: 14px 34px; border-radius: 14px; box-shadow: 0 4px 14px 0 rgba(217, 119, 6, 0.35); text-align: center; }
+        
+        .footer { text-align: center; padding: 24px 32px 32px 32px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #94a3b8; background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="card">
+          <div class="top-gradient"></div>
+          
+          <div class="header">
+            <div class="logo-text">Work<span>Sphere</span></div>
+            <div class="sub-tag">DELIVERABLE EVALUATION & REVISION NOTICE</div>
+          </div>
+
+          <div class="alert-pill-box">
+            <div class="alert-pill">
+              <span class="alert-pill-title">⚠️ Deliverable Revision Required</span>
+              <span class="alert-pill-sub">Your supervisor has reviewed your submission and requested updates</span>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="greeting">Hello ${internName || username || 'Intern'},</div>
+            <div>
+              Your submitted project deliverable has been evaluated by your program administrator. Additional revisions or file updates are required before final approval.
+            </div>
+
+            <div class="highlight-notice">
+              <div class="highlight-title">📝 Supervisor Evaluation Feedback:</div>
+              <div style="font-style: italic; color: #78350f; font-weight: 600;">"${feedbackNotes || 'Please review your implementation, attach all required documentation, and resubmit your deliverables.'}"</div>
+            </div>
+
+            <div class="task-card">
+              <div class="task-title">📌 ${taskTitle}</div>
+              <div class="task-desc">${description || 'Review the supervisor feedback, make the requested adjustments, and resubmit your files via the portal.'}</div>
+              
+              <div class="meta-row">
+                <span class="meta-label">Assigned Intern:</span>
+                <span class="meta-val">@${username || 'intern'}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Deadline:</span>
+                <span class="meta-val" style="color: #b45309;">${deadline || '2026-08-31'}</span>
+              </div>
+            </div>
+
+            <div class="btn-box">
+              <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn-action">
+                Open Intern Portal & Resubmit Deliverable ↗
+              </a>
+            </div>
+          </div>
+
+          <div class="footer">
+            &copy; 2026 WorkSphere Platform. Automated evaluation notification.<br/>
+            Contact your mentor if you have questions regarding this revision.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
+      to: toEmail,
+      subject: `⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`,
+      html: htmlContent
+    });
+    console.log(`[EMAIL DISPATCH SUCCESS] Revision mail sent to ${toEmail}, id: ${info.messageId}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL DISPATCH ERROR] Failed to send revision mail to ${toEmail}:`, err);
+    return false;
+  }
 }
 
 export default async function handler(req, res) {
@@ -1096,6 +1214,68 @@ export default async function handler(req, res) {
           : `Automated scan complete: All intern tasks up to date, no pending 24h reminders required.`,
         dispatchedCount: dispatched.length,
         dispatched
+      });
+    }
+
+    // ==========================================
+    // 8C. DELIVERABLE REVISION EMAIL: (/api/send-revision-email or /api/revision-email)
+    // ==========================================
+    if (cleanPath.includes('send-revision-email') || cleanPath.includes('revision-email')) {
+      const col = db.collection('intern_tasks');
+      const usersCol = db.collection('users');
+
+      const taskId = body.taskId || query.taskId;
+      const targetUser = (body.username || query.username || '').replace(/^@+/, '').trim().toLowerCase();
+      const feedbackNotes = body.feedbackNotes || body.feedback || 'Please update your deliverables/files with updated documentation and resubmit for evaluation.';
+
+      let taskTitle = body.taskTitle || 'Project Deliverable';
+      let taskDeadline = body.deadline || '2026-08-31';
+      let taskAssigned = targetUser || 'intern';
+
+      if (taskId) {
+        const task = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
+        if (task) {
+          taskTitle = task.title || taskTitle;
+          taskDeadline = task.deadline || taskDeadline;
+          taskAssigned = (task.assignedTo || taskAssigned).replace(/^@+/, '').trim().toLowerCase();
+          await col.updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }] },
+            { $set: { status: 'REVISION_REQUESTED', adminFeedback: feedbackNotes, updatedAt: new Date() } }
+          );
+        }
+      }
+
+      let recipientEmail = body.toEmail || body.email;
+      let recipientName = taskAssigned;
+
+      if (!recipientEmail) {
+        if (taskAssigned.includes('chinmay')) {
+          recipientEmail = 'chinmaykv555@gmail.com';
+        } else if (taskAssigned.includes('maqsood')) {
+          recipientEmail = 'maqsoodmd.ac.in@gmail.com';
+        } else {
+          const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
+          recipientEmail = found?.email || 'maqsoodmd.ac.in@gmail.com';
+          recipientName = found?.name || taskAssigned;
+        }
+      }
+
+      const sent = await sendRevisionNotification({
+        toEmail: recipientEmail,
+        internName: recipientName,
+        username: taskAssigned,
+        taskTitle,
+        description: body.description || '',
+        deadline: taskDeadline,
+        feedbackNotes
+      });
+
+      return res.status(200).json({
+        success: sent,
+        message: sent
+          ? `Revision request & feedback email successfully sent to ${recipientEmail}!`
+          : `Failed sending revision email to ${recipientEmail}.`,
+        recipientEmail
       });
     }
 
