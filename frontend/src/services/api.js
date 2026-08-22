@@ -422,18 +422,22 @@ function isValidEmailFormat(email) {
 
   // 7. Projects (Client & Admin)
   if (url.includes('/projects')) {
-    const sampleProjects = [
-      { id: 'proj_101', title: 'WorkSphere Web Platform', clientName: 'Enterprise Client', category: 'Full-Stack Development', status: 'IN_PROGRESS', progress: 75, budget: 1500, deadline: '2026-09-15' },
-      { id: 'proj_102', title: 'AI Co-Pilot Assistant', clientName: 'Tech Corp', category: 'AI & Automation', status: 'COMPLETED', progress: 100, budget: 2200, deadline: '2026-08-01' },
-      { id: 'proj_103', title: 'Mobile Client Workspace App', clientName: 'Innovate LLC', category: 'Frontend', status: 'PLANNING', progress: 25, budget: 1800, deadline: '2026-10-30' }
-    ];
-    return { success: true, projects: sampleProjects };
+    let projs = [];
+    try {
+      const saved = localStorage.getItem('worksphere_projects');
+      if (saved) projs = JSON.parse(saved);
+    } catch (e) {}
+    return { success: true, projects: projs };
   }
 
   // 8. Invoices
   if (url.includes('/invoices')) {
-    const sampleInvoices = [];
-    return { success: true, invoices: sampleInvoices };
+    let invs = [];
+    try {
+      const saved = localStorage.getItem('worksphere_invoices');
+      if (saved) invs = JSON.parse(saved);
+    } catch (e) {}
+    return { success: true, invoices: invs };
   }
 
   // 9. Appointments & Cancel Handler
@@ -455,14 +459,7 @@ function isValidEmailFormat(email) {
     let apps = [];
     try {
       const saved = localStorage.getItem('worksphere_appointments');
-      if (saved) {
-        apps = JSON.parse(saved);
-      } else {
-        apps = [
-          { id: 'app_1', clientName: 'Alex Johnson', serviceType: 'Architecture Review', date: '2026-08-12', time: '10:00 AM', status: 'CONFIRMED' }
-        ];
-        localStorage.setItem('worksphere_appointments', JSON.stringify(apps));
-      }
+      if (saved) apps = JSON.parse(saved);
     } catch (e) {}
     return { success: true, appointments: apps };
   }

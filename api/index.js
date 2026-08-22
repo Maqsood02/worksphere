@@ -1539,6 +1539,48 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, modules: deduped });
     }
 
+    // ==========================================
+    // 12. INVOICES (/api/admin/invoices, /api/client/invoices, /api/invoices)
+    // ==========================================
+    if (cleanPath.includes('invoices')) {
+      const col = db.collection('invoices');
+      if (req.method === 'POST') {
+        const inv = { ...body, createdAt: new Date() };
+        await col.insertOne(inv);
+        return res.status(200).json({ success: true, invoice: inv });
+      }
+      const invs = await col.find({}).toArray();
+      return res.status(200).json({ success: true, invoices: invs });
+    }
+
+    // ==========================================
+    // 13. PROJECTS (/api/admin/projects, /api/client/projects, /api/projects)
+    // ==========================================
+    if (cleanPath.includes('projects')) {
+      const col = db.collection('projects');
+      if (req.method === 'POST') {
+        const proj = { ...body, createdAt: new Date() };
+        await col.insertOne(proj);
+        return res.status(200).json({ success: true, project: proj });
+      }
+      const projs = await col.find({}).toArray();
+      return res.status(200).json({ success: true, projects: projs });
+    }
+
+    // ==========================================
+    // 14. APPOINTMENTS (/api/admin/appointments, /api/client/appointments, /api/appointments)
+    // ==========================================
+    if (cleanPath.includes('appointments')) {
+      const col = db.collection('appointments');
+      if (req.method === 'POST') {
+        const app = { ...body, createdAt: new Date() };
+        await col.insertOne(app);
+        return res.status(200).json({ success: true, appointment: app });
+      }
+      const apps = await col.find({}).toArray();
+      return res.status(200).json({ success: true, appointments: apps });
+    }
+
     // Default Fallback
     return res.status(200).json({ success: true, message: 'WorkSphere API Ready' });
   } catch (err) {
