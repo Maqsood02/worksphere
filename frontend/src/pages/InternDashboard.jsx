@@ -209,6 +209,9 @@ export default function InternDashboard() {
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [submissionNotes, setSubmissionNotes] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [uploadedFileData, setUploadedFileData] = useState('');
+  const [uploadedFileType, setUploadedFileType] = useState('');
+  const [uploadedFileSize, setUploadedFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Log Standup Modal State
@@ -712,14 +715,36 @@ function getAttendanceTimelineAndRate(logs) {
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
       const finalSubmissionUrl = uploadedFileName 
-        ? `${submissionUrl || ''} ${submissionUrl ? '|' : ''} Report File: ${uploadedFileName}`.trim() 
+        ? `${submissionUrl || ''} ${submissionUrl ? '|' : ''} Report File: ${uploadedFileName}${uploadedFileSize ? ` (${uploadedFileSize})` : ''}`.trim() 
         : submissionUrl;
+
+      // Save file data to localStorage for instant admin inspection & download
+      if (uploadedFileData) {
+        try {
+          localStorage.setItem(`worksphere_file_${selectedTask.id}`, JSON.stringify({
+            data: uploadedFileData,
+            name: uploadedFileName,
+            type: uploadedFileType,
+            size: uploadedFileSize,
+            taskId: selectedTask.id
+          }));
+        } catch(e) {}
+      }
 
       // Update local storage immediately for real-time reactivity
       try {
         const updateTaskObj = (t) => {
           if (t.id === selectedTask.id || t.title === selectedTask.title) {
-            return { ...t, status: 'SUBMITTED', submissionUrl: finalSubmissionUrl, submissionNotes };
+            return { 
+              ...t, 
+              status: 'SUBMITTED', 
+              submissionUrl: finalSubmissionUrl, 
+              submissionNotes,
+              fileName: uploadedFileName,
+              fileSize: uploadedFileSize,
+              fileType: uploadedFileType,
+              fileData: uploadedFileData
+            };
           }
           return t;
         };
@@ -744,25 +769,37 @@ function getAttendanceTimelineAndRate(logs) {
             taskId: selectedTask.id,
             status: 'SUBMITTED',
             submissionUrl: finalSubmissionUrl,
-            submissionNotes: submissionNotes
+            submissionNotes: submissionNotes,
+            fileName: uploadedFileName,
+            fileSize: uploadedFileSize,
+            fileType: uploadedFileType
           })
         });
       } catch(e) {}
 
       const res = await api.submitInternTask(selectedTask.id, {
         submissionUrl: finalSubmissionUrl,
-        notes: submissionNotes
+        notes: submissionNotes,
+        fileName: uploadedFileName,
+        fileSize: uploadedFileSize,
+        fileType: uploadedFileType,
+        fileData: uploadedFileData
       });
       addToast(res?.message || "Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
       setSubmissionUrl('');
       setSubmissionNotes('');
       setUploadedFileName('');
+      setUploadedFileData('');
+      setUploadedFileType('');
+      setUploadedFileSize('');
       fetchInternData(true);
     } catch (err) {
       console.error(err);
       addToast("Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
+      setUploadedFileName('');
+      setUploadedFileData('');
       fetchInternData(true);
     } finally {
       setIsSubmitting(false);
@@ -2048,7 +2085,17 @@ function getAttendanceTimelineAndRate(logs) {
                     accept=".zip,.rar,.pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.tar.gz"
                     onChange={(e) => {
                       const f = e.target.files[0];
-                      if (f) setUploadedFileName(`${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`);
+                      if (f) {
+                        const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
+                        setUploadedFileName(f.name);
+                        setUploadedFileSize(sizeStr);
+                        setUploadedFileType(f.type || 'application/octet-stream');
+                        const reader = new FileReader();
+                        reader.onload = (loadEv) => {
+                          setUploadedFileData(loadEv.target.result);
+                        };
+                        reader.readAsDataURL(f);
+                      }
                     }}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
@@ -2056,15 +2103,21 @@ function getAttendanceTimelineAndRate(logs) {
                     <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-indigo-200 shadow-sm">
                       <div className="flex items-center gap-2 truncate">
                         <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span className="font-bold text-slate-800 truncate text-[11px]">{uploadedFileName}</span>
+                        <div className="text-left truncate">
+                          <span className="font-bold text-slate-800 truncate text-[11px] block">{uploadedFileName}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block">{uploadedFileSize || 'Ready to upload'}</span>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setUploadedFileName('');
+                          setUploadedFileData('');
+                          setUploadedFileType('');
+                          setUploadedFileSize('');
                         }}
-                        className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs"
+                        className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
                       >
                         ✕
                       </button>
