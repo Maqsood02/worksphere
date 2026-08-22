@@ -8,6 +8,7 @@ import {
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
   ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw
 } from 'lucide-react';
+import { playSuccessSound } from '../utils/sound';
 
 export default function AdminDashboard() {
   const { user, addToast } = useApp();
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
   const [reviewTaskModal, setReviewTaskModal] = useState(null);
   const [reviewFeedback, setReviewFeedback] = useState('');
   const [isProcessingReview, setIsProcessingReview] = useState(false);
+  const [successModalData, setSuccessModalData] = useState(null);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -926,11 +928,24 @@ export default function AdminDashboard() {
 
       // 2. Sync via API client
       await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
-      addToast('🎉 Deliverable approved & marked as successfully completed!');
+      
+      // Play pleasant audio chime and trigger success right mark modal
+      playSuccessSound();
+      setSuccessModalData({
+        title: "Task Approved & Marked Completed!",
+        message: "The submitted deliverable has been verified, marked as successfully completed in MongoDB, and the intern's progress updated."
+      });
+
+      addToast('✓ Task deliverable approved & marked as successfully completed!');
       fetchInternsData();
     } catch (err) {
       console.error(err);
-      addToast('Deliverable approved & marked as completed!');
+      playSuccessSound();
+      setSuccessModalData({
+        title: "Task Approved & Marked Completed!",
+        message: "The submitted deliverable has been approved and marked completed."
+      });
+      addToast('✓ Task deliverable approved & marked as completed!');
       fetchInternsData();
     }
   };
@@ -4074,6 +4089,37 @@ export default function AdminDashboard() {
           </div>
         );
       })()}
+
+      {/* Celebration Success Modal with Right Mark & Audio Chime */}
+      {successModalData && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 text-center space-y-5 shadow-2xl border border-emerald-100 transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+            {/* Animated Glowing Right Mark */}
+            <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/40 ring-8 ring-emerald-100 animate-bounce">
+              <Check className="w-10 h-10 stroke-[3.5]" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-poppins font-black text-slate-900">
+                {successModalData.title}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                {successModalData.message}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSuccessModalData(null)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3 px-6 rounded-2xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

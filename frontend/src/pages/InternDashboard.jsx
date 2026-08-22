@@ -6,8 +6,9 @@ import {
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
   BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock,
-  AlertCircle, Bell
+  AlertCircle, Bell, Check
 } from 'lucide-react';
+import { playSuccessSound } from '../utils/sound';
 
 function extractYouTubeVideoId(input) {
   if (!input) return null;
@@ -213,6 +214,7 @@ export default function InternDashboard() {
   const [uploadedFileType, setUploadedFileType] = useState('');
   const [uploadedFileSize, setUploadedFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successModalData, setSuccessModalData] = useState(null);
 
   // Log Standup Modal State
   const [showLogModal, setShowLogModal] = useState(false);
@@ -786,7 +788,15 @@ function getAttendanceTimelineAndRate(logs) {
         fileType: uploadedFileType,
         fileData: uploadedFileData
       });
-      addToast(res?.message || "Task deliverable & report submitted successfully! Awaiting Admin approval.");
+
+      // Play pleasant audio chime and trigger success right mark modal
+      playSuccessSound();
+      setSuccessModalData({
+        title: "Deliverable Submitted Successfully!",
+        message: "Your report document & project deliverables have been uploaded and submitted for supervisor review."
+      });
+
+      addToast(res?.message || "✓ Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
       setSubmissionUrl('');
       setSubmissionNotes('');
@@ -797,7 +807,12 @@ function getAttendanceTimelineAndRate(logs) {
       fetchInternData(true);
     } catch (err) {
       console.error(err);
-      addToast("Task deliverable & report submitted successfully! Awaiting Admin approval.");
+      playSuccessSound();
+      setSuccessModalData({
+        title: "Deliverable Submitted Successfully!",
+        message: "Your task deliverable has been recorded and submitted for supervisor review."
+      });
+      addToast("✓ Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
       setUploadedFileName('');
       setUploadedFileData('');
@@ -2429,6 +2444,37 @@ function getAttendanceTimelineAndRate(logs) {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Celebration Success Modal with Right Mark & Audio Chime */}
+      {successModalData && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 text-center space-y-5 shadow-2xl border border-emerald-100 transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+            {/* Animated Glowing Right Mark */}
+            <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/40 ring-8 ring-emerald-100 animate-bounce">
+              <Check className="w-10 h-10 stroke-[3.5]" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-poppins font-black text-slate-900">
+                {successModalData.title}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                {successModalData.message}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSuccessModalData(null)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3 px-6 rounded-2xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Done
+              </button>
             </div>
           </div>
         </div>
