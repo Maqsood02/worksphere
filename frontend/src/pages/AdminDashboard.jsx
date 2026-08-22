@@ -1329,7 +1329,7 @@ export default function AdminDashboard() {
             <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><GraduationCap className="w-4 h-4" /></div>
             <div>
               <span className="text-[9px] text-text-light block uppercase font-bold">Interns</span>
-              <span className="font-poppins font-extrabold text-lg text-text-dark">{usersList.filter(u => u.role === 'ROLE_INTERN').length}</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">{Math.max(internsList.length, usersList.filter(u => (u.role || '').toUpperCase().includes('INTERN')).length)}</span>
             </div>
           </div>
           <div onClick={() => setActiveTab('appointments')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group">

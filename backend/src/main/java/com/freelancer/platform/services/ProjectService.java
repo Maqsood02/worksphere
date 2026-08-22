@@ -59,47 +59,6 @@ public class ProjectService {
 
     @PostConstruct
     public void seedProjects() {
-        if (projectRepository.count() == 0) {
-            Project p1 = Project.builder()
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .title("E-Commerce Web Application")
-                    .description("Create a modern SaaS-like e-commerce website with glassmorphism visual designs and quick checkout.")
-                    .projectType("Website Development")
-                    .budget(3500.0)
-                    .deadline("2026-08-15")
-                    .status("DEVELOPMENT")
-                    .progress(55)
-                    .build();
-
-            Project p2 = Project.builder()
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .title("AI Smart Chatbot Integration")
-                    .description("Inject an automated OpenAI-driven customer service bot helper into an existing portal.")
-                    .projectType("AI Solutions")
-                    .budget(1200.0)
-                    .deadline("2026-07-28")
-                    .status("PLANNING")
-                    .progress(25)
-                    .build();
-
-            Project p3 = Project.builder()
-                    .clientId("client")
-                    .clientName("John Doe")
-                    .title("Mobile Booking Utility Android App")
-                    .description("Android applications development for time slot scheduling and invoice management.")
-                    .projectType("Android Apps")
-                    .budget(4200.0)
-                    .deadline("2026-06-30")
-                    .status("COMPLETED")
-                    .progress(100)
-                    .build();
-
-            projectRepository.save(p1);
-            projectRepository.save(p2);
-            projectRepository.save(p3);
-            System.out.println("[DB SEED] Default Projects seeded!");
-        }
+        // Initial state: No auto-generated mock projects in database
     }
 }
