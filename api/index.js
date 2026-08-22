@@ -372,6 +372,8 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
     console.error(`[EMAIL DISPATCH ERROR] Failed to send deadline reminder to ${toEmail}:`, err);
     return false;
   }
+}
+
 // Helper: Send Deliverable Revision Request Email to Intern
 async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes }) {
   if (!toEmail || !toEmail.includes('@')) return false;
