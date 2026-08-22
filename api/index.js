@@ -944,7 +944,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        const { taskId, status, submissionUrl, submissionNotes, assignedTo, deadline, priority, deadlineReminderSent } = body;
+        const { taskId, status, submissionUrl, submissionNotes, fileName, fileSize, fileType, fileData, assignedTo, deadline, priority, deadlineReminderSent } = body;
         if (!taskId) return res.status(400).json({ success: false, message: 'TaskId required' });
         const updateFields = { updatedAt: new Date() };
         if (status) updateFields.status = status;
@@ -954,6 +954,10 @@ export default async function handler(req, res) {
         if (deadlineReminderSent !== undefined) updateFields.deadlineReminderSent = deadlineReminderSent;
         if (submissionUrl !== undefined) updateFields.submissionUrl = submissionUrl;
         if (submissionNotes !== undefined) updateFields.submissionNotes = submissionNotes;
+        if (fileName !== undefined) updateFields.fileName = fileName;
+        if (fileSize !== undefined) updateFields.fileSize = fileSize;
+        if (fileType !== undefined) updateFields.fileType = fileType;
+        if (fileData !== undefined) updateFields.fileData = fileData;
         await col.updateOne({ $or: [{ taskId: taskId }, { id: taskId }] }, { $set: updateFields });
         return res.status(200).json({ success: true, message: `Task updated!` });
       }

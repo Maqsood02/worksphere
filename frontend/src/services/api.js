@@ -1294,7 +1294,11 @@ export const api = {
               ...t,
               status: 'SUBMITTED',
               submissionUrl: payload.submissionUrl || payload.url || '',
-              submissionNotes: payload.notes || payload.submissionNotes || ''
+              submissionNotes: payload.notes || payload.submissionNotes || '',
+              fileName: payload.fileName || t.fileName || '',
+              fileSize: payload.fileSize || t.fileSize || '',
+              fileType: payload.fileType || t.fileType || '',
+              fileData: payload.fileData || t.fileData || ''
             };
           }
           return t;

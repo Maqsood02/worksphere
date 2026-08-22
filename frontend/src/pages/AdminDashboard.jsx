@@ -875,128 +875,8 @@ export default function AdminDashboard() {
     }
   }
 
-  function generateOfficialDeliverablePdfBlob({ title, internName, username, taskId, notes }) {
-    const sanitize = (str) => (str || '').replace(/[\r\n]+/g, ' ').replace(/[()]/g, '');
-    const tTitle = sanitize(title || 'CPMS Company Recruitment Drive Report');
-    const tTaskId = sanitize(taskId || 'TSK-002');
-    const tNotes = sanitize(notes || 'Completed comprehensive sprint deliverable, recruitment drive analysis, and test evaluation report.');
-    const tDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const streamContent = 
-`q
-0.12 0.23 0.54 rg
-36 720 540 60 re f
-1 1 1 rg
-BT
-/F1 18 Tf
-50 750 Td
-(WORKSPHERE TECHNOLOGIES - INTERNSHIP REPORT) Tj
-ET
-BT
-/F2 10 Tf
-50 732 Td
-(Official Project Deliverable & Engineering Verification Document) Tj
-ET
-
-0 0 0 rg
-BT
-/F1 14 Tf
-50 680 Td
-(${tTitle}) Tj
-ET
-
-0.4 0.4 0.4 rg
-BT
-/F2 10 Tf
-50 660 Td
-(Task ID: ${tTaskId}   |   Intern: @${username || 'maqsood'}   |   Date: ${tDate}) Tj
-ET
-
-0.85 0.85 0.85 rg
-50 645 512 1 re f
-
-0 0 0 rg
-BT
-/F1 11 Tf
-50 620 Td
-(1. EXECUTIVE SUMMARY & DELIVERABLE OBJECTIVE) Tj
-ET
-
-0.2 0.2 0.2 rg
-BT
-/F2 10 Tf
-50 600 Td
-(This report presents the complete campus placement recruitment metrics and test drive analysis.) Tj
-ET
-
-0 0 0 rg
-BT
-/F1 11 Tf
-50 560 Td
-(2. INTERN EXECUTION & SUBMISSION NOTES) Tj
-ET
-
-0.2 0.2 0.2 rg
-BT
-/F2 10 Tf
-50 540 Td
-(${tNotes.substring(0, 120)}) Tj
-ET
-
-0 0 0 rg
-BT
-/F1 11 Tf
-50 500 Td
-(3. VERIFICATION & APPROVAL STATUS) Tj
-ET
-
-0.05 0.6 0.2 rg
-BT
-/F1 10 Tf
-50 480 Td
-(STATUS: VERIFIED OFFICIAL SUBMISSION - READY FOR SUPERVISOR EVALUATION) Tj
-ET
-
-0.85 0.85 0.85 rg
-50 450 512 1 re f
-
-0.5 0.5 0.5 rg
-BT
-/F2 9 Tf
-50 430 Td
-(WorkSphere Platform Certification Authority - Cryptographically Logged Asset) Tj
-ET
-Q`;
-
-    const streamLen = new TextEncoder().encode(streamContent).length;
-
-    let pdf = `%PDF-1.4\n`;
-    const offsets = [];
-
-    const addObj = (str) => {
-      offsets.push(new TextEncoder().encode(pdf).length);
-      pdf += str + '\n';
-    };
-
-    addObj(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj`);
-    addObj(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj`);
-    addObj(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj`);
-    addObj(`4 0 obj\n<< /Length ${streamLen} >>\nstream\n${streamContent}\nendstream\nendobj`);
-    addObj(`5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj`);
-    addObj(`6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj`);
-
-    const xrefOffset = new TextEncoder().encode(pdf).length;
-    pdf += `xref\n0 7\n0000000000 65535 f \n`;
-    for (let i = 0; i < 6; i++) {
-      pdf += String(offsets[i]).padStart(10, '0') + ` 00000 n \n`;
-    }
-    pdf += `trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
-
-    return new Blob([pdf], { type: 'application/pdf' });
-  }
-
   const handleDownloadDeliverableFile = (sub, task) => {
-    const reportFileName = sub.fileName || `${task.title || 'Task'}_Report.pdf`;
+    const reportFileName = sub.fileName || 'Intern_Deliverable_File';
     
     // 1. If intern uploaded binary file data as Data URL
     if (sub.fileData && sub.fileData.startsWith('data:')) {
@@ -1015,30 +895,14 @@ Q`;
       }
     }
 
-    // 2. If it's a web URL
+    // 2. If it's a web URL (e.g. GitHub repo / Google Drive folder)
     if (sub.urlLink && !sub.urlLink.startsWith('data:')) {
       window.open(sub.urlLink, '_blank');
       return;
     }
 
-    // 3. Fallback: Generate real, 100% valid %PDF-1.4 binary file
-    const pdfBlob = generateOfficialDeliverablePdfBlob({
-      title: task.title || 'CPMS Company Recruitment Drive Report',
-      internName: task.assignedTo || 'Maqsood MD',
-      username: task.assignedTo || 'maqsood',
-      taskId: formatDisplayId(task.id, 'TSK'),
-      notes: sub.rawNotes
-    });
-
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = reportFileName.endsWith('.pdf') ? reportFileName : `${reportFileName}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    addToast(`Downloaded official PDF report: ${reportFileName}`);
+    // 3. If no binary file or link was attached
+    addToast("No binary file was uploaded with this submission. Only text notes were provided.");
   };
 
   const handleApproveFromReviewModal = async (taskId) => {
