@@ -562,11 +562,11 @@ export default async function handler(req, res) {
       }
 
       let role = user.role || 'ROLE_CLIENT';
-      if (uNameLower === 'maqsood' || uNameLower === 'chinmaykv' || user.email === 'maqsoodmd.ac.in@gmail.com' || user.email === 'chinmaykv555@gmail.com') {
+      if (uNameLower === 'maqsood' || uNameLower === 'chinmaykv' || user.email === 'maqsoodmd.ac.in@gmail.com' || user.email === 'maqsoodmdhrl@gmail.com' || user.email === 'chinmaykv555@gmail.com') {
         role = 'ROLE_INTERN';
       } else if (uNameLower === 'worksphere' || uNameLower === 'admin' || user.email === 'worksphere.ac.in@gmail.com') {
         role = 'ROLE_ADMIN';
-      } else if (uNameLower === 'client' || user.email === 'maqsoodmdhrl@gmail.com') {
+      } else if (uNameLower === 'client') {
         role = 'ROLE_CLIENT';
       }
 
@@ -798,13 +798,17 @@ export default async function handler(req, res) {
         const uKey = (u.username || '').toLowerCase().trim();
         if (uKey && !seen.has(uKey)) {
           seen.add(uKey);
+          const computedRole = (uKey === 'maqsood' || uKey === 'chinmaykv' || u.email === 'maqsoodmdhrl@gmail.com' || u.email === 'maqsoodmd.ac.in@gmail.com' || u.email === 'chinmaykv555@gmail.com')
+            ? 'ROLE_INTERN'
+            : ((uKey === 'worksphere' || uKey === 'admin' || u.email === 'worksphere.ac.in@gmail.com') ? 'ROLE_ADMIN' : (u.role || 'ROLE_CLIENT'));
+
           uniqueList.push({
             id: u.id || (u._id ? u._id.toString() : u.username),
             username: u.username,
             name: u.name || u.username,
             email: u.email,
             phone: u.phone || '8792404950',
-            role: u.role || 'ROLE_CLIENT',
+            role: computedRole,
             rawPassword: u.rawPassword || '123456',
             emailVerified: u.emailVerified ?? true,
             phoneVerified: u.phoneVerified ?? true

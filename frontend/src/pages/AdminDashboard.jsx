@@ -275,10 +275,13 @@ export default function AdminDashboard() {
       const uniqueUsers = [];
       for (const u of rawUsers) {
         const uKey = (u.username || '').trim().toLowerCase();
-        if (uKey === 'workshpere') continue; // Filter out duplicate typo variant
+        if (uKey === 'workshpere' || uKey === 'client') continue;
         if (uKey && !seenUsernames.has(uKey)) {
           seenUsernames.add(uKey);
-          uniqueUsers.push(u);
+          const computedRole = (uKey === 'maqsood' || uKey === 'chinmaykv' || u.email === 'maqsoodmdhrl@gmail.com' || u.email === 'maqsoodmd.ac.in@gmail.com' || u.email === 'chinmaykv555@gmail.com')
+            ? 'ROLE_INTERN'
+            : ((uKey === 'worksphere' || uKey === 'admin' || u.email === 'worksphere.ac.in@gmail.com') ? 'ROLE_ADMIN' : (u.role || 'ROLE_CLIENT'));
+          uniqueUsers.push({ ...u, role: computedRole });
         }
       }
       setUsersList(uniqueUsers.length > 0 ? uniqueUsers : defaultUsersList);

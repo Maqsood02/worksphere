@@ -5,8 +5,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v20');
-  if (currentCacheVer !== 'v20') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v22');
+  if (currentCacheVer !== 'v22') {
     localStorage.removeItem('worksphere_learning_modules');
     localStorage.removeItem('worksphere_users_list');
     localStorage.removeItem('worksphere_tasks_maqsood');
@@ -17,7 +17,7 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('worksphere_deleted_tasks');
     localStorage.removeItem('worksphere_appointments');
     localStorage.removeItem('worksphere_invoices');
-    localStorage.setItem('worksphere_clean_cache_v20', 'v20');
+    localStorage.setItem('worksphere_clean_cache_v22', 'v22');
   }
 }
 
@@ -25,7 +25,7 @@ if (typeof window !== 'undefined') {
 function getStoredUsersList() {
   const defaultList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123', emailVerified: true, phoneVerified: true },
-    { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
+    { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
     { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
@@ -40,10 +40,10 @@ function getStoredUsersList() {
         });
         parsed = parsed.map(u => {
           const uname = (u.username || '').toLowerCase().trim();
-          if (uname === 'maqsood') {
-            return { ...u, username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmd.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: u.rawPassword || '123456' };
+          if (uname === 'maqsood' || u.email === 'maqsoodmdhrl@gmail.com' || u.email === 'maqsoodmd.ac.in@gmail.com') {
+            return { ...u, username: 'maqsood', name: 'Maqsood MD', email: u.email || 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: u.rawPassword || '123456' };
           }
-          if (uname === 'chinmaykv' || uname === 'chinmay') {
+          if (uname === 'chinmaykv' || uname === 'chinmay' || u.email === 'chinmaykv555@gmail.com') {
             return { ...u, username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: u.rawPassword || '123456' };
           }
           if (uname === 'worksphere' || uname === 'admin') {
