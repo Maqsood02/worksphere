@@ -9,25 +9,26 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>WorkSphere | Premium Freelance & Service Platform</title>
-</head>
-
-<body>
-  <div id="root"></div>
   <script>
-    window.addEventListener('vite:preloadError', () => {
-      window.location.reload();
+    // Automatic stale chunk recovery & auto-refresh on new deployment
+    window.addEventListener('vite:preloadError', function () {
+      window.location.href = window.location.pathname + '?_v=' + Date.now();
     });
-    window.addEventListener('error', (e) => {
-      if (e?.target?.tagName === 'SCRIPT' || (e?.message && e.message.includes('dynamically imported module'))) {
-        const lastReload = sessionStorage.getItem('last_bundle_reload');
-        const now = Date.now();
-        if (!lastReload || now - Number(lastReload) > 5000) {
-          sessionStorage.setItem('last_bundle_reload', String(now));
-          window.location.reload();
+    window.addEventListener('error', function (e) {
+      if (e?.target?.tagName === 'SCRIPT' || (e?.message && (e.message.includes('dynamically imported module') || e.message.includes('Failed to load resource')))) {
+        var lastReload = sessionStorage.getItem('last_stale_reload');
+        var now = Date.now();
+        if (!lastReload || now - Number(lastReload) > 3000) {
+          sessionStorage.setItem('last_stale_reload', String(now));
+          window.location.href = window.location.pathname + '?_v=' + now;
         }
       }
     }, true);
   </script>
+</head>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 
