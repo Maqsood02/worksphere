@@ -821,6 +821,8 @@ public class InternRestController {
     public synchronized ResponseEntity<?> updateLearningModuleProgress(@PathVariable String id, @RequestBody Map<String, Object> payload) {
         Object pctObj = payload.get("progressPct");
         Object compObj = payload.get("completed");
+        String username = (String) payload.get("username");
+        Boolean isWatching = (Boolean) payload.get("isWatching");
 
         for (Map<String, Object> mod : learningModules) {
             if (id.equalsIgnoreCase(String.valueOf(mod.get("id"))) || id.equalsIgnoreCase(String.valueOf(mod.get("moduleId")))) {
@@ -829,6 +831,18 @@ public class InternRestController {
                 }
                 if (compObj instanceof Boolean b) {
                     mod.put("completed", b);
+                }
+                if (username != null && !username.isBlank()) {
+                    String uKey = username.toLowerCase().replace("@", "").trim();
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> progressByUser = (Map<String, Object>) mod.computeIfAbsent("progressByUser", k -> new HashMap<>());
+                    Map<String, Object> uProg = new HashMap<>();
+                    uProg.put("progressPct", pctObj instanceof Number n ? n.intValue() : 0);
+                    uProg.put("completed", compObj instanceof Boolean b ? b : false);
+                    uProg.put("username", uKey);
+                    uProg.put("isWatching", Boolean.TRUE.equals(isWatching));
+                    uProg.put("updatedAt", java.time.Instant.now().toString());
+                    progressByUser.put(uKey, uProg);
                 }
                 return ResponseEntity.ok(Map.of("success", true, "module", mod));
             }

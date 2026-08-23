@@ -38,8 +38,12 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
   const containerId = React.useMemo(() => 'yt-player-' + Math.random().toString(36).substring(2, 9), []);
   const videoId = React.useMemo(() => extractYouTubeVideoId(videoUrl), [videoUrl]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTabFocused, setIsTabFocused] = useState(true);
   const [livePct, setLivePct] = useState(currentProgress || 0);
+  const [warningMessage, setWarningMessage] = useState('');
+
   const lastSavedRef = React.useRef(currentProgress || 0);
+  const maxVerifiedTimeRef = React.useRef(0);
   const playerRef = React.useRef(null);
   const intervalRef = React.useRef(null);
 
@@ -48,7 +52,44 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
     lastSavedRef.current = currentProgress || 0;
   }, [currentProgress]);
 
-  // Load YouTube IFrame API
+  // Strict Tab & Window Focus Detection
+  useEffect(() => {
+    const handleFocusCheck = () => {
+      const isVisible = document.visibilityState === 'visible';
+      const hasFocus = document.hasFocus();
+      const active = isVisible && hasFocus;
+
+      setIsTabFocused(active);
+
+      if (!active) {
+        if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+          try {
+            playerRef.current.pauseVideo();
+          } catch (e) {}
+        }
+        setIsPlaying(false);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setWarningMessage('⚠️ Strict Monitoring: Video paused because you switched tabs or minimized the window. Return to this tab and resume playback to accrue watch progress.');
+        if (typeof onProgressChange === 'function') {
+          onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+        }
+      } else {
+        setWarningMessage('');
+      }
+    };
+
+    window.addEventListener('focus', handleFocusCheck);
+    window.addEventListener('blur', handleFocusCheck);
+    document.addEventListener('visibilitychange', handleFocusCheck);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusCheck);
+      window.removeEventListener('blur', handleFocusCheck);
+      document.removeEventListener('visibilitychange', handleFocusCheck);
+    };
+  }, [onProgressChange]);
+
+  // Load YouTube IFrame API and Setup Player
   useEffect(() => {
     if (!videoId) return;
 
@@ -61,20 +102,60 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
 
     const onPlayerStateChange = (event) => {
       if (event.data === 1) { // PLAYING
+        if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+          try {
+            playerRef.current?.pauseVideo();
+          } catch (e) {}
+          setIsPlaying(false);
+          setWarningMessage('⚠️ Strict Monitoring: Please keep this tab focused in the foreground to watch.');
+          if (typeof onProgressChange === 'function') {
+            onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+          }
+          return;
+        }
+
         setIsPlaying(true);
+        setWarningMessage('');
+        if (typeof onProgressChange === 'function') {
+          onProgressChange(livePct, livePct >= 100, true);
+        }
+
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = setInterval(() => {
           try {
+            if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+              if (playerRef.current?.pauseVideo) playerRef.current.pauseVideo();
+              setIsPlaying(false);
+              setWarningMessage('⚠️ Strict Monitoring: Video paused because tab focus was lost.');
+              if (typeof onProgressChange === 'function') {
+                onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+              }
+              return;
+            }
+
             if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
               const curr = playerRef.current.getCurrentTime();
               const dur = playerRef.current.getDuration();
+
               if (dur > 0) {
-                const calculatedPct = Math.min(100, Math.max(0, Math.floor((curr / dur) * 100)));
+                // Anti-Skipping: Check if user attempted to jump forward beyond verified watch point
+                if (curr > maxVerifiedTimeRef.current + 4) {
+                  playerRef.current.seekTo(maxVerifiedTimeRef.current, true);
+                  setWarningMessage('⚠️ Strict Monitoring: Fast-forwarding or skipping unverified sections is disabled. Please watch continuously.');
+                  return;
+                }
+
+                // Advance verified watched seconds
+                maxVerifiedTimeRef.current = Math.max(maxVerifiedTimeRef.current, curr);
+
+                const calculatedPct = Math.min(100, Math.max(0, Math.floor((maxVerifiedTimeRef.current / dur) * 100)));
                 setLivePct(prev => {
                   const newMax = Math.max(prev, calculatedPct);
-                  if (newMax > lastSavedRef.current && (newMax - lastSavedRef.current >= 2 || newMax === 25 || newMax === 50 || newMax === 75 || newMax >= 100)) {
+                  if (newMax > lastSavedRef.current) {
                     lastSavedRef.current = newMax;
-                    onProgressChange(newMax, newMax >= 100);
+                    if (typeof onProgressChange === 'function') {
+                      onProgressChange(newMax, newMax >= 100, true);
+                    }
                   }
                   return newMax;
                 });
@@ -87,10 +168,15 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         setLivePct(100);
         lastSavedRef.current = 100;
-        onProgressChange(100, true);
-      } else {
+        if (typeof onProgressChange === 'function') {
+          onProgressChange(100, true, false);
+        }
+      } else { // PAUSED, BUFFERING, CUED
         setIsPlaying(false);
         if (intervalRef.current) clearInterval(intervalRef.current);
+        if (typeof onProgressChange === 'function') {
+          onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+        }
       }
     };
 
@@ -137,7 +223,7 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
         }
       } catch (e) {}
     };
-  }, [videoId, containerId]);
+  }, [videoId, containerId, onProgressChange, livePct]);
 
   if (!videoId) {
     if (videoUrl) {
@@ -160,6 +246,14 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
 
   return (
     <div className="space-y-3">
+      {/* Strict Focus Alert Notice */}
+      {warningMessage && (
+        <div className="bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-300 p-3 rounded-2xl flex items-start gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-top-1">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <span>{warningMessage}</span>
+        </div>
+      )}
+
       <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-slate-950 relative">
         <div id={containerId} className="w-full h-full"></div>
       </div>
@@ -170,11 +264,11 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isPlaying ? 'bg-rose-500 animate-ping' : livePct >= 100 ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
             <span className="font-extrabold text-xs tracking-wide">
-              {isPlaying ? '▶ Auto-Tracking Active Video Playback' : livePct >= 100 ? '✓ Video Tutorial Completed' : '⏸ Video Paused / Ready to Track'}
+              {isPlaying ? '▶ Strict Monitoring Active (Watching in Foreground)' : livePct >= 100 ? '✓ Video Tutorial Completed' : '⏸ Video Paused (Ready to Track)'}
             </span>
           </div>
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-            livePct >= 100 ? 'bg-emerald-500 text-white' : 'bg-indigo-500/80 text-white'
+            livePct >= 100 ? 'bg-emerald-500 text-white' : isPlaying ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-500/80 text-white'
           }`}>
             {livePct}% Watched
           </span>
@@ -190,7 +284,7 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
         </div>
 
         <div className="flex items-center justify-between text-[10px] text-slate-300 font-medium pt-0.5">
-          <span>• Progress automatically syncs to Admin Dashboard as you watch</span>
+          <span>• Strict real-time sync with Admin Dashboard enabled</span>
           <span>{livePct >= 100 ? '🎉 Completed' : `${100 - livePct}% Remaining`}</span>
         </div>
       </div>
@@ -287,56 +381,6 @@ export default function InternDashboard() {
     }
     return str.toUpperCase();
   }
-
-  const handleAutoUpdateProgress = async (modId, pct, isCompleted = false) => {
-    const progressVal = Math.min(100, Math.max(0, Number(pct) || 0));
-    const isComp = isCompleted || progressVal >= 100;
-    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
-    try {
-      await api.updateLearningModuleProgress(modId, progressVal, isComp, uKey);
-      setSelectedModule(prev => prev ? ({ ...prev, progressPct: progressVal, completed: isComp }) : null);
-      setData(prev => {
-        if (!prev) return prev;
-        const updatedMods = (prev.learningModules || []).map(m => {
-          if (m.id === modId || m.moduleId === modId) {
-            const userProg = m.progressByUser || {};
-            userProg[uKey] = {
-              progressPct: progressVal,
-              completed: isComp,
-              updatedAt: new Date().toISOString()
-            };
-            return {
-              ...m,
-              progressByUser: userProg
-            };
-          }
-          return m;
-        });
-        return { ...prev, learningModules: updatedMods };
-      });
-    } catch (e) {
-      console.error('Auto progress error:', e);
-    }
-  };
-
-  const handleUpdateProgress = async (modId, pct) => {
-    const progressVal = Math.min(100, Math.max(0, Number(pct) || 0));
-    const isComp = progressVal >= 100;
-    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
-    try {
-      await api.updateLearningModuleProgress(modId, progressVal, isComp, uKey);
-      addToast(isComp ? "🎉 Learning Module marked 100% Completed!" : `Watch progress saved: ${progressVal}%`);
-      setSelectedModule(prev => prev ? ({ ...prev, progressPct: progressVal, completed: isComp }) : null);
-      fetchInternData(true);
-    } catch (e) {
-      console.error(e);
-      addToast("Failed to update module progress.");
-    }
-  };
-
-  const handleMarkModuleComplete = async (modId) => {
-    await handleUpdateProgress(modId, 100);
-  };
 
   useEffect(() => {
     if (!user) {
@@ -970,6 +1014,79 @@ function getAttendanceTimelineAndRate(logs) {
       console.error(err);
       addToast("Error requesting certificate.");
     }
+  };
+
+  const handleAutoUpdateProgress = async (moduleId, progressPct, completed, isWatching = false) => {
+    if (!moduleId) return;
+    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+    const isCompleted = completed || progressPct >= 100;
+    
+    // 1. Optimistically update local data state
+    setData(prev => {
+      if (!prev || !prev.learningModules) return prev;
+      const updatedModules = prev.learningModules.map(m => {
+        if (m.id === moduleId || m.moduleId === moduleId) {
+          const userProg = { ...(m.progressByUser || {}) };
+          userProg[uKey] = {
+            progressPct: typeof progressPct === 'number' ? progressPct : (userProg[uKey]?.progressPct || 0),
+            completed: isCompleted,
+            isWatching: Boolean(isWatching),
+            updatedAt: new Date().toISOString(),
+            username: uKey
+          };
+          return {
+            ...m,
+            progressPct: isCompleted ? 100 : progressPct,
+            completed: isCompleted,
+            progressByUser: userProg
+          };
+        }
+        return m;
+      });
+      return { ...prev, learningModules: updatedModules };
+    });
+
+    // 2. Update selectedModule if currently open
+    setSelectedModule(prev => {
+      if (!prev || (prev.id !== moduleId && prev.moduleId !== moduleId)) return prev;
+      const userProg = { ...(prev.progressByUser || {}) };
+      userProg[uKey] = {
+        progressPct: typeof progressPct === 'number' ? progressPct : (userProg[uKey]?.progressPct || 0),
+        completed: isCompleted,
+        isWatching: Boolean(isWatching),
+        updatedAt: new Date().toISOString(),
+        username: uKey
+      };
+      return {
+        ...prev,
+        progressPct: isCompleted ? 100 : progressPct,
+        completed: isCompleted,
+        progressByUser: userProg
+      };
+    });
+
+    // 3. Play celebration audio & modal if completed for the first time
+    if (isCompleted && (!selectedModule?.completed && (selectedModule?.progressPct || 0) < 100)) {
+      playSuccessSound();
+      setSuccessModalData({
+        title: "Learning Module Completed!",
+        message: "Your verified video watch progress has reached 100% and is synchronized live with the Admin Dashboard."
+      });
+    }
+
+    // 4. API Call & instant broadcast
+    try {
+      await api.updateLearningModuleProgress(moduleId, isCompleted ? 100 : progressPct, isCompleted, uKey, isWatching);
+    } catch (err) {
+      console.warn("Progress update note:", err);
+    }
+  };
+
+  const handleMarkModuleComplete = async (moduleId) => {
+    if (!moduleId) return;
+    const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+    await handleAutoUpdateProgress(moduleId, 100, true, false);
+    addToast("Module marked as 100% completed!");
   };
 
   if (loading) {

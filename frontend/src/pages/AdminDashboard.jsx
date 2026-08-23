@@ -133,6 +133,24 @@ export default function AdminDashboard() {
   }, [activeTab, selectedClient]);
 
   useEffect(() => {
+    let interval = null;
+    if (activeTab === 'curriculum' || activeTab === 'interns') {
+      fetchLearningModules();
+      interval = setInterval(fetchLearningModules, 3000);
+    }
+    const handleSync = () => {
+      fetchLearningModules();
+    };
+    window.addEventListener('worksphere_module_progress_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      if (interval) clearInterval(interval);
+      window.removeEventListener('worksphere_module_progress_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
     if (chatViewportRef.current) {
       chatViewportRef.current.scrollTop = chatViewportRef.current.scrollHeight;
     }
@@ -2620,13 +2638,26 @@ export default function AdminDashboard() {
                                 ? userProg.progressPct 
                                 : (isDirectPersonal && typeof mod.progressPct === 'number' ? mod.progressPct : 0);
                               const isComp = typeof userProg.completed === 'boolean' ? userProg.completed : (pct >= 100);
+                              const isWatching = Boolean(userProg.isWatching);
 
                               return (
-                                <div key={uKey} className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 space-y-2 transition-all overflow-hidden">
+                                <div key={uKey} className={`p-2.5 rounded-xl border space-y-2 transition-all overflow-hidden ${
+                                  isWatching 
+                                    ? 'bg-rose-50/70 border-rose-300 shadow-xs ring-1 ring-rose-400' 
+                                    : 'bg-slate-50/90 hover:bg-slate-50 border-slate-200/70'
+                                }`}>
                                   {/* Top row: Name/Username on left, Status badge on right */}
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 min-w-0">
-                                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isComp ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : pct > 0 ? 'bg-indigo-500 shadow-xs shadow-indigo-500/50' : 'bg-slate-300'}`}></div>
+                                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                        isWatching 
+                                          ? 'bg-rose-500 animate-ping' 
+                                          : isComp 
+                                            ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' 
+                                            : pct > 0 
+                                              ? 'bg-indigo-500 shadow-xs shadow-indigo-500/50' 
+                                              : 'bg-slate-300'
+                                      }`}></div>
                                       <div className="min-w-0">
                                         <span className="font-extrabold text-slate-900 text-xs block leading-tight">
                                           {intern.name || intern.username}
@@ -2638,13 +2669,15 @@ export default function AdminDashboard() {
                                     </div>
 
                                     <span className={`shrink-0 px-2 py-0.5 rounded-md text-[10px] font-extrabold shadow-2xs whitespace-nowrap ${
-                                      isComp 
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                        : pct > 0 
-                                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
-                                          : 'bg-slate-200/80 text-slate-700 border border-slate-300/60'
+                                      isWatching
+                                        ? 'bg-rose-500 text-white animate-pulse'
+                                        : isComp 
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                          : pct > 0 
+                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                            : 'bg-slate-200/80 text-slate-700 border border-slate-300/60'
                                     }`}>
-                                      {isComp ? '✓ Done' : `${pct}% Watched`}
+                                      {isWatching ? `▶ ${pct}% Watching Now` : isComp ? '✓ Done (100%)' : `${pct}% Watched`}
                                     </span>
                                   </div>
 
@@ -2652,7 +2685,13 @@ export default function AdminDashboard() {
                                   <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
                                     <div
                                       className={`h-1.5 rounded-full transition-all duration-300 ${
-                                        isComp ? 'bg-emerald-500' : pct > 0 ? 'bg-indigo-600' : 'bg-slate-300'
+                                        isWatching
+                                          ? 'bg-gradient-to-r from-rose-500 to-indigo-600 animate-pulse'
+                                          : isComp 
+                                            ? 'bg-emerald-500' 
+                                            : pct > 0 
+                                              ? 'bg-indigo-600' 
+                                              : 'bg-slate-300'
                                       }`}
                                       style={{ width: `${pct}%` }}
                                     ></div>

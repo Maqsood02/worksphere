@@ -1255,7 +1255,7 @@ export const api = {
       method: 'DELETE'
     });
   },
-  updateLearningModuleProgress: async (id, progressPct, completed, username) => {
+  updateLearningModuleProgress: async (id, progressPct, completed, username, isWatching) => {
     let currentUser = null;
     try {
       const savedUser = localStorage.getItem('worksphere_user');
@@ -1271,6 +1271,7 @@ export const api = {
           userProg[uKey] = {
             progressPct: typeof progressPct === 'number' ? progressPct : (userProg[uKey]?.progressPct || 0),
             completed: typeof completed === 'boolean' ? completed : (userProg[uKey]?.completed || false),
+            isWatching: typeof isWatching === 'boolean' ? isWatching : (userProg[uKey]?.isWatching || false),
             updatedAt: new Date().toISOString(),
             username: uKey
           };
@@ -1282,19 +1283,24 @@ export const api = {
         return m;
       });
       saveStoredLearningModules(modules);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('worksphere_module_progress_updated', {
+          detail: { id, uKey, progressPct, completed, isWatching }
+        }));
+      }
     } catch (e) {}
 
     try {
       await fetch('/api/learning-modules', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'X-Username': uKey },
-        body: JSON.stringify({ id, progressPct, completed, username: uKey })
+        body: JSON.stringify({ id, progressPct, completed, username: uKey, isWatching })
       });
     } catch (e) {}
 
     return request(`/api/intern/learning-modules/${id}/progress`, {
       method: 'POST',
-      body: JSON.stringify({ progressPct, completed, username: uKey })
+      body: JSON.stringify({ progressPct, completed, username: uKey, isWatching })
     });
   },
   claimInternTask: async (taskId) => {

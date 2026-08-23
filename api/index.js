@@ -1503,7 +1503,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        const { id, moduleId, progressPct, completed, username } = body;
+        const { id, moduleId, progressPct, completed, username, isWatching } = body;
         const targetId = id || moduleId;
         const uKey = (username || req.headers['x-username'] || '').toLowerCase().replace(/^@+/, '').trim();
         if (targetId) {
@@ -1514,6 +1514,9 @@ export default async function handler(req, res) {
             }
             if (typeof completed === 'boolean') {
               updateFields[`progressByUser.${uKey}.completed`] = completed;
+            }
+            if (typeof isWatching === 'boolean') {
+              updateFields[`progressByUser.${uKey}.isWatching`] = isWatching;
             }
             updateFields[`progressByUser.${uKey}.updatedAt`] = new Date();
             updateFields[`progressByUser.${uKey}.username`] = uKey;
