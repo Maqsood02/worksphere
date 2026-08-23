@@ -34,6 +34,20 @@ function extractYouTubeVideoId(input) {
   return null;
 }
 
+export function renderRichFormattedText(text) {
+  if (!text) return null;
+  const escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/==(.*?)==/g, '<mark class="bg-yellow-200 text-yellow-950 font-bold px-1.5 py-0.5 rounded border border-yellow-300 shadow-2xs">$1</mark>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-800">$1</em>')
+    .replace(/\n/g, '<br/>');
+
+  return <span dangerouslySetInnerHTML={{ __html: escaped }} />;
+}
+
 function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
   const containerId = React.useMemo(() => 'yt-player-' + Math.random().toString(36).substring(2, 9), []);
   const videoId = React.useMemo(() => extractYouTubeVideoId(videoUrl), [videoUrl]);
@@ -1538,9 +1552,9 @@ function getAttendanceTimelineAndRate(logs) {
                         </div>
                         <div className="text-xs space-y-1">
                           <span className="text-[11px] font-bold text-slate-700 block">Supervisor Evaluation Feedback:</span>
-                          <p className="text-xs text-amber-950 font-medium italic bg-white/80 p-2.5 rounded-xl border border-amber-200">
-                            "{task.adminFeedback || 'Please review requirements, attach all required files/documentation, and resubmit for evaluation.'}"
-                          </p>
+                          <div className="text-xs text-amber-950 font-medium bg-white/90 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                            {renderRichFormattedText(task.adminFeedback || 'Please review requirements, attach all required files/documentation, and resubmit for evaluation.')}
+                          </div>
                         </div>
                         {isAssignedToMe && (
                           <button
@@ -1597,9 +1611,19 @@ function getAttendanceTimelineAndRate(logs) {
                     )}
 
                     {isCompleted && (
-                      <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>Successfully Completed & Approved by Admin!</span>
+                      <div className="space-y-2">
+                        <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Successfully Completed & Approved by Admin!</span>
+                        </div>
+                        {task.adminFeedback && (
+                          <div className="bg-emerald-50/50 border border-emerald-100 p-2.5 rounded-xl text-xs space-y-1">
+                            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide">Supervisor Evaluation Feedback:</span>
+                            <div className="text-slate-800 text-xs leading-relaxed font-medium">
+                              {renderRichFormattedText(task.adminFeedback)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -374,6 +374,19 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
   }
 }
 
+// Helper: Format Markdown/Rich text for HTML Emails
+function formatRichFeedbackForEmail(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/==(.*?)==/g, '<mark style="background-color: #fef08a; color: #854d0e; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde047; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">$1</mark>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 800; color: #0f172a;">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #334155;">$1</em>')
+    .replace(/\n/g, '<br/>');
+}
+
 // Helper: Send Deliverable Revision Request Email to Intern
 async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes }) {
   if (!toEmail || !toEmail.includes('@')) return false;
@@ -445,7 +458,7 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
 
             <div class="highlight-notice">
               <div class="highlight-title">📝 Supervisor Evaluation Feedback:</div>
-              <div style="font-style: italic; color: #78350f; font-weight: 600;">"${feedbackNotes || 'Please review your implementation, attach all required documentation, and resubmit your deliverables.'}"</div>
+              <div style="color: #78350f; font-weight: 500; line-height: 1.6;">${formatRichFeedbackForEmail(feedbackNotes) || 'Please review your implementation, attach all required documentation, and resubmit your deliverables.'}</div>
             </div>
 
             <div class="task-card">
@@ -588,7 +601,7 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
 
             <div class="highlight-notice">
               <div class="highlight-title">💬 Admin Evaluation & Feedback Notes:</div>
-              <div style="font-style: italic; color: #0f172a; font-weight: 600; line-height: 1.6;">"${feedbackNotes || 'Deliverable evaluated and verified by administrator.'}"</div>
+              <div style="color: #0f172a; font-weight: 500; line-height: 1.6;">${formatRichFeedbackForEmail(feedbackNotes) || 'Deliverable evaluated and verified by administrator.'}</div>
             </div>
 
             <div class="btn-box">

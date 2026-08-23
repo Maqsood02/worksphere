@@ -6,9 +6,23 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
-  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw
+  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
+
+export function renderRichFormattedText(text) {
+  if (!text) return null;
+  const escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/==(.*?)==/g, '<mark class="bg-yellow-200 text-yellow-950 font-bold px-1.5 py-0.5 rounded border border-yellow-300 shadow-2xs">$1</mark>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-800">$1</em>')
+    .replace(/\n/g, '<br/>');
+
+  return <span dangerouslySetInnerHTML={{ __html: escaped }} />;
+}
 
 export default function AdminDashboard() {
   const { user, addToast } = useApp();
@@ -60,6 +74,8 @@ export default function AdminDashboard() {
   const [reviewFeedback, setReviewFeedback] = useState('');
   const [isProcessingReview, setIsProcessingReview] = useState(false);
   const [successModalData, setSuccessModalData] = useState(null);
+  const [showFeedbackPreview, setShowFeedbackPreview] = useState(true);
+  const feedbackTextareaRef = useRef(null);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -969,6 +985,51 @@ export default function AdminDashboard() {
       addToast('✓ Task deliverable approved & marked as completed!');
       fetchInternsData();
     }
+  };
+
+  const applyFeedbackFormat = (type) => {
+    const textarea = feedbackTextareaRef.current;
+    if (!textarea) {
+      if (type === 'bold') setReviewFeedback(prev => prev + ' **Bold Text**');
+      else if (type === 'highlight') setReviewFeedback(prev => prev + ' ==Highlighted Text==');
+      else if (type === 'italic') setReviewFeedback(prev => prev + ' *Italic Text*');
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = textarea.value || reviewFeedback;
+    const selected = currentVal.substring(start, end);
+    const before = currentVal.substring(0, start);
+    const after = currentVal.substring(end);
+    let insert = '';
+
+    if (type === 'bold') {
+      insert = selected ? `**${selected}**` : `**Bold Note**`;
+    } else if (type === 'highlight') {
+      insert = selected ? `==${selected}==` : `==Important Highlight==`;
+    } else if (type === 'italic') {
+      insert = selected ? `*${selected}*` : `*Italic Note*`;
+    } else if (type === 'bullet') {
+      insert = selected ? `\n• ${selected}` : `\n• Key Point: `;
+    } else if (type === 'praise') {
+      insert = selected 
+        ? `🎉 **Well Done!** ==${selected}==` 
+        : `🎉 **Well Done!** ==Excellent work & team contribution== on this deliverable!`;
+    } else if (type === 'needs_fix') {
+      insert = selected
+        ? `⚠️ **Revision Note:** ==${selected}==`
+        : `⚠️ **Action Required:** ==Please review the documentation, refine test cases, and re-upload== for evaluation.`;
+    }
+
+    const updated = before + insert + after;
+    setReviewFeedback(updated);
+
+    setTimeout(() => {
+      textarea.focus();
+      const pos = start + insert.length;
+      textarea.setSelectionRange(pos, pos);
+    }, 50);
   };
 
   const handleSendTaskFeedbackEmailOnly = async (taskId) => {
@@ -4030,32 +4091,125 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Admin Feedback / Revision Note Box */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    Admin Evaluation & Feedback Notes (Optional)
+              {/* Admin Feedback / Revision Note Box with Formatting Toolbar */}
+              <div className="space-y-2 bg-slate-50/70 border border-slate-200/90 rounded-2xl p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <span>Admin Evaluation & Feedback Notes</span>
+                    <span className="text-[10px] font-normal text-slate-400">(Rich Formatting Enabled)</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => handleSendTaskFeedbackEmailOnly(reviewTaskModal.id)}
                     disabled={isProcessingReview || !reviewFeedback.trim()}
-                    className="text-[11px] font-extrabold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Send these feedback notes directly to the intern's email"
+                    className="text-[11px] font-extrabold text-indigo-700 hover:text-indigo-800 bg-indigo-100/70 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs active:scale-95"
+                    title="Send these formatted notes directly to the intern's email"
                   >
-                    <Mail className="w-3 h-3" />
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Send Email to Intern</span>
                   </button>
                 </div>
+
+                {/* Rich Text Formatting Toolbar */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('bold')}
+                    className="px-2.5 py-1 text-xs font-black text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    title="Make selection Bold (**text**)"
+                  >
+                    <Bold className="w-3.5 h-3.5 text-slate-800" />
+                    <span>Bold</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('highlight')}
+                    className="px-2.5 py-1 text-xs font-bold text-amber-900 bg-yellow-100/80 hover:bg-yellow-200/80 border border-yellow-300/70 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    title="Highlight selection in bright yellow (==text==)"
+                  >
+                    <Highlighter className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Highlight</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('italic')}
+                    className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-all flex items-center gap-1 cursor-pointer italic"
+                    title="Italicize selection (*text*)"
+                  >
+                    <Italic className="w-3.5 h-3.5 text-slate-700" />
+                    <span>Italic</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('bullet')}
+                    className="px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    title="Insert Bullet Point"
+                  >
+                    <List className="w-3.5 h-3.5 text-slate-700" />
+                    <span>List</span>
+                  </button>
+
+                  <div className="h-4 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('praise')}
+                    className="px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-all cursor-pointer"
+                    title="Insert Quick Praise"
+                  >
+                    + Well Done
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => applyFeedbackFormat('needs_fix')}
+                    className="px-2 py-0.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-all cursor-pointer"
+                    title="Insert Quick Revision Note"
+                  >
+                    + Needs Fix
+                  </button>
+
+                  {reviewFeedback.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFeedbackPreview(prev => !prev)}
+                      className={`ml-auto px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                        showFeedbackPreview 
+                          ? 'bg-indigo-600 text-white shadow-2xs' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {showFeedbackPreview ? 'Hide Preview' : 'Show Preview'}
+                    </button>
+                  )}
+                </div>
+
                 <textarea
+                  ref={feedbackTextareaRef}
                   value={reviewFeedback}
                   onChange={(e) => setReviewFeedback(e.target.value)}
-                  rows="2"
-                  placeholder="e.g. Excellent report! All test metrics and recruitment analyses verified..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none text-xs leading-relaxed"
+                  rows="3"
+                  placeholder="e.g. Well Done! Chinmay K V, **great job towards this project** and ==one important thing is to finalize test results==..."
+                  className="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all resize-none text-xs leading-relaxed font-mono"
                 ></textarea>
+
+                {/* Live Formatted Output Preview */}
+                {reviewFeedback.trim() && showFeedbackPreview && (
+                  <div className="bg-white border border-indigo-100 rounded-xl p-3 space-y-1 shadow-2xs">
+                    <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wide flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-indigo-500" /> Live Formatted Preview (Email & Intern View):
+                    </span>
+                    <div className="text-xs text-slate-800 leading-relaxed font-sans bg-slate-50/60 p-2.5 rounded-lg border border-slate-100">
+                      {renderRichFormattedText(reviewFeedback)}
+                    </div>
+                  </div>
+                )}
+
                 <span className="text-[10px] text-slate-400 font-medium block">
-                  • Notes will be saved in the database and emailed to the intern's official inbox upon approval, revision request, or clicking 'Send Email'.
+                  • Highlight words using the <strong>Highlight</strong> button (or wrap in <code>==text==</code>) and make words bold using <strong>Bold</strong> (or <code>**text**</code>).
                 </span>
               </div>
 
