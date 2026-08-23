@@ -1448,7 +1448,7 @@ export default function AdminDashboard() {
 
   if (!user) return null;
 
-  // User Directory Filtering
+  // User Directory Filtering & Alignment (Admin 1st at top, then interns, then other roles)
   const filteredUsers = usersList.filter(u => {
     const roleStr = (u.role || 'ROLE_CLIENT').toUpperCase();
     const filterStr = (userRoleFilter || 'ALL').toUpperCase();
@@ -1460,6 +1460,20 @@ export default function AdminDashboard() {
       (u.email && u.email.toLowerCase().includes(term)) ||
       (u.role && u.role.toLowerCase().includes(term));
     return matchesRole && matchesSearch;
+  }).sort((a, b) => {
+    const aRole = (a.role || '').toUpperCase();
+    const bRole = (b.role || '').toUpperCase();
+    const aIsAdmin = aRole === 'ROLE_ADMIN' || aRole === 'ADMIN' || (a.username || '').toLowerCase() === 'worksphere' || (a.username || '').toLowerCase() === 'admin';
+    const bIsAdmin = bRole === 'ROLE_ADMIN' || bRole === 'ADMIN' || (b.username || '').toLowerCase() === 'worksphere' || (b.username || '').toLowerCase() === 'admin';
+    if (aIsAdmin && !bIsAdmin) return -1;
+    if (!aIsAdmin && bIsAdmin) return 1;
+
+    const aIsIntern = aRole === 'ROLE_INTERN' || aRole === 'INTERN';
+    const bIsIntern = bRole === 'ROLE_INTERN' || bRole === 'INTERN';
+    if (aIsIntern && !bIsIntern) return -1;
+    if (!aIsIntern && bIsIntern) return 1;
+
+    return (a.name || a.username || '').localeCompare(b.name || b.username || '');
   });
 
   // Deliverables & Task Reviews Filtering

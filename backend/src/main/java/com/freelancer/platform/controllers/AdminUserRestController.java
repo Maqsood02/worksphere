@@ -62,6 +62,21 @@ public class AdminUserRestController {
             }
         }
         List<User> deduplicatedUsers = new ArrayList<>(uniqueUserMap.values());
+        deduplicatedUsers.sort((a, b) -> {
+            boolean aIsAdmin = "ROLE_ADMIN".equalsIgnoreCase(a.getRole()) || "worksphere".equalsIgnoreCase(a.getUsername()) || "admin".equalsIgnoreCase(a.getUsername());
+            boolean bIsAdmin = "ROLE_ADMIN".equalsIgnoreCase(b.getRole()) || "worksphere".equalsIgnoreCase(b.getUsername()) || "admin".equalsIgnoreCase(b.getUsername());
+            if (aIsAdmin && !bIsAdmin) return -1;
+            if (!aIsAdmin && bIsAdmin) return 1;
+
+            boolean aIsIntern = "ROLE_INTERN".equalsIgnoreCase(a.getRole());
+            boolean bIsIntern = "ROLE_INTERN".equalsIgnoreCase(b.getRole());
+            if (aIsIntern && !bIsIntern) return -1;
+            if (!aIsIntern && bIsIntern) return 1;
+
+            String aName = a.getName() != null ? a.getName() : a.getUsername();
+            String bName = b.getName() != null ? b.getName() : b.getUsername();
+            return aName.compareToIgnoreCase(bName);
+        });
 
         List<Map<String, Object>> response = deduplicatedUsers.stream().map(user -> {
             Map<String, Object> map = new HashMap<>();

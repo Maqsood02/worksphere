@@ -716,6 +716,9 @@ export default async function handler(req, res) {
         const roleIdx = parts.indexOf('role');
         const targetUname = (roleIdx > 0 ? parts[roleIdx - 1] : (query.username || body.username || '')).replace(/^@+/, '').trim();
         const newRole = body.role || 'ROLE_CLIENT';
+        if (targetUname.toLowerCase() === 'worksphere' || targetUname.toLowerCase() === 'admin') {
+          return res.status(403).json({ success: false, message: 'Primary administrator role is protected and cannot be changed.' });
+        }
         if (targetUname) {
           await col.updateOne(
             { username: new RegExp(`^${targetUname}$`, 'i') },
@@ -815,6 +818,23 @@ export default async function handler(req, res) {
           });
         }
       }
+
+      uniqueList.sort((a, b) => {
+        const aRole = (a.role || '').toUpperCase();
+        const bRole = (b.role || '').toUpperCase();
+        const aIsAdmin = aRole === 'ROLE_ADMIN' || aRole === 'ADMIN' || (a.username || '').toLowerCase() === 'worksphere' || (a.username || '').toLowerCase() === 'admin';
+        const bIsAdmin = bRole === 'ROLE_ADMIN' || bRole === 'ADMIN' || (b.username || '').toLowerCase() === 'worksphere' || (b.username || '').toLowerCase() === 'admin';
+        if (aIsAdmin && !bIsAdmin) return -1;
+        if (!aIsAdmin && bIsAdmin) return 1;
+
+        const aIsIntern = aRole === 'ROLE_INTERN' || aRole === 'INTERN';
+        const bIsIntern = bRole === 'ROLE_INTERN' || bRole === 'INTERN';
+        if (aIsIntern && !bIsIntern) return -1;
+        if (!aIsIntern && bIsIntern) return 1;
+
+        return (a.name || a.username || '').localeCompare(b.name || b.username || '');
+      });
+
       return res.status(200).json(uniqueList);
     }
 
