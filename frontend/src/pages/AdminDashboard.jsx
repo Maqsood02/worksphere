@@ -1516,17 +1516,9 @@ export default function AdminDashboard() {
             <Layout className="w-4 h-4 shrink-0" />
             <span>Active Projects</span>
           </button>
-          <button onClick={() => setActiveTab('analytics')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
-            <FileText className="w-4 h-4 shrink-0" />
-            <span>Income & Charts</span>
-          </button>
           <button onClick={() => setActiveTab('chat')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'chat' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
             <MessageSquare className="w-4 h-4 shrink-0" />
             <span>Help Desk Chat</span>
-          </button>
-          <button onClick={() => setActiveTab('appointments')} className={`shrink-0 lg:shrink flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap ${activeTab === 'appointments' ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-50 hover:text-primary bg-slate-50/60 lg:bg-transparent'}`}>
-            <Calendar className="w-4 h-4 shrink-0" />
-            <span>Meetings Sched</span>
           </button>
         </nav>
       </div>
@@ -1534,26 +1526,12 @@ export default function AdminDashboard() {
       {/* Main Content Area */}
       <div className="lg:col-span-9 space-y-8">
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div onClick={() => setActiveTab('users')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
             <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors"><Users className="w-4 h-4" /></div>
             <div>
               <span className="text-[9px] text-text-light block uppercase font-bold">Accounts</span>
               <span className="font-poppins font-extrabold text-lg text-text-dark">{usersList.length}</span>
-            </div>
-          </div>
-          <div onClick={() => setActiveTab('deliverables')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
-            <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><ClipboardList className="w-4 h-4" /></div>
-            <div>
-              <span className="text-[9px] text-text-light block uppercase font-bold">Deliverables</span>
-              <span className="font-poppins font-extrabold text-lg text-indigo-600">{allInternTasks.length}</span>
-            </div>
-          </div>
-          <div onClick={() => setActiveTab('analytics')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group">
-            <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-600 font-extrabold text-base group-hover:bg-emerald-600 group-hover:text-white transition-colors">₹</div>
-            <div>
-              <span className="text-[9px] text-text-light block uppercase font-bold">Revenue</span>
-              <span className="font-poppins font-extrabold text-lg text-text-dark">₹{revenue.toLocaleString('en-IN')}</span>
             </div>
           </div>
           <div onClick={() => setActiveTab('interns')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
@@ -1563,11 +1541,18 @@ export default function AdminDashboard() {
               <span className="font-poppins font-extrabold text-lg text-text-dark">{Math.max(internsList.length, usersList.filter(u => (u.role || '').toUpperCase().includes('INTERN')).length)}</span>
             </div>
           </div>
-          <div onClick={() => setActiveTab('appointments')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group">
-            <div className="p-2.5 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Calendar className="w-4 h-4" /></div>
+          <div onClick={() => setActiveTab('deliverables')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><ClipboardList className="w-4 h-4" /></div>
             <div>
-              <span className="text-[9px] text-text-light block uppercase font-bold">Appointments</span>
-              <span className="font-poppins font-extrabold text-lg text-text-dark">{appointmentsCount}</span>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Deliverables</span>
+              <span className="font-poppins font-extrabold text-lg text-indigo-600">{allInternTasks.length}</span>
+            </div>
+          </div>
+          <div onClick={() => setActiveTab('attendance')} className="bg-white border border-slate-200 p-4 rounded-3xl shadow-sm flex items-center space-x-3 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group">
+            <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><Clock className="w-4 h-4" /></div>
+            <div>
+              <span className="text-[9px] text-text-light block uppercase font-bold">Attendance</span>
+              <span className="font-poppins font-extrabold text-lg text-text-dark">{allAttendanceLogs.length}</span>
             </div>
           </div>
         </div>
@@ -2733,24 +2718,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB: ANALYTICS & CHARTS */}
-        {activeTab === 'analytics' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-            <h3 className="font-poppins font-bold text-lg text-text-dark">Platform Revenue Analytics</h3>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={earningsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#6366f1" fill="#818cf8" fillOpacity={0.2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
         {/* TAB: HELP DESK CHAT */}
         {activeTab === 'chat' && (
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
@@ -2814,87 +2781,6 @@ export default function AdminDashboard() {
                   </button>
                 </form>
               </>
-            )}
-          </div>
-        )}
-
-        {/* TAB: APPOINTMENTS */}
-        {activeTab === 'appointments' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
-                    Client Sync Schedule
-                  </span>
-                  <span className="text-xs text-slate-500 font-semibold">• {appointments.length} Upcoming</span>
-                </div>
-                <h3 className="font-poppins font-extrabold text-xl text-slate-900 flex items-center gap-2.5 mt-1">
-                  <Calendar className="w-6 h-6 text-amber-600" /> Scheduled Client Meetings & Consultations
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Live calendar and consultation schedule booked by clients and partners.
-                </p>
-              </div>
-            </div>
-
-            {appointments.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs font-semibold bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                No client meetings scheduled at this time.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {appointments.map(a => (
-                  <div key={a.id} className="border border-slate-200/80 p-5 rounded-3xl bg-slate-50/60 hover:bg-white hover:border-amber-200 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span> {a.clientName || a.name || 'Alex Johnson'}
-                        </span>
-                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {a.status || 'CONFIRMED'}
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-slate-500 font-medium">
-                        {a.email || 'client@worksphere.ac.in'}
-                      </p>
-
-                      <div className="bg-white border border-slate-200/70 p-3 rounded-2xl space-y-1.5 text-xs">
-                        <div className="flex items-center gap-2 text-slate-700 font-bold">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>{a.date || '2026-08-12'}</span>
-                          <span className="text-slate-300">•</span>
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>{a.time || '10:00 AM'}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 font-medium pt-0.5">
-                          <span className="font-bold text-slate-700">Topic:</span> {a.serviceType || a.topic || 'Architecture Review & Project Sync'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <a
-                        href="https://meet.google.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" /> Join Room
-                      </a>
-
-                      <button
-                        onClick={() => cancelAppointment(a.id)}
-                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition-colors cursor-pointer"
-                      >
-                        Cancel Sync
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </div>
         )}
