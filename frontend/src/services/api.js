@@ -1855,5 +1855,20 @@ export const api = {
       body: JSON.stringify({ receiverId, content })
     }),
     
-  getUnreadCount: () => request('/api/chat/unread')
+  getUnreadCount: () => request('/api/chat/unread'),
+
+  // Email feedback dispatch
+  sendTaskFeedbackEmail: async (payload) => {
+    try {
+      const res = await fetch('/api/send-task-feedback-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      return { success: false, message: 'Failed sending feedback email.' };
+    }
+  }
 };

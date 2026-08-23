@@ -494,6 +494,135 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
   }
 }
 
+// Helper: Send Evaluation & Feedback Notes Email to Intern
+async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, status = 'FEEDBACK', feedbackNotes }) {
+  if (!toEmail || !toEmail.includes('@')) return false;
+
+  const isApproved = status === 'APPROVED' || status === 'COMPLETED';
+  const isRevision = status === 'REVISION_REQUESTED';
+  
+  const statusColor = isApproved ? '#10b981' : (isRevision ? '#d97706' : '#6366f1');
+  const gradient = isApproved
+    ? 'linear-gradient(90deg, #10b981 0%, #059669 50%, #047857 100%)'
+    : (isRevision
+      ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 50%, #dc2626 100%)'
+      : 'linear-gradient(90deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%)');
+
+  const statusTitle = isApproved ? '✓ Deliverable Approved & Verified' : (isRevision ? '⚠️ Revision Required' : '📝 Admin Evaluation Feedback');
+  const statusSub = isApproved 
+    ? 'Your supervisor has approved your submitted deliverable and left evaluation notes'
+    : (isRevision
+      ? 'Your supervisor has reviewed your submission and requested updates'
+      : 'Your supervisor has provided official evaluation feedback on your deliverable');
+
+  const subject = isApproved
+    ? `🎉 [WorkSphere] Deliverable Approved: ${taskTitle}`
+    : (isRevision
+      ? `⚠️ [WorkSphere] Revision Requested: ${taskTitle}`
+      : `📝 [WorkSphere] Evaluation Feedback: ${taskTitle}`);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; background-color: #f1f5f9; padding: 40px 12px; }
+        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+        .top-gradient { height: 6px; background: ${gradient}; }
+        .header { padding: 32px 32px 20px 32px; text-align: center; }
+        .logo-text { font-size: 26px; font-weight: 800; color: #1e1b4b; letter-spacing: -0.5px; }
+        .logo-text span { color: ${statusColor}; }
+        .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+        
+        .alert-pill-box { padding: 0 32px 16px 32px; }
+        .alert-pill { background: ${isApproved ? '#ecfdf5' : (isRevision ? '#fffbeb' : '#eef2ff')}; border: 1px solid ${isApproved ? '#a7f3d0' : (isRevision ? '#fde68a' : '#c7d2fe')}; border-radius: 16px; padding: 14px 18px; text-align: center; }
+        .alert-pill-title { font-size: 13px; font-weight: 800; color: ${isApproved ? '#047857' : (isRevision ? '#b45309' : '#3730a3')}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .alert-pill-sub { font-size: 12px; font-weight: 600; color: ${isApproved ? '#065f46' : (isRevision ? '#78350f' : '#312e81')}; }
+
+        .content { padding: 8px 32px 28px 32px; font-size: 14px; line-height: 1.65; color: #334155; }
+        .greeting { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+        
+        .highlight-notice { background: #f8fafc; border-left: 4px solid ${statusColor}; border-radius: 12px; padding: 16px 18px; margin: 18px 0; font-size: 13.5px; color: #1e293b; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+        .highlight-title { font-weight: 800; color: ${statusColor}; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+        .task-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; margin: 20px 0; }
+        .task-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+        
+        .btn-box { text-align: center; margin: 26px 0 10px 0; }
+        .btn-action { display: inline-block; background: ${gradient}; color: #ffffff !important; font-weight: 800; font-size: 14.5px; text-decoration: none; padding: 14px 34px; border-radius: 14px; box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.35); text-align: center; }
+        
+        .footer { text-align: center; padding: 24px 32px 32px 32px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #94a3b8; background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="card">
+          <div class="top-gradient"></div>
+          
+          <div class="header">
+            <div class="logo-text">Work<span>Sphere</span></div>
+            <div class="sub-tag">DELIVERABLE EVALUATION & SUPERVISOR FEEDBACK</div>
+          </div>
+
+          <div class="alert-pill-box">
+            <div class="alert-pill">
+              <span class="alert-pill-title">${statusTitle}</span>
+              <span class="alert-pill-sub">${statusSub}</span>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="greeting">Hello ${internName || username || 'Intern'},</div>
+            <div>
+              Your program administrator has evaluated your deliverable submission for <strong>${taskTitle}</strong>.
+            </div>
+
+            <div class="task-card">
+              <div class="task-title">🎯 Deliverable: ${taskTitle}</div>
+              <div style="font-size: 12px; color: #64748b; font-weight: 600;">Status: <span style="color: ${statusColor}; font-weight: 800;">${isApproved ? 'COMPLETED / APPROVED' : (isRevision ? 'REVISION REQUESTED' : 'EVALUATION FEEDBACK')}</span></div>
+            </div>
+
+            <div class="highlight-notice">
+              <div class="highlight-title">💬 Admin Evaluation & Feedback Notes:</div>
+              <div style="font-style: italic; color: #0f172a; font-weight: 600; line-height: 1.6;">"${feedbackNotes || 'Deliverable evaluated and verified by administrator.'}"</div>
+            </div>
+
+            <div class="btn-box">
+              <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn-action">
+                Open Intern Portal ↗
+              </a>
+            </div>
+          </div>
+
+          <div class="footer">
+            &copy; 2026 WorkSphere Platform. Official performance evaluation notice.<br/>
+            Automated email dispatched by WorkSphere Administrator.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
+      to: toEmail,
+      subject: subject,
+      html: htmlContent
+    });
+    console.log(`[EMAIL DISPATCH SUCCESS] Task feedback mail sent to ${toEmail}, id: ${info.messageId}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL DISPATCH ERROR] Failed to send task feedback mail to ${toEmail}:`, err);
+    return false;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1311,6 +1440,68 @@ export default async function handler(req, res) {
         message: sent
           ? `Revision request & feedback email successfully sent to ${recipientEmail}!`
           : `Failed sending revision email to ${recipientEmail}.`,
+        recipientEmail
+      });
+    }
+
+    // ==========================================
+    // 8D. TASK EVALUATION & FEEDBACK EMAIL: (/api/send-task-feedback-email or /api/send-feedback-email)
+    // ==========================================
+    if (cleanPath.includes('send-task-feedback-email') || cleanPath.includes('send-feedback-email')) {
+      const col = db.collection('intern_tasks');
+      const usersCol = db.collection('users');
+
+      const taskId = body.taskId || query.taskId;
+      const targetUser = (body.username || query.username || '').replace(/^@+/, '').trim().toLowerCase();
+      const feedbackNotes = (body.feedbackNotes || body.feedback || body.notes || '').trim();
+      const status = body.status || 'FEEDBACK';
+
+      let taskTitle = body.taskTitle || 'Project Deliverable';
+      let taskAssigned = targetUser || 'intern';
+
+      if (taskId) {
+        const task = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
+        if (task) {
+          taskTitle = task.title || taskTitle;
+          taskAssigned = (task.assignedTo || taskAssigned).replace(/^@+/, '').trim().toLowerCase();
+          if (feedbackNotes) {
+            await col.updateOne(
+              { $or: [{ taskId: taskId }, { id: taskId }] },
+              { $set: { adminFeedback: feedbackNotes, updatedAt: new Date() } }
+            );
+          }
+        }
+      }
+
+      let recipientEmail = body.toEmail || body.email;
+      let recipientName = taskAssigned;
+
+      if (!recipientEmail) {
+        if (taskAssigned.includes('chinmay')) {
+          recipientEmail = 'chinmaykv555@gmail.com';
+        } else if (taskAssigned.includes('maqsood')) {
+          recipientEmail = 'maqsoodmdhrl@gmail.com';
+        } else {
+          const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
+          recipientEmail = found?.email || 'maqsoodmdhrl@gmail.com';
+          recipientName = found?.name || taskAssigned;
+        }
+      }
+
+      const sent = await sendTaskFeedbackNotification({
+        toEmail: recipientEmail,
+        internName: recipientName,
+        username: taskAssigned,
+        taskTitle,
+        status,
+        feedbackNotes
+      });
+
+      return res.status(200).json({
+        success: sent,
+        message: sent
+          ? `Feedback & evaluation notes successfully emailed to ${recipientEmail}!`
+          : `Failed sending feedback email to ${recipientEmail}.`,
         recipientEmail
       });
     }

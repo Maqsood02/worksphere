@@ -971,10 +971,62 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSendTaskFeedbackEmailOnly = async (taskId) => {
+    if (!taskId) return;
+    const feedback = reviewFeedback.trim();
+    if (!feedback) {
+      addToast("Please type evaluation & feedback notes before sending email.");
+      return;
+    }
+    setIsProcessingReview(true);
+    try {
+      const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
+      const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+      const taskTitle = taskObj.title || 'Project Deliverable';
+
+      const res = await api.sendTaskFeedbackEmail({
+        taskId,
+        username: targetUser,
+        taskTitle,
+        status: taskObj.status || 'FEEDBACK',
+        feedbackNotes: feedback
+      });
+
+      if (res && res.success) {
+        addToast(`✓ Feedback email successfully dispatched to @${targetUser}!`);
+      } else {
+        addToast(res?.message || `Feedback email dispatched to @${targetUser}!`);
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Feedback email dispatched to intern.");
+    } finally {
+      setIsProcessingReview(false);
+    }
+  };
+
   const handleApproveFromReviewModal = async (taskId) => {
     if (!taskId) return;
     setIsProcessingReview(true);
     try {
+      const feedback = reviewFeedback.trim();
+      const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
+      const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+      const taskTitle = taskObj.title || 'Project Deliverable';
+
+      // If feedback was entered, dispatch email to intern with approval notes
+      if (feedback) {
+        try {
+          await api.sendTaskFeedbackEmail({
+            taskId,
+            username: targetUser,
+            taskTitle,
+            status: 'APPROVED',
+            feedbackNotes: feedback
+          });
+        } catch (e) {}
+      }
+
       await handleApproveInternTask(taskId);
       setReviewTaskModal(null);
       setReviewFeedback('');
@@ -3979,17 +4031,32 @@ export default function AdminDashboard() {
               </div>
 
               {/* Admin Feedback / Revision Note Box */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Admin Evaluation & Feedback Notes (Optional)
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Admin Evaluation & Feedback Notes (Optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleSendTaskFeedbackEmailOnly(reviewTaskModal.id)}
+                    disabled={isProcessingReview || !reviewFeedback.trim()}
+                    className="text-[11px] font-extrabold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Send these feedback notes directly to the intern's email"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span>Send Email to Intern</span>
+                  </button>
+                </div>
                 <textarea
                   value={reviewFeedback}
                   onChange={(e) => setReviewFeedback(e.target.value)}
                   rows="2"
                   placeholder="e.g. Excellent report! All test metrics and recruitment analyses verified..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none text-xs"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none text-xs leading-relaxed"
                 ></textarea>
+                <span className="text-[10px] text-slate-400 font-medium block">
+                  • Notes will be saved in the database and emailed to the intern's official inbox upon approval, revision request, or clicking 'Send Email'.
+                </span>
               </div>
 
               {/* Action Buttons */}
@@ -4005,12 +4072,22 @@ export default function AdminDashboard() {
                   Cancel
                 </button>
 
-                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSendTaskFeedbackEmailOnly(reviewTaskModal.id)}
+                    disabled={isProcessingReview || !reviewFeedback.trim()}
+                    className="flex-1 sm:flex-initial bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Email Feedback</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => handleRequestRevisionFromModal(reviewTaskModal.id)}
                     disabled={isProcessingReview}
-                    className="flex-1 sm:flex-initial bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                    className="flex-1 sm:flex-initial bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                   >
                     <span>↩ Request Revision</span>
                   </button>
