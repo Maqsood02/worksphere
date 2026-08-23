@@ -38,58 +38,53 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
   const containerId = React.useMemo(() => 'yt-player-' + Math.random().toString(36).substring(2, 9), []);
   const videoId = React.useMemo(() => extractYouTubeVideoId(videoUrl), [videoUrl]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isTabFocused, setIsTabFocused] = useState(true);
   const [livePct, setLivePct] = useState(currentProgress || 0);
   const [warningMessage, setWarningMessage] = useState('');
+
+  const onProgressChangeRef = React.useRef(onProgressChange);
+  useEffect(() => {
+    onProgressChangeRef.current = onProgressChange;
+  }, [onProgressChange]);
 
   const lastSavedRef = React.useRef(currentProgress || 0);
   const maxVerifiedTimeRef = React.useRef(0);
   const playerRef = React.useRef(null);
   const intervalRef = React.useRef(null);
+  const isPlayingRef = React.useRef(false);
 
   useEffect(() => {
     setLivePct(currentProgress || 0);
     lastSavedRef.current = currentProgress || 0;
   }, [currentProgress]);
 
-  // Strict Tab & Window Focus Detection
+  // Tab Visibility (Pause strictly when switching tabs or minimizing browser)
   useEffect(() => {
-    const handleFocusCheck = () => {
-      const isVisible = document.visibilityState === 'visible';
-      const hasFocus = document.hasFocus();
-      const active = isVisible && hasFocus;
-
-      setIsTabFocused(active);
-
-      if (!active) {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
         if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
           try {
             playerRef.current.pauseVideo();
           } catch (e) {}
         }
-        setIsPlaying(false);
         if (intervalRef.current) clearInterval(intervalRef.current);
-        setWarningMessage('⚠️ Strict Monitoring: Video paused because you switched tabs or minimized the window. Return to this tab and resume playback to accrue watch progress.');
-        if (typeof onProgressChange === 'function') {
-          onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+        setWarningMessage('⚠️ Video paused because you switched tabs or minimized the window. Focus on this tab to continue watching.');
+        if (typeof onProgressChangeRef.current === 'function') {
+          onProgressChangeRef.current(lastSavedRef.current, lastSavedRef.current >= 100, false);
         }
       } else {
         setWarningMessage('');
       }
     };
 
-    window.addEventListener('focus', handleFocusCheck);
-    window.addEventListener('blur', handleFocusCheck);
-    document.addEventListener('visibilitychange', handleFocusCheck);
-
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      window.removeEventListener('focus', handleFocusCheck);
-      window.removeEventListener('blur', handleFocusCheck);
-      document.removeEventListener('visibilitychange', handleFocusCheck);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [onProgressChange]);
+  }, []);
 
-  // Load YouTube IFrame API and Setup Player
+  // Setup YouTube IFrame Player (Only runs once per videoId & containerId)
   useEffect(() => {
     if (!videoId) return;
 
@@ -102,33 +97,32 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
 
     const onPlayerStateChange = (event) => {
       if (event.data === 1) { // PLAYING
-        if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+        if (document.visibilityState === 'hidden') {
           try {
             playerRef.current?.pauseVideo();
           } catch (e) {}
           setIsPlaying(false);
-          setWarningMessage('⚠️ Strict Monitoring: Please keep this tab focused in the foreground to watch.');
-          if (typeof onProgressChange === 'function') {
-            onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
-          }
+          isPlayingRef.current = false;
           return;
         }
 
+        isPlayingRef.current = true;
         setIsPlaying(true);
         setWarningMessage('');
-        if (typeof onProgressChange === 'function') {
-          onProgressChange(livePct, livePct >= 100, true);
+
+        if (typeof onProgressChangeRef.current === 'function') {
+          onProgressChangeRef.current(lastSavedRef.current, lastSavedRef.current >= 100, true);
         }
 
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = setInterval(() => {
           try {
-            if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+            if (document.visibilityState === 'hidden') {
               if (playerRef.current?.pauseVideo) playerRef.current.pauseVideo();
               setIsPlaying(false);
-              setWarningMessage('⚠️ Strict Monitoring: Video paused because tab focus was lost.');
-              if (typeof onProgressChange === 'function') {
-                onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+              isPlayingRef.current = false;
+              if (typeof onProgressChangeRef.current === 'function') {
+                onProgressChangeRef.current(lastSavedRef.current, lastSavedRef.current >= 100, false);
               }
               return;
             }
@@ -138,23 +132,27 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
               const dur = playerRef.current.getDuration();
 
               if (dur > 0) {
-                // Anti-Skipping: Check if user attempted to jump forward beyond verified watch point
-                if (curr > maxVerifiedTimeRef.current + 4) {
+                // Initialize max verified time from existing progress
+                if (maxVerifiedTimeRef.current === 0 && lastSavedRef.current > 0) {
+                  maxVerifiedTimeRef.current = (lastSavedRef.current / 100) * dur;
+                }
+
+                // Anti-skipping check (allow 6s buffer)
+                if (curr > maxVerifiedTimeRef.current + 6) {
                   playerRef.current.seekTo(maxVerifiedTimeRef.current, true);
-                  setWarningMessage('⚠️ Strict Monitoring: Fast-forwarding or skipping unverified sections is disabled. Please watch continuously.');
+                  setWarningMessage('⚠️ Skipping unverified sections is restricted. Please watch continuously.');
                   return;
                 }
 
-                // Advance verified watched seconds
                 maxVerifiedTimeRef.current = Math.max(maxVerifiedTimeRef.current, curr);
-
                 const calculatedPct = Math.min(100, Math.max(0, Math.floor((maxVerifiedTimeRef.current / dur) * 100)));
+
                 setLivePct(prev => {
                   const newMax = Math.max(prev, calculatedPct);
                   if (newMax > lastSavedRef.current) {
                     lastSavedRef.current = newMax;
-                    if (typeof onProgressChange === 'function') {
-                      onProgressChange(newMax, newMax >= 100, true);
+                    if (typeof onProgressChangeRef.current === 'function') {
+                      onProgressChangeRef.current(newMax, newMax >= 100, true);
                     }
                   }
                   return newMax;
@@ -164,18 +162,20 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
           } catch (e) {}
         }, 1000);
       } else if (event.data === 0) { // ENDED
+        isPlayingRef.current = false;
         setIsPlaying(false);
         if (intervalRef.current) clearInterval(intervalRef.current);
         setLivePct(100);
         lastSavedRef.current = 100;
-        if (typeof onProgressChange === 'function') {
-          onProgressChange(100, true, false);
+        if (typeof onProgressChangeRef.current === 'function') {
+          onProgressChangeRef.current(100, true, false);
         }
       } else { // PAUSED, BUFFERING, CUED
+        isPlayingRef.current = false;
         setIsPlaying(false);
         if (intervalRef.current) clearInterval(intervalRef.current);
-        if (typeof onProgressChange === 'function') {
-          onProgressChange(lastSavedRef.current, lastSavedRef.current >= 100, false);
+        if (typeof onProgressChangeRef.current === 'function') {
+          onProgressChangeRef.current(lastSavedRef.current, lastSavedRef.current >= 100, false);
         }
       }
     };
@@ -200,7 +200,7 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
             }
           });
         } catch (e) {
-          console.warn('YouTube Player initialization note:', e);
+          console.warn('YouTube Player setup:', e);
         }
       }
     };
@@ -223,7 +223,7 @@ function YouTubeAutoTracker({ videoUrl, currentProgress, onProgressChange }) {
         }
       } catch (e) {}
     };
-  }, [videoId, containerId, onProgressChange, livePct]);
+  }, [videoId, containerId]);
 
   if (!videoId) {
     if (videoUrl) {
