@@ -5,8 +5,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http:/
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v22');
-  if (currentCacheVer !== 'v22') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v23');
+  if (currentCacheVer !== 'v23') {
     localStorage.removeItem('worksphere_learning_modules');
     localStorage.removeItem('worksphere_users_list');
     localStorage.removeItem('worksphere_tasks_maqsood');
@@ -17,7 +17,9 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('worksphere_deleted_tasks');
     localStorage.removeItem('worksphere_appointments');
     localStorage.removeItem('worksphere_invoices');
-    localStorage.setItem('worksphere_clean_cache_v22', 'v22');
+    localStorage.removeItem('worksphere_projects');
+    localStorage.removeItem('worksphere_client_projects');
+    localStorage.setItem('worksphere_clean_cache_v23', 'v23');
   }
 }
 

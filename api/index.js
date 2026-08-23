@@ -1799,6 +1799,15 @@ export default async function handler(req, res) {
     // ==========================================
     if (cleanPath.includes('projects')) {
       const col = db.collection('projects');
+      if (req.method === 'DELETE') {
+        const id = query.id || body.id || query.projectId || body.projectId;
+        if (id && id !== 'all') {
+          await col.deleteOne({ $or: [{ _id: id }, { id: id }, { projectId: id }] });
+        } else {
+          await col.deleteMany({});
+        }
+        return res.status(200).json({ success: true, message: 'Projects deleted.' });
+      }
       if (req.method === 'POST') {
         const proj = { ...body, createdAt: new Date() };
         await col.insertOne(proj);

@@ -1559,6 +1559,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteProject = async (projectId) => {
+    setProjects(prev => prev.filter(p => (p.id !== projectId && p._id !== projectId)));
+    setProjectsCount(prev => Math.max(0, prev - 1));
+    addToast("Work order removed.");
+
+    try {
+      await fetch(`/api/projects?id=${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+    } catch (e) {}
+  };
+
+  const handleClearAllProjects = async () => {
+    setProjects([]);
+    setProjectsCount(0);
+    addToast("All work orders cleared.");
+
+    try {
+      await fetch('/api/projects?id=all', { method: 'DELETE' });
+    } catch (e) {}
+  };
+
   if (!user) return null;
 
   // User Directory Filtering & Alignment (Admin 1st at top, then interns, then other roles)
@@ -2843,41 +2863,67 @@ export default function AdminDashboard() {
         {/* TAB: ACTIVE PROJECTS */}
         {activeTab === 'projects' && (
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-poppins font-bold text-lg text-text-dark">Active Client Work Orders</h3>
                 <p className="text-xs text-slate-500">Overview of client proposals and committed technical milestones.</p>
               </div>
+              {projects.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllProjects}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Clear All Work Orders</span>
+                </button>
+              )}
             </div>
             {projects.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs font-semibold bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-                <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                No active client work orders at this time.
+              <div className="text-center py-14 text-slate-400 text-xs font-semibold bg-slate-50/60 rounded-3xl border border-dashed border-slate-200 space-y-2">
+                <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-700">No Active Client Work Orders</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Client project requests will appear here once real client proposals are submitted.
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {projects.map((p) => (
-                  <div key={p.id} className="border border-slate-100 p-5 rounded-2xl space-y-3 hover:border-slate-300 transition-all bg-slate-50/50">
+                  <div key={p.id || p._id} className="border border-slate-100 p-5 rounded-2xl space-y-3 hover:border-slate-300 transition-all bg-slate-50/50">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <span className="text-[10px] text-primary font-mono bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{p.id}</span>
+                        <span className="text-[10px] text-primary font-mono bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{p.id || p._id}</span>
                         <h4 className="font-bold text-slate-800 text-base mt-1">{p.title}</h4>
                       </div>
-                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase border ${
-                        p.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                      }`}>{p.status}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase border ${
+                          p.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                        }`}>{p.status}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProject(p.id || p._id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Work Order"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-xs text-text-light leading-relaxed">{p.description}</p>
                     
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
                       <span className="text-text-light font-medium">Budget: <strong className="text-text-dark">${p.budget?.toLocaleString()}</strong></span>
-                      <div className="space-x-2">
-                        {p.status !== 'COMPLETED' && (
-                          <button onClick={() => updateStatus(p.id, 'COMPLETED')} className="bg-emerald-600 text-white font-bold px-3 py-1 rounded-lg text-[11px] hover:bg-emerald-500 transition-all cursor-pointer">
-                            Mark Completed
-                          </button>
-                        )}
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          type="button"
+                          onClick={() => handleDeleteProject(p.id || p._id)} 
+                          className="bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-lg text-[11px] hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          <span>Remove</span>
+                        </button>
                       </div>
                     </div>
                   </div>
