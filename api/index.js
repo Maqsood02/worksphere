@@ -1534,7 +1534,20 @@ export default async function handler(req, res) {
         if (existing) {
           return res.status(400).json({ success: false, message: "Today's standup has already been marked. Check-in is locked until tomorrow." });
         }
-        const newLog = { ...body, id: body.id || body.logId || `ATT-${Date.now()}`, logId: body.logId || body.id || `ATT-${Date.now()}`, createdAt: new Date() };
+        let nextAttId = body.id || body.logId;
+        if (!nextAttId || String(nextAttId).length > 8) {
+          const allDocs = await col.find({}, { projection: { id: 1, logId: 1 } }).toArray();
+          let maxNum = 0;
+          for (const d of allDocs) {
+            const m = String(d.id || d.logId || '').match(/^ATT-(\d+)$/i);
+            if (m) {
+              const num = parseInt(m[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          }
+          nextAttId = `ATT-${String(maxNum + 1).padStart(3, '0')}`;
+        }
+        const newLog = { ...body, id: nextAttId, logId: nextAttId, createdAt: new Date() };
         await col.insertOne(newLog);
         return res.status(200).json({ success: true, log: newLog });
       }

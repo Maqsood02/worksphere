@@ -374,24 +374,17 @@ export default function InternDashboard() {
   }
 
   function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (index !== null && index !== undefined) {
+      return `${prefix}-${String(index + 1).padStart(3, '0')}`;
+    }
     if (!rawId) {
-      if (index !== null && index !== undefined) {
-        return `${prefix}-${String(index + 1).padStart(3, '0')}`;
-      }
       return `${prefix}-001`;
     }
     const str = String(rawId).trim();
-    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d{1,4})$/i);
+    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
     if (cleanMatch) {
       const num = parseInt(cleanMatch[2], 10);
       return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
-    }
-    const longMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (longMatch && longMatch[2].length > 4) {
-      if (index !== null && index !== undefined) {
-        return `${longMatch[1].toUpperCase()}-${String(index + 1).padStart(3, '0')}`;
-      }
-      return `${longMatch[1].toUpperCase()}-001`;
     }
     return str.toUpperCase();
   }

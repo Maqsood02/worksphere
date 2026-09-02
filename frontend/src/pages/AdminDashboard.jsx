@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
-  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List
+  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List, Download
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
 
@@ -921,6 +921,30 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleViewDeliverableFile = (sub, task) => {
+    const reportFileName = sub.fileName || 'Intern_Deliverable_File';
+
+    // 1. If intern uploaded binary file data as Data URL
+    if (sub.fileData && sub.fileData.startsWith('data:')) {
+      const blob = dataUrlToBlob(sub.fileData);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        addToast(`Opening document viewer for: ${reportFileName}`);
+        return;
+      }
+    }
+
+    // 2. If it's a web URL (e.g. GitHub repo / Google Drive folder)
+    if (sub.urlLink && !sub.urlLink.startsWith('data:')) {
+      window.open(sub.urlLink, '_blank');
+      return;
+    }
+
+    // 3. Fallback preview
+    addToast("No viewable file attached to this submission.");
+  };
+
   const handleDownloadDeliverableFile = (sub, task) => {
     const reportFileName = sub.fileName || 'Intern_Deliverable_File';
     
@@ -936,7 +960,7 @@ export default function AdminDashboard() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        addToast(`Opening attached document: ${reportFileName}`);
+        addToast(`Downloading deliverable file: ${reportFileName}`);
         return;
       }
     }
@@ -1515,24 +1539,17 @@ export default function AdminDashboard() {
   };
 
   function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (index !== null && index !== undefined) {
+      return `${prefix}-${String(index + 1).padStart(3, '0')}`;
+    }
     if (!rawId) {
-      if (index !== null && index !== undefined) {
-        return `${prefix}-${String(index + 1).padStart(3, '0')}`;
-      }
       return `${prefix}-001`;
     }
     const str = String(rawId).trim();
-    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d{1,4})$/i);
+    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
     if (cleanMatch) {
       const num = parseInt(cleanMatch[2], 10);
       return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
-    }
-    const longMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (longMatch && longMatch[2].length > 4) {
-      if (index !== null && index !== undefined) {
-        return `${longMatch[1].toUpperCase()}-${String(index + 1).padStart(3, '0')}`;
-      }
-      return `${longMatch[1].toUpperCase()}-001`;
     }
     return str.toUpperCase();
   }
@@ -4051,13 +4068,26 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
+                        {/* View Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                          title="View and inspect document in browser"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 
+                          <span>{sub.isZip ? 'Inspect Folder' : 'View'}</span>
+                        </button>
+
+                        {/* Download Button (after View) */}
                         <button
                           type="button"
                           onClick={() => handleDownloadDeliverableFile(sub, reviewTaskModal)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                          className="bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                          title="Download deliverable file to your computer"
                         >
-                          <Eye className="w-3.5 h-3.5" /> 
-                          <span>{sub.isZip ? 'Download Folder (ZIP)' : 'View / Download Document'}</span>
+                          <Download className="w-3.5 h-3.5" /> 
+                          <span>{sub.isZip ? 'Download (ZIP)' : 'Download'}</span>
                         </button>
                       </div>
                     </div>
@@ -4066,6 +4096,56 @@ export default function AdminDashboard() {
                     {sub.isImage && sub.fileData ? (
                       <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-center">
                         <img src={sub.fileData} alt={sub.fileName} className="max-h-60 mx-auto rounded-lg object-contain" />
+                      </div>
+                    ) : sub.isPdf && sub.fileData ? (
+                      <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs text-slate-700 space-y-2.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-sans font-bold border-b border-slate-100 pb-1.5">
+                          <span className="flex items-center gap-1.5 text-indigo-700 font-extrabold">
+                            <FileText className="w-3.5 h-3.5" /> Document Content Preview: <strong className="text-slate-800 font-semibold">{sub.fileName}</strong> ({sub.fileSize || '0.30 MB'})
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
+                              className="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-0.5 rounded-md hover:bg-indigo-100"
+                            >
+                              <Eye className="w-3 h-3" /> Open Full Screen ↗
+                            </button>
+                            <span className="text-emerald-600 font-bold">Verified Submission</span>
+                          </div>
+                        </div>
+
+                        {/* Interactive In-Modal PDF Document Viewer */}
+                        <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 h-80 w-full">
+                          <iframe
+                            src={sub.fileData}
+                            title={sub.fileName}
+                            className="w-full h-full border-0"
+                          />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 font-sans gap-1">
+                          <p>
+                            Intern <strong className="text-slate-800 font-semibold">@{reviewTaskModal.assignedTo}</strong> has submitted this file for supervisor review.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
+                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
+                            >
+                              View in Browser
+                            </button>
+                            <span>•</span>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadDeliverableFile(sub, reviewTaskModal)}
+                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
+                            >
+                              Download File
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs font-mono text-slate-700 space-y-2">
@@ -4089,7 +4169,7 @@ export default function AdminDashboard() {
                               Uploaded Document: <strong className="text-indigo-900 font-bold">{sub.fileName}</strong> ({sub.fileSize || '1.02 MB'})
                             </p>
                             <p className="text-slate-500">
-                              Intern <strong className="text-slate-800 font-semibold">@{reviewTaskModal.assignedTo}</strong> has submitted this file for supervisor review. Click the button above to view or download the complete original document.
+                              Intern <strong className="text-slate-800 font-semibold">@{reviewTaskModal.assignedTo}</strong> has submitted this file for supervisor review. Click 'View' to inspect or 'Download' to save the complete original document.
                             </p>
                           </div>
                         )}
