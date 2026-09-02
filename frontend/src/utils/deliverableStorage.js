@@ -108,23 +108,23 @@ async function uploadMediaChunks(taskId, assetType, data, metadata = {}) {
 // Fetch chunks from Serverless MongoDB
 async function fetchMediaFromCloud(taskId, assetType = 'video') {
   if (!taskId) return null;
-  const url = `/api/task-media?taskId=${encodeURIComponent(taskId)}&assetType=${encodeURIComponent(assetType)}`;
-  const remoteUrl = `https://worksphere-two.vercel.app${url}`;
+  const queryParam = `taskId=${encodeURIComponent(taskId)}&assetType=${encodeURIComponent(assetType)}`;
+  const url = `/api/task-media?${queryParam}`;
 
   try {
-    let res = await fetch(url);
-    if (!res.ok) res = await fetch(remoteUrl);
+    const res = await fetch(url);
     if (res.ok) {
       const json = await res.json();
-      if (json && json.data) {
-        return json.data;
-      }
+      if (json && json.data) return json.data;
     }
-  } catch (e) {
+  } catch (e) {}
+
+  // If running locally, attempt production fallback
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     try {
-      const res = await fetch(remoteUrl);
-      if (res.ok) {
-        const json = await res.json();
+      const remoteRes = await fetch(`https://worksphere-two.vercel.app/api/task-media?${queryParam}`);
+      if (remoteRes.ok) {
+        const json = await remoteRes.json();
         if (json && json.data) return json.data;
       }
     } catch (err) {}

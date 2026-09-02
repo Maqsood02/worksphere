@@ -1462,7 +1462,7 @@ export default async function handler(req, res) {
           chunks = await mediaCol.find({ taskId: new RegExp(`^${taskId}$`, 'i'), assetType }).sort({ chunkIndex: 1 }).toArray();
         }
         if (!chunks || chunks.length === 0) {
-          return res.status(404).json({ success: false, message: 'Media not found' });
+          return res.status(200).json({ success: false, message: 'Media not found in storage', data: null });
         }
         const combinedData = chunks.map(c => c.data).join('');
         return res.status(200).json({
