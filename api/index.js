@@ -1436,6 +1436,47 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 8A-2. TASK MEDIA STORAGE (Chunked Video & Large Deliverables): /api/task-media
+    // ==========================================
+    if (cleanPath.includes('task-media') || cleanPath.includes('task-video')) {
+      const mediaCol = db.collection('task_media');
+      const taskId = String(body.taskId || query.taskId || '').trim();
+
+      if (req.method === 'POST') {
+        const { assetType = 'video', chunkIndex = 0, totalChunks = 1, data = '', fileName = '', fileSize = '' } = body;
+        if (!taskId || !data) {
+          return res.status(400).json({ success: false, message: 'taskId and data required' });
+        }
+        await mediaCol.updateOne(
+          { taskId, assetType, chunkIndex: Number(chunkIndex) },
+          { $set: { taskId, assetType, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), data, fileName, fileSize, updatedAt: new Date() } },
+          { upsert: true }
+        );
+        return res.status(200).json({ success: true, message: `Chunk ${Number(chunkIndex) + 1}/${totalChunks} saved.` });
+      }
+
+      if (req.method === 'GET') {
+        const assetType = String(query.assetType || 'video');
+        let chunks = await mediaCol.find({ taskId, assetType }).sort({ chunkIndex: 1 }).toArray();
+        if (!chunks || chunks.length === 0) {
+          chunks = await mediaCol.find({ taskId: new RegExp(`^${taskId}$`, 'i'), assetType }).sort({ chunkIndex: 1 }).toArray();
+        }
+        if (!chunks || chunks.length === 0) {
+          return res.status(404).json({ success: false, message: 'Media not found' });
+        }
+        const combinedData = chunks.map(c => c.data).join('');
+        return res.status(200).json({
+          success: true,
+          taskId,
+          assetType,
+          fileName: chunks[0]?.fileName || '',
+          fileSize: chunks[0]?.fileSize || '',
+          data: combinedData
+        });
+      }
+    }
+
+    // ==========================================
     // 8B. DEADLINE REMINDERS: (/api/deadline-reminders or /api/send-deadline-reminder)
     // ==========================================
     if (cleanPath.includes('deadline-reminders') || cleanPath.includes('send-deadline-reminder') || cleanPath.includes('deadline-reminder')) {

@@ -916,10 +916,10 @@ function getAttendanceTimelineAndRate(logs) {
       const uKey = (user?.username || 'intern').toLowerCase();
       const keyId = selectedTask.id || selectedTask.taskId;
 
-      // 1. If video data is present, save full binary into IndexedDB
+      // 1. If video data is present, save full binary into IndexedDB and cloud sync
       if (videoFileData) {
         try {
-          await saveDeliverableVideo(keyId, videoFileData);
+          await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
         } catch (idbErr) {
           console.warn('IndexedDB video save error:', idbErr);
         }
@@ -1013,7 +1013,7 @@ function getAttendanceTimelineAndRate(logs) {
 
       // Direct Serverless MongoDB Atlas submit patch (with production fallback)
       const submitPayload = {
-        taskId: selectedTask.id,
+        taskId: keyId,
         status: 'SUBMITTED',
         submissionUrl: finalSubmissionUrl,
         submissionNotes: submissionNotes,
@@ -1048,7 +1048,7 @@ function getAttendanceTimelineAndRate(logs) {
         } catch (err) {}
       }
 
-      const res = await api.submitInternTask(selectedTask.id, {
+      const res = await api.submitInternTask(keyId, {
         submissionUrl: finalSubmissionUrl,
         notes: submissionNotes,
         fileName: primaryFile.name,

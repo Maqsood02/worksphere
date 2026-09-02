@@ -7,10 +7,10 @@ import {
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
   ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List, Download,
-  Video, Image, Folder, CheckSquare, Square
+  Video, Image, Folder, CheckSquare, Square, Play, Upload
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { getDeliverableVideo } from '../utils/deliverableStorage';
+import { getDeliverableVideo, saveDeliverableVideo } from '../utils/deliverableStorage';
 
 export function renderRichFormattedText(text) {
   if (!text) return null;
@@ -86,14 +86,25 @@ export default function AdminDashboard() {
   });
   const [previewImageModal, setPreviewImageModal] = useState(null);
   const [modalVideoSrc, setModalVideoSrc] = useState('');
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
   useEffect(() => {
     if (reviewTaskModal) {
-      const keyId = reviewTaskModal.id || reviewTaskModal.taskId;
-      getDeliverableVideo(keyId).then(src => {
-        if (src) setModalVideoSrc(src);
-      });
+      const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+      const sub = parseSubmissionDetails(reviewTaskModal);
+      const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
+
+      if (sub.videoDeliverable?.data && sub.videoDeliverable.data.length > 50) {
+        setModalVideoSrc(sub.videoDeliverable.data);
+      } else {
+        setIsVideoLoading(true);
+        getDeliverableVideo(keyId, vidName).then(src => {
+          if (src) setModalVideoSrc(src);
+          setIsVideoLoading(false);
+        }).catch(() => setIsVideoLoading(false));
+      }
+
       const taskReqs = reviewTaskModal.requiredDeliverables;
       if (Array.isArray(taskReqs) && taskReqs.length > 0) {
         setRevisionDeliverables({
@@ -107,6 +118,7 @@ export default function AdminDashboard() {
       }
     } else {
       setModalVideoSrc('');
+      setIsVideoLoading(false);
     }
   }, [reviewTaskModal]);
 
@@ -4344,14 +4356,85 @@ export default function AdminDashboard() {
                     </div>
 
                     {(modalVideoSrc || sub.videoDeliverable?.data) ? (
-                      <div className="rounded-xl overflow-hidden bg-black border border-slate-800 shadow-inner">
-                        <video 
-                          controls 
-                          src={modalVideoSrc || sub.videoDeliverable?.data} 
-                          className="w-full max-h-72 object-contain bg-black" 
-                        />
+                      <div className="space-y-2.5">
+                        <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner">
+                          <video 
+                            controls 
+                            src={modalVideoSrc || sub.videoDeliverable?.data} 
+                            className="w-full max-h-72 object-contain bg-black" 
+                          />
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {sub.videoDeliverable?.name || 'download.mp4'} • {sub.videoDeliverable?.size || ''}
+                          </span>
+                          <a
+                            href={modalVideoSrc || sub.videoDeliverable?.data}
+                            download={sub.videoDeliverable?.name || 'download.mp4'}
+                            className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Download Video File
+                          </a>
+                        </div>
                       </div>
-                    ) : sub.videoDeliverable?.url ? (
+                    ) : isVideoLoading ? (
+                      <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-2">
+                        <RefreshCw className="w-6 h-6 text-rose-500 animate-spin mx-auto" />
+                        <p className="text-xs font-bold text-slate-200">Loading Video Demonstration ({sub.videoDeliverable?.name || 'download.mp4'})...</p>
+                        <p className="text-[10px] text-slate-400 font-mono">Retrieving high-resolution video stream from storage</p>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div>
+                            <p className="text-xs font-bold text-slate-200">
+                              Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable?.name || 'download.mp4'}</strong> is registered ({sub.videoDeliverable?.size || '7.99 MB'}).
+                            </p>
+                            <p className="text-[10.5px] text-slate-400 mt-0.5">
+                              Click Play Video to stream, or choose local copy to preview immediately.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsVideoLoading(true);
+                                const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                                getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'download.mp4').then(src => {
+                                  if (src) setModalVideoSrc(src);
+                                  setIsVideoLoading(false);
+                                }).catch(() => setIsVideoLoading(false));
+                              }}
+                              className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-current" /> Play Video
+                            </button>
+                            <label className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors">
+                              <Upload className="w-3.5 h-3.5" /> Choose Local
+                              <input
+                                type="file"
+                                accept="video/*,.mp4,.webm,.mov"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files[0];
+                                  if (f) {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      setModalVideoSrc(ev.target.result);
+                                      const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                                      saveDeliverableVideo(keyId, ev.target.result, { name: f.name, size: (f.size / (1024*1024)).toFixed(2) + ' MB' });
+                                    };
+                                    reader.readAsDataURL(f);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {sub.videoDeliverable?.url && (
                       <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <ExternalLink className="w-3.5 h-3.5 text-rose-400 shrink-0" />
@@ -4366,7 +4449,7 @@ export default function AdminDashboard() {
                           <Video className="w-3.5 h-3.5" /> Watch Video ↗
                         </a>
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 )}
 
@@ -4753,165 +4836,161 @@ export default function AdminDashboard() {
               </div>
 
               {/* Set Deliverables Required for Revision Box */}
-              <div className="bg-gradient-to-r from-amber-50/90 via-white to-rose-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="bg-gradient-to-br from-amber-50/90 via-white to-rose-50/80 border border-amber-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-2xs">
+                {/* Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2">
-                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Set Deliverables Required for Revision</span>
-                    </label>
-                    <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300">
-                      Intern Portal Adapts to Your Selection
-                    </span>
+                    <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-700 shrink-0">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-amber-950 block">Set Deliverables Required for Revision</span>
+                      <span className="text-[10.5px] text-amber-800 font-medium block">Intern Portal will adapt and require only what you select below</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  
+                  {/* Preset Buttons */}
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
                     <button
                       type="button"
                       onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true })}
-                      className="text-[10.5px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                     >
                       <CheckSquare className="w-3 h-3" /> Select All 4
                     </button>
                     <button
                       type="button"
                       onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: false, images: false })}
-                      className="text-[10.5px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition-all cursor-pointer active:scale-95"
                     >
                       📹 Video + 📄 PDF
                     </button>
                   </div>
                 </div>
-                
-                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                  Choose which deliverables the intern MUST submit before resubmission is allowed:
-                </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-0.5">
-                  {/* Video Option */}
+                {/* 4 Deliverable Selection Cards: Grid 2x2 on Mobile, 4 Cols on larger */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+                  {/* 1. Video Option */}
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, video: !prev.video }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       revisionDeliverables.video 
-                        ? 'bg-rose-50/90 border-rose-300 text-rose-950 shadow-sm font-extrabold ring-2 ring-rose-400' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
+                        ? 'bg-rose-50/95 border-rose-300 text-rose-950 shadow-sm ring-2 ring-rose-400' 
+                        : 'bg-white/80 border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                      revisionDeliverables.video ? 'bg-rose-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <Video className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-xs font-bold leading-tight">Video Files</span>
-                        {revisionDeliverables.video ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-rose-700 bg-rose-100 border border-rose-300 px-1.5 py-0.2 rounded">
-                            <CheckSquare className="w-2.5 h-2.5 text-rose-600 shrink-0" /> REQUIRED
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
-                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        revisionDeliverables.video ? 'bg-rose-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        <Video className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] block opacity-75 font-mono leading-tight">MP4 / screen demo</span>
+                      <span className={`inline-flex items-center gap-1 text-[9.5px] font-black px-1.5 py-0.5 rounded-md ${
+                        revisionDeliverables.video 
+                          ? 'text-rose-700 bg-rose-100/90 border border-rose-200' 
+                          : 'text-slate-400 bg-slate-100 border border-slate-200'
+                      }`}>
+                        {revisionDeliverables.video ? <CheckSquare className="w-2.5 h-2.5 text-rose-600" /> : <Square className="w-2.5 h-2.5 text-slate-400" />}
+                        <span>{revisionDeliverables.video ? 'REQUIRED' : 'Optional'}</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block leading-tight text-slate-900">Video Files</span>
+                      <span className="text-[10px] block text-slate-500 font-mono mt-0.5">MP4 / screen demo</span>
                     </div>
                   </button>
 
-                  {/* PDF Option */}
+                  {/* 2. PDF Option */}
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, pdf: !prev.pdf }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       revisionDeliverables.pdf 
-                        ? 'bg-indigo-50/90 border-indigo-300 text-indigo-950 shadow-sm font-extrabold ring-2 ring-indigo-400' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
+                        ? 'bg-indigo-50/95 border-indigo-300 text-indigo-950 shadow-sm ring-2 ring-indigo-400' 
+                        : 'bg-white/80 border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                      revisionDeliverables.pdf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-xs font-bold leading-tight">PDF Document</span>
-                        {revisionDeliverables.pdf ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.2 rounded">
-                            <CheckSquare className="w-2.5 h-2.5 text-indigo-600 shrink-0" /> REQUIRED
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
-                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        revisionDeliverables.pdf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        <FileText className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] block opacity-75 font-mono leading-tight">SRS / documentation</span>
+                      <span className={`inline-flex items-center gap-1 text-[9.5px] font-black px-1.5 py-0.5 rounded-md ${
+                        revisionDeliverables.pdf 
+                          ? 'text-indigo-700 bg-indigo-100/90 border border-indigo-200' 
+                          : 'text-slate-400 bg-slate-100 border border-slate-200'
+                      }`}>
+                        {revisionDeliverables.pdf ? <CheckSquare className="w-2.5 h-2.5 text-indigo-600" /> : <Square className="w-2.5 h-2.5 text-slate-400" />}
+                        <span>{revisionDeliverables.pdf ? 'REQUIRED' : 'Optional'}</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block leading-tight text-slate-900">PDF Document</span>
+                      <span className="text-[10px] block text-slate-500 font-mono mt-0.5">SRS / report</span>
                     </div>
                   </button>
 
-                  {/* Folder Option */}
+                  {/* 3. Folder Option */}
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, folder: !prev.folder }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       revisionDeliverables.folder 
-                        ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-sm font-extrabold ring-2 ring-amber-400' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
+                        ? 'bg-amber-50/95 border-amber-300 text-amber-950 shadow-sm ring-2 ring-amber-400' 
+                        : 'bg-white/80 border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                      revisionDeliverables.folder ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <Folder className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-xs font-bold leading-tight">Folder / Code</span>
-                        {revisionDeliverables.folder ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
-                            <CheckSquare className="w-2.5 h-2.5 text-amber-700 shrink-0" /> REQUIRED
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
-                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        revisionDeliverables.folder ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        <Folder className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] block opacity-75 font-mono leading-tight">ZIP / code link</span>
+                      <span className={`inline-flex items-center gap-1 text-[9.5px] font-black px-1.5 py-0.5 rounded-md ${
+                        revisionDeliverables.folder 
+                          ? 'text-amber-800 bg-amber-100/90 border border-amber-200' 
+                          : 'text-slate-400 bg-slate-100 border border-slate-200'
+                      }`}>
+                        {revisionDeliverables.folder ? <CheckSquare className="w-2.5 h-2.5 text-amber-700" /> : <Square className="w-2.5 h-2.5 text-slate-400" />}
+                        <span>{revisionDeliverables.folder ? 'REQUIRED' : 'Optional'}</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block leading-tight text-slate-900">Folder / Code</span>
+                      <span className="text-[10px] block text-slate-500 font-mono mt-0.5">ZIP / code link</span>
                     </div>
                   </button>
 
-                  {/* Images Option */}
+                  {/* 4. Images Option */}
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, images: !prev.images }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       revisionDeliverables.images 
-                        ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-sm font-extrabold ring-2 ring-emerald-400' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
+                        ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 shadow-sm ring-2 ring-emerald-400' 
+                        : 'bg-white/80 border-slate-200 text-slate-400 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                      revisionDeliverables.images ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <Image className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-xs font-bold leading-tight">Screenshots</span>
-                        {revisionDeliverables.images ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded">
-                            <CheckSquare className="w-2.5 h-2.5 text-emerald-700 shrink-0" /> REQUIRED
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
-                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        revisionDeliverables.images ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        <Image className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-[10px] block opacity-75 font-mono leading-tight">PNG / JPG proof</span>
+                      <span className={`inline-flex items-center gap-1 text-[9.5px] font-black px-1.5 py-0.5 rounded-md ${
+                        revisionDeliverables.images 
+                          ? 'text-emerald-800 bg-emerald-100/90 border border-emerald-200' 
+                          : 'text-slate-400 bg-slate-100 border border-slate-200'
+                      }`}>
+                        {revisionDeliverables.images ? <CheckSquare className="w-2.5 h-2.5 text-emerald-700" /> : <Square className="w-2.5 h-2.5 text-slate-400" />}
+                        <span>{revisionDeliverables.images ? 'REQUIRED' : 'Optional'}</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block leading-tight text-slate-900">Screenshots</span>
+                      <span className="text-[10px] block text-slate-500 font-mono mt-0.5">PNG / JPG proof</span>
                     </div>
                   </button>
                 </div>
