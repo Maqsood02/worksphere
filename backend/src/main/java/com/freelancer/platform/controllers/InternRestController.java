@@ -849,4 +849,37 @@ public class InternRestController {
         }
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    @PostMapping({"/api/send-task-feedback-email", "/api/send-task-approval-email"})
+    public ResponseEntity<?> sendTaskFeedbackEmail(@RequestBody Map<String, Object> payload) {
+        String taskId = (String) payload.get("taskId");
+        String username = (String) payload.get("username");
+        String toEmail = (String) payload.get("toEmail");
+        String internName = (String) payload.get("internName");
+        String taskTitle = (String) payload.get("taskTitle");
+        String feedbackNotes = (String) payload.get("feedbackNotes");
+
+        if (toEmail == null || toEmail.isBlank()) {
+            if (username != null && username.toLowerCase().contains("chinmay")) {
+                toEmail = "chinmaykv555@gmail.com";
+            } else if (username != null && username.toLowerCase().contains("maqsood")) {
+                toEmail = "maqsoodmd.ac.in@gmail.com";
+            } else {
+                toEmail = "worksphere.ac.in@gmail.com";
+            }
+        }
+        if (internName == null || internName.isBlank()) {
+            internName = username != null ? username : "Intern";
+        }
+        if (taskTitle == null || taskTitle.isBlank()) {
+            taskTitle = "Project Deliverable";
+        }
+
+        boolean sent = emailService.sendTaskApprovedEmailSync(toEmail, internName, username, taskTitle, taskId, feedbackNotes);
+        return ResponseEntity.ok(Map.of(
+            "success", sent,
+            "message", sent ? "Deliverable approval notification successfully emailed to " + toEmail + "!" : "Failed sending email to " + toEmail,
+            "recipientEmail", toEmail
+        ));
+    }
 }

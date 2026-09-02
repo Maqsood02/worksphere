@@ -508,7 +508,7 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
 }
 
 // Helper: Send Evaluation & Feedback Notes Email to Intern
-async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, status = 'FEEDBACK', feedbackNotes }) {
+async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, taskId, status = 'FEEDBACK', feedbackNotes }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const isApproved = status === 'APPROVED' || status === 'COMPLETED';
@@ -520,6 +520,16 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
     : (isRevision
       ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 50%, #dc2626 100%)'
       : 'linear-gradient(90deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%)');
+
+  const formattedDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
 
   const statusTitle = isApproved ? '✓ Deliverable Approved & Verified' : (isRevision ? '⚠️ Revision Required' : '📝 Admin Evaluation Feedback');
   const statusSub = isApproved 
@@ -534,7 +544,136 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
       ? `⚠️ [WorkSphere] Revision Requested: ${taskTitle}`
       : `📝 [WorkSphere] Evaluation Feedback: ${taskTitle}`);
 
-  const htmlContent = `
+  const approvalFeedbackText = feedbackNotes && feedbackNotes.trim()
+    ? formatRichFeedbackForEmail(feedbackNotes)
+    : 'Outstanding performance! Your submitted deliverable satisfies all required technical specifications, documentation standards, and milestone criteria. Verified and officially marked complete.';
+
+  const htmlContent = isApproved ? `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; background-color: #f8fafc; padding: 40px 12px; }
+        .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 28px; overflow: hidden; box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.05); border: 1px solid #e2e8f0; }
+        .top-gradient { height: 8px; background: linear-gradient(90deg, #10b981 0%, #06b6d4 50%, #6366f1 100%); }
+        
+        .header { padding: 36px 36px 16px 36px; text-align: center; }
+        .logo-text { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; }
+        .logo-text span { color: #10b981; }
+        .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+        
+        .hero-banner { background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; border-radius: 20px; margin: 0 32px 24px 32px; padding: 24px; text-align: center; }
+        .hero-badge { display: inline-block; background: #059669; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 4px 14px; border-radius: 9999px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25); }
+        .hero-title { font-size: 22px; font-weight: 900; color: #064e3b; margin: 0 0 6px 0; letter-spacing: -0.3px; }
+        .hero-desc { font-size: 13.5px; font-weight: 600; color: #047857; margin: 0; line-height: 1.5; }
+        
+        .content { padding: 0 36px 28px 36px; font-size: 14.5px; line-height: 1.65; color: #334155; }
+        .greeting { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+        
+        .task-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 22px; margin: 22px 0; }
+        .task-card-header { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+        .task-id-badge { font-family: monospace; font-size: 12px; font-weight: 800; color: #4338ca; background: #e0e7ff; border: 1px solid #c7d2fe; padding: 3px 10px; border-radius: 8px; }
+        .task-title { font-size: 17px; font-weight: 800; color: #0f172a; margin-top: 10px; margin-bottom: 14px; line-height: 1.4; }
+        
+        .meta-grid { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        .meta-grid td { padding: 6px 0; vertical-align: middle; }
+        .meta-label { color: #64748b; font-weight: 600; width: 36%; }
+        .meta-value { color: #0f172a; font-weight: 700; }
+        
+        .status-pill { display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; padding: 4px 12px; border-radius: 9999px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.5px; }
+        
+        .feedback-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #10b981; border-radius: 16px; padding: 20px 22px; margin: 24px 0; }
+        .feedback-title { font-size: 12px; font-weight: 800; color: #15803d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+        .feedback-body { font-size: 14px; color: #14532d; line-height: 1.6; font-weight: 500; font-style: italic; }
+        
+        .perks-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px 20px; margin: 20px 0; }
+        .perk-item { font-size: 13px; color: #334155; font-weight: 600; margin: 8px 0; }
+        
+        .btn-box { text-align: center; margin: 32px 0 16px 0; }
+        .btn-action { display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff !important; font-weight: 800; font-size: 15px; text-decoration: none; padding: 16px 38px; border-radius: 14px; box-shadow: 0 8px 20px -3px rgba(16, 185, 129, 0.45); letter-spacing: 0.3px; }
+        
+        .footer { text-align: center; padding: 28px 36px 36px 36px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #94a3b8; background: #fafafa; line-height: 1.6; }
+        .footer strong { color: #475569; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="card">
+          <div class="top-gradient"></div>
+          
+          <div class="header">
+            <div class="logo-text">Work<span>Sphere</span></div>
+            <div class="sub-tag">Academic & Industry Internship Portal</div>
+          </div>
+
+          <div class="hero-banner">
+            <span class="hero-badge">⭐ Milestone Accomplishment</span>
+            <h1 class="hero-title">Deliverable Approved & Completed!</h1>
+            <p class="hero-desc">Your submitted project deliverable has been thoroughly evaluated, verified, and officially signed off by your supervisor.</p>
+          </div>
+
+          <div class="content">
+            <div class="greeting">Hello ${internName || username || 'Intern'},</div>
+            <p style="margin: 0 0 16px 0; color: #475569;">
+              Congratulations on successfully completing this project milestone! Your work has met all quality and documentation benchmarks required by the WorkSphere Engineering Board.
+            </p>
+
+            <div class="task-card">
+              <div class="task-card-header">
+                <span class="task-id-badge">${taskId || 'TSK-DELIVERABLE'}</span>
+                <span class="status-pill">✓ VERIFIED & APPROVED</span>
+              </div>
+              <div class="task-title">🎯 ${taskTitle}</div>
+
+              <table class="meta-grid">
+                <tr>
+                  <td class="meta-label">👤 Assigned Intern:</td>
+                  <td class="meta-value">${internName} (@${username})</td>
+                </tr>
+                <tr>
+                  <td class="meta-label">📅 Verified Date:</td>
+                  <td class="meta-value">${formattedDate}</td>
+                </tr>
+                <tr>
+                  <td class="meta-label">🏆 Progress Status:</td>
+                  <td class="meta-value" style="color: #059669;">100% Completed & Archived</td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="feedback-card">
+              <div class="feedback-title">💬 Supervisor Commendation & Feedback Notes:</div>
+              <div class="feedback-body">"${approvalFeedbackText}"</div>
+            </div>
+
+            <div class="perks-card">
+              <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Milestone Record Summary</div>
+              <div class="perk-item">✅ Deliverable files & documentation archived in WorkSphere ledger</div>
+              <div class="perk-item">✅ Milestone completion recorded on your internship profile</div>
+              <div class="perk-item">✅ Eligible to proceed to subsequent tasks and modules</div>
+            </div>
+
+            <div class="btn-box">
+              <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn-action">
+                🚀 View Approved Milestone in Dashboard →
+              </a>
+            </div>
+          </div>
+
+          <div class="footer">
+            <strong>WorkSphere Platform</strong> • Automated Deliverable Notification System<br/>
+            Dispatched officially from <strong>worksphere.ac.in@gmail.com</strong> for @${username}.<br/>
+            &copy; 2026 WorkSphere Platform. All rights reserved.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  ` : `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -552,9 +691,9 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
         .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
         
         .alert-pill-box { padding: 0 32px 16px 32px; }
-        .alert-pill { background: ${isApproved ? '#ecfdf5' : (isRevision ? '#fffbeb' : '#eef2ff')}; border: 1px solid ${isApproved ? '#a7f3d0' : (isRevision ? '#fde68a' : '#c7d2fe')}; border-radius: 16px; padding: 14px 18px; text-align: center; }
-        .alert-pill-title { font-size: 13px; font-weight: 800; color: ${isApproved ? '#047857' : (isRevision ? '#b45309' : '#3730a3')}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
-        .alert-pill-sub { font-size: 12px; font-weight: 600; color: ${isApproved ? '#065f46' : (isRevision ? '#78350f' : '#312e81')}; }
+        .alert-pill { background: ${isRevision ? '#fffbeb' : '#eef2ff'}; border: 1px solid ${isRevision ? '#fde68a' : '#c7d2fe'}; border-radius: 16px; padding: 14px 18px; text-align: center; }
+        .alert-pill-title { font-size: 13px; font-weight: 800; color: ${isRevision ? '#b45309' : '#3730a3'}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .alert-pill-sub { font-size: 12px; font-weight: 600; color: ${isRevision ? '#78350f' : '#312e81'}; }
 
         .content { padding: 8px 32px 28px 32px; font-size: 14px; line-height: 1.65; color: #334155; }
         .greeting { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
@@ -596,7 +735,7 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
 
             <div class="task-card">
               <div class="task-title">🎯 Deliverable: ${taskTitle}</div>
-              <div style="font-size: 12px; color: #64748b; font-weight: 600;">Status: <span style="color: ${statusColor}; font-weight: 800;">${isApproved ? 'COMPLETED / APPROVED' : (isRevision ? 'REVISION REQUESTED' : 'EVALUATION FEEDBACK')}</span></div>
+              <div style="font-size: 12px; color: #64748b; font-weight: 600;">Status: <span style="color: ${statusColor}; font-weight: 800;">${isRevision ? 'REVISION REQUESTED' : 'EVALUATION FEEDBACK'}</span></div>
             </div>
 
             <div class="highlight-notice">
@@ -1458,9 +1597,9 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 8D. TASK EVALUATION & FEEDBACK EMAIL: (/api/send-task-feedback-email or /api/send-feedback-email)
+    // 8D. TASK EVALUATION & APPROVAL EMAIL: (/api/send-task-feedback-email or /api/send-task-approval-email)
     // ==========================================
-    if (cleanPath.includes('send-task-feedback-email') || cleanPath.includes('send-feedback-email')) {
+    if (cleanPath.includes('send-task-feedback-email') || cleanPath.includes('send-feedback-email') || cleanPath.includes('send-task-approval-email')) {
       const col = db.collection('intern_tasks');
       const usersCol = db.collection('users');
 
@@ -1487,7 +1626,7 @@ export default async function handler(req, res) {
       }
 
       let recipientEmail = body.toEmail || body.email;
-      let recipientName = taskAssigned;
+      let recipientName = body.internName || taskAssigned;
 
       if (!recipientEmail) {
         if (taskAssigned.includes('chinmay')) {
@@ -1497,7 +1636,7 @@ export default async function handler(req, res) {
         } else {
           const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
           recipientEmail = found?.email || 'maqsoodmdhrl@gmail.com';
-          recipientName = found?.name || taskAssigned;
+          recipientName = found?.name || recipientName;
         }
       }
 
@@ -1506,6 +1645,7 @@ export default async function handler(req, res) {
         internName: recipientName,
         username: taskAssigned,
         taskTitle,
+        taskId,
         status,
         feedbackNotes
       });
@@ -1513,8 +1653,10 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: sent,
         message: sent
-          ? `Feedback & evaluation notes successfully emailed to ${recipientEmail}!`
-          : `Failed sending feedback email to ${recipientEmail}.`,
+          ? (status === 'APPROVED' || status === 'COMPLETED'
+              ? `🎉 Deliverable approval notification successfully emailed to ${recipientEmail}!`
+              : `Feedback & evaluation notes successfully emailed to ${recipientEmail}!`)
+          : `Failed sending email to ${recipientEmail}.`,
         recipientEmail
       });
     }

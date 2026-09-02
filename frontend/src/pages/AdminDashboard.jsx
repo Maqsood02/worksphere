@@ -975,29 +975,81 @@ export default function AdminDashboard() {
     addToast("No binary file was uploaded with this submission. Only text notes were provided.");
   };
 
-  const handleApproveInternTask = async (taskId) => {
+  const resolveInternEmail = (username) => {
+    const cleanUser = (username || '').toLowerCase().replace(/^@+/, '').trim();
+    const found = usersList.find(u => (u.username || '').toLowerCase().replace(/^@+/, '').trim() === cleanUser);
+    if (found?.email && found.email.includes('@')) return found.email;
+    if (cleanUser.includes('chinmay')) return 'chinmaykv555@gmail.com';
+    if (cleanUser.includes('maqsood')) return 'maqsoodmd.ac.in@gmail.com';
+    return 'maqsoodmdhrl@gmail.com';
+  };
+
+  const resolveInternName = (username) => {
+    const cleanUser = (username || '').toLowerCase().replace(/^@+/, '').trim();
+    const found = usersList.find(u => (u.username || '').toLowerCase().replace(/^@+/, '').trim() === cleanUser);
+    if (found?.name) return found.name;
+    if (cleanUser.includes('chinmay')) return 'Chinmay K V';
+    if (cleanUser.includes('maqsood')) return 'Maqsood MD';
+    return username;
+  };
+
+  const sendApprovalEmailToIntern = async (taskObj, feedbackText = '') => {
+    if (!taskObj) return { success: false };
+    const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+    const toEmail = resolveInternEmail(targetUser);
+    const internName = resolveInternName(targetUser);
+    const taskId = taskObj.id || taskObj.taskId;
+    const taskTitle = taskObj.title || 'Project Deliverable';
+
+    try {
+      const res = await api.sendTaskFeedbackEmail({
+        taskId,
+        username: targetUser,
+        toEmail,
+        internName,
+        taskTitle,
+        status: 'APPROVED',
+        feedbackNotes: feedbackText
+      });
+      return { success: res?.success, toEmail, internName };
+    } catch (e) {
+      console.warn("Could not dispatch approval email:", e);
+      return { success: false, toEmail, internName };
+    }
+  };
+
+  const handleApproveInternTask = async (taskId, optionalFeedback = '', shouldSendEmail = true) => {
     if (!taskId) return;
     try {
+      const taskObj = allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || (reviewTaskModal?.id === taskId ? reviewTaskModal : {});
+      const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+      const targetEmail = resolveInternEmail(targetUser);
+
       // 1. Direct Serverless PATCH to MongoDB Atlas
       try {
         await fetch('/api/intern-tasks', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ taskId, status: 'COMPLETED' })
+          body: JSON.stringify({ taskId, status: 'COMPLETED', adminFeedback: optionalFeedback })
         });
       } catch (e) {}
 
       // 2. Sync via API client
       await api.updateAdminInternTaskStatus(taskId, 'COMPLETED');
+
+      // 3. Dispatch attractive approval email to the intern
+      if (shouldSendEmail) {
+        await sendApprovalEmailToIntern(taskObj, optionalFeedback);
+      }
       
       // Play pleasant audio chime and trigger success right mark modal
       playSuccessSound();
       setSuccessModalData({
         title: "Task Approved & Marked Completed!",
-        message: "The submitted deliverable has been verified, marked as successfully completed in MongoDB, and the intern's progress updated."
+        message: `The submitted deliverable has been verified, marked completed in MongoDB, and an official approval certificate & celebration email was dispatched to ${targetEmail}.`
       });
 
-      addToast('✓ Task deliverable approved & marked as successfully completed!');
+      addToast(`✓ Task deliverable approved & celebration email sent to ${targetEmail}!`);
       fetchInternsData();
     } catch (err) {
       console.error(err);
@@ -1097,22 +1149,13 @@ export default function AdminDashboard() {
       const feedback = reviewFeedback.trim();
       const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
       const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
-      const taskTitle = taskObj.title || 'Project Deliverable';
+      const targetEmail = resolveInternEmail(targetUser);
 
-      // If feedback was entered, dispatch email to intern with approval notes
-      if (feedback) {
-        try {
-          await api.sendTaskFeedbackEmail({
-            taskId,
-            username: targetUser,
-            taskTitle,
-            status: 'APPROVED',
-            feedbackNotes: feedback
-          });
-        } catch (e) {}
-      }
+      // ALWAYS dispatch the attractive approval email to the intern
+      await sendApprovalEmailToIntern(taskObj, feedback);
 
-      await handleApproveInternTask(taskId);
+      // Approve in MongoDB & UI (pass false so email is not dispatched twice)
+      await handleApproveInternTask(taskId, feedback, false);
       setReviewTaskModal(null);
       setReviewFeedback('');
     } catch (err) {

@@ -1044,4 +1044,131 @@ public class EmailService {
             return false;
         }
     }
+
+    /**
+     * Send Attractive Deliverable Approval Email to Intern
+     */
+    public boolean sendTaskApprovedEmailSync(String toEmail, String internName, String username, String taskTitle, String taskId, String feedbackNotes) {
+        if (toEmail == null || !toEmail.contains("@")) return false;
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(senderEmail, "WorkSphere Deliverable Evaluation");
+            helper.setTo(toEmail);
+            helper.setSubject("🎉 [WorkSphere] Deliverable Approved: " + taskTitle);
+
+            String formattedDate = java.time.LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd, yyyy • hh:mm a")
+            );
+
+            String feedbackText = feedbackNotes != null && !feedbackNotes.isBlank()
+                ? feedbackNotes.trim()
+                : "Outstanding performance! Your submitted deliverable satisfies all required technical specifications, documentation standards, and milestone criteria. Verified and officially marked complete.";
+
+            String htmlContent = """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8">
+                  <title>Deliverable Approved: %s</title>
+                  <style>
+                    body { margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; }
+                    .wrapper { width: 100%%; background-color: #f8fafc; padding: 40px 12px; }
+                    .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 28px; overflow: hidden; box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+                    .top-gradient { height: 8px; background: linear-gradient(90deg, #10b981 0%%, #06b6d4 50%%, #6366f1 100%%); }
+                    .header { padding: 36px 36px 16px 36px; text-align: center; }
+                    .logo-text { font-size: 28px; font-weight: 900; color: #0f172a; }
+                    .logo-text span { color: #10b981; }
+                    .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+                    .hero-banner { background: linear-gradient(145deg, #ecfdf5 0%%, #d1fae5 100%%); border: 1px solid #a7f3d0; border-radius: 20px; margin: 0 32px 24px 32px; padding: 24px; text-align: center; }
+                    .hero-badge { display: inline-block; background: #059669; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 4px 14px; border-radius: 9999px; margin-bottom: 12px; }
+                    .hero-title { font-size: 22px; font-weight: 900; color: #064e3b; margin: 0 0 6px 0; }
+                    .hero-desc { font-size: 13.5px; font-weight: 600; color: #047857; margin: 0; line-height: 1.5; }
+                    .content { padding: 0 36px 28px 36px; font-size: 14.5px; line-height: 1.65; color: #334155; }
+                    .task-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 22px; margin: 22px 0; }
+                    .meta-grid { width: 100%%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+                    .meta-grid td { padding: 6px 0; vertical-align: middle; }
+                    .feedback-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #10b981; border-radius: 16px; padding: 20px 22px; margin: 24px 0; }
+                    .feedback-title { font-size: 12px; font-weight: 800; color: #15803d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+                    .feedback-body { font-size: 14px; color: #14532d; line-height: 1.6; font-weight: 500; font-style: italic; }
+                    .perks-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px 20px; margin: 20px 0; }
+                    .btn-box { text-align: center; margin: 32px 0 16px 0; }
+                    .btn-action { display: inline-block; background: linear-gradient(135deg, #059669 0%%, #10b981 100%%); color: #ffffff !important; font-weight: 800; font-size: 15px; text-decoration: none; padding: 16px 38px; border-radius: 14px; box-shadow: 0 8px 20px -3px rgba(16, 185, 129, 0.45); }
+                    .footer { text-align: center; padding: 28px 36px 36px 36px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #94a3b8; background: #fafafa; }
+                  </style>
+                </head>
+                <body>
+                  <div class="wrapper">
+                    <div class="card">
+                      <div class="top-gradient"></div>
+                      <div class="header">
+                        <div class="logo-text">Work<span>Sphere</span></div>
+                        <div class="sub-tag">Academic & Industry Internship Portal</div>
+                      </div>
+                      <div class="hero-banner">
+                        <span class="hero-badge">⭐ Milestone Accomplishment</span>
+                        <h1 class="hero-title">Deliverable Approved & Completed!</h1>
+                        <p class="hero-desc">Your submitted project deliverable has been thoroughly evaluated, verified, and officially signed off by your supervisor.</p>
+                      </div>
+                      <div class="content">
+                        <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Hello %s,</div>
+                        <p style="margin: 0 0 16px 0; color: #475569;">
+                          Congratulations on successfully completing this project milestone! Your work has met all quality and documentation benchmarks required by the WorkSphere Engineering Board.
+                        </p>
+                        <div class="task-card">
+                          <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;">
+                            <span style="font-family: monospace; font-size: 12px; font-weight: 800; color: #4338ca; background: #e0e7ff; padding: 3px 10px; border-radius: 8px;">%s</span>
+                            <span style="background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; padding: 4px 12px; border-radius: 9999px; font-size: 11.5px; font-weight: 800;">✓ VERIFIED & APPROVED</span>
+                          </div>
+                          <div style="font-size: 17px; font-weight: 800; color: #0f172a; margin-top: 8px; margin-bottom: 12px;">🎯 %s</div>
+                          <table class="meta-grid">
+                            <tr><td style="color: #64748b; font-weight: 600; width: 36%%;">👤 Assigned Intern:</td><td style="color: #0f172a; font-weight: 700;">%s (@%s)</td></tr>
+                            <tr><td style="color: #64748b; font-weight: 600;">📅 Verified Date:</td><td style="color: #0f172a; font-weight: 700;">%s</td></tr>
+                            <tr><td style="color: #64748b; font-weight: 600;">🏆 Progress Status:</td><td style="color: #059669; font-weight: 700;">100%% Completed & Archived</td></tr>
+                          </table>
+                        </div>
+                        <div class="feedback-card">
+                          <div class="feedback-title">💬 Supervisor Commendation & Feedback Notes:</div>
+                          <div class="feedback-body">"%s"</div>
+                        </div>
+                        <div class="perks-card">
+                          <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Milestone Record Summary</div>
+                          <div style="font-size: 13px; color: #334155; font-weight: 600; margin: 8px 0;">✅ Deliverable files & documentation archived in WorkSphere ledger</div>
+                          <div style="font-size: 13px; color: #334155; font-weight: 600; margin: 8px 0;">✅ Milestone completion recorded on your internship profile</div>
+                          <div style="font-size: 13px; color: #334155; font-weight: 600; margin: 8px 0;">✅ Eligible to proceed to subsequent tasks and modules</div>
+                        </div>
+                        <div class="btn-box">
+                          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn-action">🚀 View Approved Milestone in Dashboard →</a>
+                        </div>
+                      </div>
+                      <div class="footer">
+                        <strong>WorkSphere Platform</strong> • Automated Deliverable Notification System<br/>
+                        Dispatched officially from <strong>worksphere.ac.in@gmail.com</strong> for @%s.<br/>
+                        &copy; 2026 WorkSphere Platform. All rights reserved.
+                      </div>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(
+                    taskTitle,
+                    internName != null ? internName : username,
+                    taskId != null ? taskId : "TSK-DELIVERABLE",
+                    taskTitle,
+                    internName != null ? internName : username,
+                    username != null ? username : "intern",
+                    formattedDate,
+                    feedbackText,
+                    username != null ? username : "intern"
+                );
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            System.out.println("[EMAIL SUCCESS] Deliverable approval notification sent to: " + toEmail);
+            return true;
+        } catch (Exception e) {
+            System.err.println("[EMAIL ERROR] Failed to send deliverable approval email to " + toEmail + ": " + e.getMessage());
+            return false;
+        }
+    }
 }
