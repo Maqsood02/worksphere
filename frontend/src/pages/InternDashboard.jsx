@@ -9,6 +9,7 @@ import {
   AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
+import { saveDeliverableVideo, getDeliverableVideo } from '../utils/deliverableStorage';
 
 function extractYouTubeVideoId(input) {
   if (!input) return null;
@@ -342,17 +343,26 @@ export default function InternDashboard() {
 
   const [imagesList, setImagesList] = useState([]);
   const [previewImageModal, setPreviewImageModal] = useState(null);
+  const [showOptionalVideo, setShowOptionalVideo] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successModalData, setSuccessModalData] = useState(null);
 
   // Sync selectedTask when modal opens or closes
   useEffect(() => {
+    setShowOptionalVideo(false);
     if (selectedTask) {
       setSubmissionUrl(selectedTask.submissionUrl || '');
       setSubmissionNotes(selectedTask.submissionNotes || '');
       try {
         const keyId = selectedTask.id || selectedTask.taskId;
+        if (selectedTask.videoUrl) {
+          setVideoUrl(selectedTask.videoUrl);
+        }
+        getDeliverableVideo(keyId).then(vData => {
+          if (vData) setVideoFileData(vData);
+        });
+
         const stored = localStorage.getItem(`worksphere_file_${keyId}`);
         if (stored) {
           const parsed = JSON.parse(stored);
@@ -367,8 +377,8 @@ export default function InternDashboard() {
               setVideoFileName(parsed.files.video.name || '');
               setVideoFileSize(parsed.files.video.size || '');
               setVideoFileType(parsed.files.video.type || '');
-              setVideoFileData(parsed.files.video.data || '');
-              setVideoUrl(parsed.files.video.url || '');
+              if (parsed.files.video.data) setVideoFileData(parsed.files.video.data);
+              if (parsed.files.video.url) setVideoUrl(parsed.files.video.url);
             }
             if (parsed.files.folder) {
               setFolderFileName(parsed.files.folder.name || '');
@@ -904,14 +914,29 @@ function getAttendanceTimelineAndRate(logs) {
     setIsSubmitting(true);
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
+      const keyId = selectedTask.id || selectedTask.taskId;
+
+      // 1. If video data is present, save full binary into IndexedDB
+      if (videoFileData) {
+        try {
+          await saveDeliverableVideo(keyId, videoFileData);
+        } catch (idbErr) {
+          console.warn('IndexedDB video save error:', idbErr);
+        }
+      }
+
+      // 2. Prepare submittedFiles (truncate large base64 strings in JSON to avoid localStorage QuotaExceeded and server 413)
+      const safeVideoData = (videoFileData && videoFileData.length < 500000) ? videoFileData : '';
+      const safeFolderData = (folderFileData && folderFileData.length < 1000000) ? folderFileData : '';
 
       const submittedFiles = {
-        video: (videoFileName || videoUrl) ? {
+        video: (videoFileName || videoUrl || videoFileData) ? {
           name: videoFileName || 'Demo Video',
           size: videoFileSize,
           type: videoFileType || 'video/mp4',
-          data: videoFileData,
-          url: videoUrl
+          data: safeVideoData,
+          url: videoUrl,
+          hasFullVideo: Boolean(videoFileData)
         } : null,
         pdf: pdfFileName ? {
           name: pdfFileName,
@@ -923,7 +948,7 @@ function getAttendanceTimelineAndRate(logs) {
           name: folderFileName || 'Project_Folder.zip',
           size: folderFileSize,
           type: folderFileType || 'application/zip',
-          data: folderFileData,
+          data: safeFolderData,
           url: folderUrl || submissionUrl
         } : null,
         images: imagesList || []
@@ -932,9 +957,9 @@ function getAttendanceTimelineAndRate(logs) {
       const primaryFile = pdfFileName 
         ? { name: pdfFileName, size: pdfFileSize, type: pdfFileType, data: pdfFileData }
         : folderFileName 
-        ? { name: folderFileName, size: folderFileSize, type: folderFileType, data: folderFileData }
+        ? { name: folderFileName, size: folderFileSize, type: folderFileType, data: safeFolderData }
         : videoFileName 
-        ? { name: videoFileName, size: videoFileSize, type: videoFileType, data: videoFileData }
+        ? { name: videoFileName, size: videoFileSize, type: videoFileType, data: safeVideoData }
         : imagesList[0] 
         ? { name: imagesList[0].name, size: imagesList[0].size, type: imagesList[0].type, data: imagesList[0].data }
         : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: uploadedFileData };
@@ -943,7 +968,6 @@ function getAttendanceTimelineAndRate(logs) {
 
       // Save file data to localStorage for instant admin inspection & download
       try {
-        const keyId = selectedTask.id || selectedTask.taskId;
         localStorage.setItem(`worksphere_file_${keyId}`, JSON.stringify({
           files: submittedFiles,
           data: primaryFile.data || '',
@@ -987,25 +1011,42 @@ function getAttendanceTimelineAndRate(logs) {
         }
       } catch(e) {}
 
-      // Direct Serverless MongoDB Atlas submit patch
+      // Direct Serverless MongoDB Atlas submit patch (with production fallback)
+      const submitPayload = {
+        taskId: selectedTask.id,
+        status: 'SUBMITTED',
+        submissionUrl: finalSubmissionUrl,
+        submissionNotes: submissionNotes,
+        fileName: primaryFile.name,
+        fileSize: primaryFile.size,
+        fileType: primaryFile.type,
+        fileData: primaryFile.data,
+        submittedFiles,
+        videoUrl: videoUrl || ''
+      };
+
       try {
-        await fetch('/api/intern-tasks', {
+        let patchRes = await fetch('/api/intern-tasks', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            taskId: selectedTask.id,
-            status: 'SUBMITTED',
-            submissionUrl: finalSubmissionUrl,
-            submissionNotes: submissionNotes,
-            fileName: primaryFile.name,
-            fileSize: primaryFile.size,
-            fileType: primaryFile.type,
-            fileData: primaryFile.data,
-            submittedFiles,
-            videoUrl: videoUrl || ''
-          })
+          body: JSON.stringify(submitPayload)
         });
-      } catch(e) {}
+        if (!patchRes.ok) {
+          await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submitPayload)
+          });
+        }
+      } catch(e) {
+        try {
+          await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submitPayload)
+          });
+        } catch (err) {}
+      }
 
       const res = await api.submitInternTask(selectedTask.id, {
         submissionUrl: finalSubmissionUrl,
@@ -2455,11 +2496,16 @@ function getAttendanceTimelineAndRate(logs) {
       {/* MODAL: SUBMIT TASK (Normal: PDF & Folders | Revision: Video, PDF, Folders, Images) */}
       {selectedTask && (() => {
         const isRevision = selectedTask.status === 'REVISION_REQUESTED';
-        const reqs = Array.isArray(selectedTask.requiredDeliverables)
+        const rawReqs = Array.isArray(selectedTask.requiredDeliverables)
           ? selectedTask.requiredDeliverables
           : (typeof selectedTask.requiredDeliverables === 'object' && selectedTask.requiredDeliverables !== null
               ? Object.keys(selectedTask.requiredDeliverables).filter(k => selectedTask.requiredDeliverables[k])
-              : (isRevision ? ['video', 'pdf', 'folder', 'images'] : ['pdf', 'folder']));
+              : null);
+        const reqs = rawReqs && rawReqs.length > 0
+          ? rawReqs
+          : (isRevision ? ['video', 'pdf', 'folder', 'images'] : ['pdf', 'folder']);
+
+        const isVideoShown = isRevision && (reqs.includes('video') || showOptionalVideo || videoFileName || videoUrl || videoFileData);
 
         return (
           <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -2551,16 +2597,20 @@ function getAttendanceTimelineAndRate(logs) {
               {/* SUBMISSION FORM */}
               <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
 
-                {/* 1. VIDEO DELIVERABLE SECTION (Only when revision includes video) */}
-                {isRevision && reqs.includes('video') && (
+                {/* 1. VIDEO DELIVERABLE SECTION */}
+                {isVideoShown ? (
                   <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                         <Video className="w-4 h-4 text-rose-600" />
                         <span>1. Video Demonstration File / Walkthrough</span>
                       </label>
-                      <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
-                        Required by Admin
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                        reqs.includes('video') 
+                          ? 'text-rose-600 bg-rose-50 border-rose-200' 
+                          : 'text-indigo-600 bg-indigo-50 border-indigo-200'
+                      }`}>
+                        {reqs.includes('video') ? 'Required by Admin' : 'Optional Walkthrough'}
                       </span>
                     </div>
 
@@ -2636,7 +2686,17 @@ function getAttendanceTimelineAndRate(logs) {
                       />
                     </div>
                   </div>
-                )}
+                ) : isRevision ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowOptionalVideo(true)}
+                      className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Video className="w-3.5 h-3.5 text-rose-600" /> + Also Attach Video Demo Walkthrough
+                    </button>
+                  </div>
+                ) : null}
 
                 {/* 2. PDF REPORT DOCUMENT SECTION (In Normal Mode OR Revision Mode if requested) */}
                 {(!isRevision || (isRevision && reqs.includes('pdf'))) && (

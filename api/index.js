@@ -1467,10 +1467,10 @@ export default async function handler(req, res) {
           if (rawAssigned.includes('chinmay')) {
             recipientEmail = 'chinmaykv555@gmail.com';
           } else if (rawAssigned.includes('maqsood')) {
-            recipientEmail = 'maqsoodmd.ac.in@gmail.com';
+            recipientEmail = ['maqsoodmdhrl@gmail.com', 'maqsoodmd.ac.in@gmail.com'];
           } else {
             const found = await usersCol.findOne({ username: new RegExp(`^${rawAssigned}$`, 'i') });
-            recipientEmail = found?.email || 'maqsoodmd.ac.in@gmail.com';
+            recipientEmail = found?.email || 'maqsoodmdhrl@gmail.com';
             recipientName = found?.name || rawAssigned;
           }
         }
@@ -1594,23 +1594,31 @@ export default async function handler(req, res) {
         }
       }
 
-      let recipientEmail = body.toEmail || body.email;
-      let recipientName = taskAssigned;
+      let recipientEmails = [];
+      if (body.toEmail) recipientEmails.push(body.toEmail);
+      if (body.email) recipientEmails.push(body.email);
 
-      if (!recipientEmail) {
-        if (taskAssigned.includes('chinmay')) {
-          recipientEmail = 'chinmaykv555@gmail.com';
-        } else if (taskAssigned.includes('maqsood')) {
-          recipientEmail = 'maqsoodmd.ac.in@gmail.com';
-        } else {
-          const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
-          recipientEmail = found?.email || 'maqsoodmd.ac.in@gmail.com';
-          recipientName = found?.name || taskAssigned;
-        }
+      let recipientName = taskAssigned;
+      try {
+        const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
+        if (found?.email) recipientEmails.push(found.email);
+        if (found?.name) recipientName = found.name;
+      } catch (e) {}
+
+      if (taskAssigned.includes('maqsood')) {
+        recipientEmails.push('maqsoodmdhrl@gmail.com');
+        recipientEmails.push('maqsoodmd.ac.in@gmail.com');
+      } else if (taskAssigned.includes('chinmay')) {
+        recipientEmails.push('chinmaykv555@gmail.com');
+      }
+
+      recipientEmails = [...new Set(recipientEmails)].filter(e => e && e.includes('@'));
+      if (recipientEmails.length === 0) {
+        recipientEmails = ['maqsoodmdhrl@gmail.com'];
       }
 
       const sent = await sendRevisionNotification({
-        toEmail: recipientEmail,
+        toEmail: recipientEmails.length === 1 ? recipientEmails[0] : recipientEmails,
         internName: recipientName,
         username: taskAssigned,
         taskTitle,
@@ -1623,9 +1631,9 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: sent,
         message: sent
-          ? `Revision request & feedback email successfully sent to ${recipientEmail}!`
-          : `Failed sending revision email to ${recipientEmail}.`,
-        recipientEmail
+          ? `Revision request & feedback email successfully sent to ${recipientEmails.join(', ')}!`
+          : `Failed sending revision email to ${recipientEmails.join(', ')}.`,
+        recipientEmail: recipientEmails.join(', ')
       });
     }
 

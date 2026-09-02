@@ -7,9 +7,10 @@ import {
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
   ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List, Download,
-  Video, Image, Folder
+  Video, Image, Folder, CheckSquare, Square
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
+import { getDeliverableVideo } from '../utils/deliverableStorage';
 
 export function renderRichFormattedText(text) {
   if (!text) return null;
@@ -84,6 +85,30 @@ export default function AdminDashboard() {
     images: true
   });
   const [previewImageModal, setPreviewImageModal] = useState(null);
+  const [modalVideoSrc, setModalVideoSrc] = useState('');
+
+  // Sync modal video and deliverable requirements when reviewTaskModal opens
+  useEffect(() => {
+    if (reviewTaskModal) {
+      const keyId = reviewTaskModal.id || reviewTaskModal.taskId;
+      getDeliverableVideo(keyId).then(src => {
+        if (src) setModalVideoSrc(src);
+      });
+      const taskReqs = reviewTaskModal.requiredDeliverables;
+      if (Array.isArray(taskReqs) && taskReqs.length > 0) {
+        setRevisionDeliverables({
+          video: taskReqs.includes('video'),
+          pdf: taskReqs.includes('pdf'),
+          folder: taskReqs.includes('folder'),
+          images: taskReqs.includes('images') || taskReqs.includes('image')
+        });
+      } else {
+        setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true });
+      }
+    } else {
+      setModalVideoSrc('');
+    }
+  }, [reviewTaskModal]);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -899,12 +924,20 @@ export default function AdminDashboard() {
 
     // Consolidate multi-file deliverables from submittedFiles or storedFilesObj
     const allFiles = submittedFiles || storedFilesObj || {};
-    const videoDeliverable = allFiles.video || (task?.videoUrl ? { url: task.videoUrl, name: 'Video Demo Link' } : null);
+    const isCurrentModal = reviewTaskModal && (task?.id === reviewTaskModal.id || task?.taskId === reviewTaskModal.taskId);
+    const resolvedVideoData = (isCurrentModal && modalVideoSrc) ? modalVideoSrc : (allFiles.video?.data || '');
+
+    const videoDeliverable = allFiles.video 
+      ? { ...allFiles.video, data: resolvedVideoData || allFiles.video.data, url: allFiles.video.url || task?.videoUrl || '' } 
+      : (task?.videoUrl || resolvedVideoData 
+          ? { url: task?.videoUrl || '', data: resolvedVideoData, name: 'Video Walkthrough' } 
+          : null);
+
     const pdfDeliverable = allFiles.pdf || (isPdf ? { name: fileName, size: fileSize, type: fileType, data: fileData } : null);
     const folderDeliverable = allFiles.folder || (isZip ? { name: fileName, size: fileSize, type: fileType, data: fileData, url: urlLink } : (urlLink ? { url: urlLink } : null));
     const imagesDeliverables = Array.isArray(allFiles.images) ? allFiles.images : (isImage ? [{ name: fileName, size: fileSize, type: fileType, data: fileData }] : []);
 
-    const hasVideo = Boolean(videoDeliverable?.data || videoDeliverable?.url || videoDeliverable?.name);
+    const hasVideo = Boolean(videoDeliverable?.data || videoDeliverable?.url || videoDeliverable?.name || resolvedVideoData || task?.videoUrl);
     const hasPdf = Boolean(pdfDeliverable?.data || pdfDeliverable?.name);
     const hasFolder = Boolean(folderDeliverable?.data || folderDeliverable?.name || folderDeliverable?.url);
     const hasImages = Boolean(imagesDeliverables && imagesDeliverables.length > 0);
@@ -1012,7 +1045,7 @@ export default function AdminDashboard() {
     const found = usersList.find(u => (u.username || '').toLowerCase().replace(/^@+/, '').trim() === cleanUser);
     if (found?.email && found.email.includes('@')) return found.email;
     if (cleanUser.includes('chinmay')) return 'chinmaykv555@gmail.com';
-    if (cleanUser.includes('maqsood')) return 'maqsoodmd.ac.in@gmail.com';
+    if (cleanUser.includes('maqsood')) return 'maqsoodmdhrl@gmail.com';
     return 'maqsoodmdhrl@gmail.com';
   };
 
@@ -1205,31 +1238,50 @@ export default function AdminDashboard() {
       const feedback = reviewFeedback.trim() || 'Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.';
       const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
       const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+      const targetEmail = resolveInternEmail(targetUser);
       const taskTitle = taskObj.title || 'Project Deliverable';
       const deadline = taskObj.deadline || '2026-08-31';
       
       const selectedReqs = Object.keys(revisionDeliverables).filter(k => revisionDeliverables[k]);
       const requiredDeliverables = selectedReqs.length > 0 ? selectedReqs : ['video', 'pdf', 'folder', 'images'];
 
-      // 1. Direct Serverless Revision Email & MongoDB status update
+      const payload = {
+        taskId,
+        username: targetUser,
+        toEmail: targetEmail,
+        taskTitle,
+        deadline,
+        feedbackNotes: feedback,
+        requiredDeliverables
+      };
+
+      // 1. Direct Serverless Revision Email & MongoDB status update (with production fallback)
       try {
-        await fetch('/api/send-revision-email', {
+        let emailRes = await fetch('/api/send-revision-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            taskId,
-            username: targetUser,
-            taskTitle,
-            deadline,
-            feedbackNotes: feedback,
-            requiredDeliverables
-          })
+          body: JSON.stringify(payload)
         });
-      } catch (e) {}
+        if (!emailRes.ok) {
+          await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+      } catch (e) {
+        try {
+          await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch (err) {}
+      }
 
-      // 2. Direct Serverless PATCH to MongoDB Atlas
+      // 2. Direct Serverless PATCH to MongoDB Atlas (with production fallback)
       try {
-        await fetch('/api/intern-tasks', {
+        let patchRes = await fetch('/api/intern-tasks', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1239,6 +1291,18 @@ export default function AdminDashboard() {
             requiredDeliverables
           })
         });
+        if (!patchRes.ok) {
+          await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              taskId,
+              status: 'REVISION_REQUESTED',
+              adminFeedback: feedback,
+              requiredDeliverables
+            })
+          });
+        }
       } catch (e) {}
 
       // 3. Local task store update
@@ -4279,11 +4343,11 @@ export default function AdminDashboard() {
                       </span>
                     </div>
 
-                    {sub.videoDeliverable?.data ? (
+                    {(modalVideoSrc || sub.videoDeliverable?.data) ? (
                       <div className="rounded-xl overflow-hidden bg-black border border-slate-800 shadow-inner">
                         <video 
                           controls 
-                          src={sub.videoDeliverable.data} 
+                          src={modalVideoSrc || sub.videoDeliverable?.data} 
                           className="w-full max-h-72 object-contain bg-black" 
                         />
                       </div>
@@ -4689,40 +4753,69 @@ export default function AdminDashboard() {
               </div>
 
               {/* Set Deliverables Required for Revision Box */}
-              <div className="bg-gradient-to-r from-amber-50/90 via-white to-rose-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-2.5 shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Set Deliverables Required for Revision</span>
-                  </label>
-                  <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-md border border-amber-300 shrink-0 self-start sm:self-auto">
-                    Intern Portal Adapts to Your Selection
-                  </span>
+              <div className="bg-gradient-to-r from-amber-50/90 via-white to-rose-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Set Deliverables Required for Revision</span>
+                    </label>
+                    <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300">
+                      Intern Portal Adapts to Your Selection
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true })}
+                      className="text-[10.5px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <CheckSquare className="w-3 h-3" /> Select All 4
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: false, images: false })}
+                      className="text-[10.5px] font-bold px-2 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                    >
+                      📹 Video + 📄 PDF
+                    </button>
+                  </div>
                 </div>
                 
                 <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                  Select what the intern must submit when you click <strong className="text-amber-900">"↩ Request Revision"</strong>:
+                  Choose which deliverables the intern MUST submit before resubmission is allowed:
                 </p>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-0.5">
                   {/* Video Option */}
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, video: !prev.video }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                       revisionDeliverables.video 
-                        ? 'bg-rose-50 border-rose-300 text-rose-950 shadow-2xs font-extrabold ring-1 ring-rose-200' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        ? 'bg-rose-50/90 border-rose-300 text-rose-950 shadow-sm font-extrabold ring-2 ring-rose-400' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
                     }`}
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      revisionDeliverables.video ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-400'
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      revisionDeliverables.video ? 'bg-rose-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
                     }`}>
-                      <Video className="w-3.5 h-3.5" />
+                      <Video className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs block font-bold leading-tight">Video Files</span>
-                      <span className="text-[9px] block opacity-75 font-mono">.mp4 / demo</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-xs font-bold leading-tight">Video Files</span>
+                        {revisionDeliverables.video ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-rose-700 bg-rose-100 border border-rose-300 px-1.5 py-0.2 rounded">
+                            <CheckSquare className="w-2.5 h-2.5 text-rose-600 shrink-0" /> REQUIRED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] block opacity-75 font-mono leading-tight">MP4 / screen demo</span>
                     </div>
                   </button>
 
@@ -4730,20 +4823,31 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, pdf: !prev.pdf }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                       revisionDeliverables.pdf 
-                        ? 'bg-indigo-50 border-indigo-300 text-indigo-950 shadow-2xs font-extrabold ring-1 ring-indigo-200' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        ? 'bg-indigo-50/90 border-indigo-300 text-indigo-950 shadow-sm font-extrabold ring-2 ring-indigo-400' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
                     }`}
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      revisionDeliverables.pdf ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      revisionDeliverables.pdf ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
                     }`}>
-                      <FileText className="w-3.5 h-3.5" />
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs block font-bold leading-tight">PDF Document</span>
-                      <span className="text-[9px] block opacity-75 font-mono">.pdf report</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-xs font-bold leading-tight">PDF Document</span>
+                        {revisionDeliverables.pdf ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-1.5 py-0.2 rounded">
+                            <CheckSquare className="w-2.5 h-2.5 text-indigo-600 shrink-0" /> REQUIRED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] block opacity-75 font-mono leading-tight">SRS / documentation</span>
                     </div>
                   </button>
 
@@ -4751,20 +4855,31 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, folder: !prev.folder }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                       revisionDeliverables.folder 
-                        ? 'bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-extrabold ring-1 ring-amber-200' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-sm font-extrabold ring-2 ring-amber-400' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
                     }`}
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      revisionDeliverables.folder ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      revisionDeliverables.folder ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
                     }`}>
-                      <Folder className="w-3.5 h-3.5" />
+                      <Folder className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs block font-bold leading-tight">Folder / Code</span>
-                      <span className="text-[9px] block opacity-75 font-mono">.zip / link</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-xs font-bold leading-tight">Folder / Code</span>
+                        {revisionDeliverables.folder ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
+                            <CheckSquare className="w-2.5 h-2.5 text-amber-700 shrink-0" /> REQUIRED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] block opacity-75 font-mono leading-tight">ZIP / code link</span>
                     </div>
                   </button>
 
@@ -4772,20 +4887,31 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setRevisionDeliverables(prev => ({ ...prev, images: !prev.images }))}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                       revisionDeliverables.images 
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-2xs font-extrabold ring-1 ring-emerald-200' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-sm font-extrabold ring-2 ring-emerald-400' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 opacity-60'
                     }`}
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      revisionDeliverables.images ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      revisionDeliverables.images ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-400'
                     }`}>
-                      <Image className="w-3.5 h-3.5" />
+                      <Image className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <span className="text-xs block font-bold leading-tight">Images</span>
-                      <span className="text-[9px] block opacity-75 font-mono">.png, .jpg</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-xs font-bold leading-tight">Screenshots</span>
+                        {revisionDeliverables.images ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded">
+                            <CheckSquare className="w-2.5 h-2.5 text-emerald-700 shrink-0" /> REQUIRED
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                            <Square className="w-2.5 h-2.5 text-slate-400 shrink-0" /> Optional
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] block opacity-75 font-mono leading-tight">PNG / JPG proof</span>
                     </div>
                   </button>
                 </div>
