@@ -388,8 +388,31 @@ function formatRichFeedbackForEmail(text) {
 }
 
 // Helper: Send Deliverable Revision Request Email to Intern
-async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes }) {
+async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables }) {
   if (!toEmail || !toEmail.includes('@')) return false;
+
+  const deliverableItems = [];
+  const reqList = Array.isArray(requiredDeliverables) 
+    ? requiredDeliverables 
+    : (typeof requiredDeliverables === 'object' && requiredDeliverables !== null 
+        ? Object.keys(requiredDeliverables).filter(k => requiredDeliverables[k]) 
+        : ['video', 'pdf', 'folder', 'images']);
+
+  if (reqList.includes('video')) deliverableItems.push('📹 <strong>Video Files</strong> (Demo / Screen Recording walkthrough)');
+  if (reqList.includes('pdf')) deliverableItems.push('📄 <strong>PDF Document</strong> (SRS, Project Report or Documentation)');
+  if (reqList.includes('folder')) deliverableItems.push('📁 <strong>Project Folder / Code</strong> (ZIP Archive or Repository link)');
+  if (reqList.includes('images') || reqList.includes('image')) deliverableItems.push('🖼️ <strong>Images / Screenshots</strong> (UI screens or proof of execution)');
+
+  const reqHtml = deliverableItems.length > 0 ? `
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 14px; padding: 14px 18px; margin: 18px 0;">
+      <div style="font-weight: 800; color: #1d4ed8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+        📦 Required Deliverable Files for this Revision:
+      </div>
+      <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #1e3a8a; line-height: 1.6;">
+        ${deliverableItems.map(item => `<li style="margin-bottom: 4px;">${item}</li>`).join('')}
+      </ul>
+    </div>
+  ` : '';
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -460,6 +483,8 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
               <div class="highlight-title">📝 Supervisor Evaluation Feedback:</div>
               <div style="color: #78350f; font-weight: 500; line-height: 1.6;">${formatRichFeedbackForEmail(feedbackNotes) || 'Please review your implementation, attach all required documentation, and resubmit your deliverables.'}</div>
             </div>
+
+            ${reqHtml}
 
             <div class="task-card">
               <div class="task-title">📌 ${taskTitle}</div>
@@ -1366,7 +1391,12 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
-        const { taskId, status, submissionUrl, submissionNotes, fileName, fileSize, fileType, fileData, assignedTo, deadline, priority, deadlineReminderSent } = body;
+        const { 
+          taskId, status, submissionUrl, submissionNotes, 
+          fileName, fileSize, fileType, fileData, 
+          assignedTo, deadline, priority, deadlineReminderSent,
+          adminFeedback, requiredDeliverables, submittedFiles, videoUrl
+        } = body;
         if (!taskId) return res.status(400).json({ success: false, message: 'TaskId required' });
         const updateFields = { updatedAt: new Date() };
         if (status) updateFields.status = status;
@@ -1380,6 +1410,10 @@ export default async function handler(req, res) {
         if (fileSize !== undefined) updateFields.fileSize = fileSize;
         if (fileType !== undefined) updateFields.fileType = fileType;
         if (fileData !== undefined) updateFields.fileData = fileData;
+        if (adminFeedback !== undefined) updateFields.adminFeedback = adminFeedback;
+        if (requiredDeliverables !== undefined) updateFields.requiredDeliverables = requiredDeliverables;
+        if (submittedFiles !== undefined) updateFields.submittedFiles = submittedFiles;
+        if (videoUrl !== undefined) updateFields.videoUrl = videoUrl;
         await col.updateOne({ $or: [{ taskId: taskId }, { id: taskId }] }, { $set: updateFields });
         return res.status(200).json({ success: true, message: `Task updated!` });
       }
@@ -1541,6 +1575,7 @@ export default async function handler(req, res) {
       const taskId = body.taskId || query.taskId;
       const targetUser = (body.username || query.username || '').replace(/^@+/, '').trim().toLowerCase();
       const feedbackNotes = body.feedbackNotes || body.feedback || 'Please update your deliverables/files with updated documentation and resubmit for evaluation.';
+      const requiredDeliverables = body.requiredDeliverables || ['video', 'pdf', 'folder', 'images'];
 
       let taskTitle = body.taskTitle || 'Project Deliverable';
       let taskDeadline = body.deadline || '2026-08-31';
@@ -1554,7 +1589,7 @@ export default async function handler(req, res) {
           taskAssigned = (task.assignedTo || taskAssigned).replace(/^@+/, '').trim().toLowerCase();
           await col.updateOne(
             { $or: [{ taskId: taskId }, { id: taskId }] },
-            { $set: { status: 'REVISION_REQUESTED', adminFeedback: feedbackNotes, updatedAt: new Date() } }
+            { $set: { status: 'REVISION_REQUESTED', adminFeedback: feedbackNotes, requiredDeliverables, updatedAt: new Date() } }
           );
         }
       }
@@ -1581,7 +1616,8 @@ export default async function handler(req, res) {
         taskTitle,
         description: body.description || '',
         deadline: taskDeadline,
-        feedbackNotes
+        feedbackNotes,
+        requiredDeliverables
       });
 
       return res.status(200).json({

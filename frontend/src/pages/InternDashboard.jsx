@@ -6,7 +6,7 @@ import {
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
   BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock,
-  AlertCircle, Bell, Check
+  AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
 
@@ -313,7 +313,7 @@ export default function InternDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Task Submission Modal State
+  // Task Submission Modal State (Supports Normal: PDF & Folders | Revision: Video, PDF, Folders, Images)
   const [selectedTask, setSelectedTask] = useState(null);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [submissionNotes, setSubmissionNotes] = useState('');
@@ -321,8 +321,108 @@ export default function InternDashboard() {
   const [uploadedFileData, setUploadedFileData] = useState('');
   const [uploadedFileType, setUploadedFileType] = useState('');
   const [uploadedFileSize, setUploadedFileSize] = useState('');
+
+  // Specific Deliverables State
+  const [videoFileName, setVideoFileName] = useState('');
+  const [videoFileData, setVideoFileData] = useState('');
+  const [videoFileSize, setVideoFileSize] = useState('');
+  const [videoFileType, setVideoFileType] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+
+  const [pdfFileName, setPdfFileName] = useState('');
+  const [pdfFileData, setPdfFileData] = useState('');
+  const [pdfFileSize, setPdfFileSize] = useState('');
+  const [pdfFileType, setPdfFileType] = useState('');
+
+  const [folderFileName, setFolderFileName] = useState('');
+  const [folderFileData, setFolderFileData] = useState('');
+  const [folderFileSize, setFolderFileSize] = useState('');
+  const [folderFileType, setFolderFileType] = useState('');
+  const [folderUrl, setFolderUrl] = useState('');
+
+  const [imagesList, setImagesList] = useState([]);
+  const [previewImageModal, setPreviewImageModal] = useState(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successModalData, setSuccessModalData] = useState(null);
+
+  // Sync selectedTask when modal opens or closes
+  useEffect(() => {
+    if (selectedTask) {
+      setSubmissionUrl(selectedTask.submissionUrl || '');
+      setSubmissionNotes(selectedTask.submissionNotes || '');
+      try {
+        const keyId = selectedTask.id || selectedTask.taskId;
+        const stored = localStorage.getItem(`worksphere_file_${keyId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.files) {
+            if (parsed.files.pdf) {
+              setPdfFileName(parsed.files.pdf.name || '');
+              setPdfFileSize(parsed.files.pdf.size || '');
+              setPdfFileType(parsed.files.pdf.type || '');
+              setPdfFileData(parsed.files.pdf.data || '');
+            }
+            if (parsed.files.video) {
+              setVideoFileName(parsed.files.video.name || '');
+              setVideoFileSize(parsed.files.video.size || '');
+              setVideoFileType(parsed.files.video.type || '');
+              setVideoFileData(parsed.files.video.data || '');
+              setVideoUrl(parsed.files.video.url || '');
+            }
+            if (parsed.files.folder) {
+              setFolderFileName(parsed.files.folder.name || '');
+              setFolderFileSize(parsed.files.folder.size || '');
+              setFolderFileType(parsed.files.folder.type || '');
+              setFolderFileData(parsed.files.folder.data || '');
+              setFolderUrl(parsed.files.folder.url || '');
+            }
+            if (parsed.files.images) {
+              setImagesList(Array.isArray(parsed.files.images) ? parsed.files.images : []);
+            }
+          } else {
+            setUploadedFileName(parsed.name || '');
+            setUploadedFileSize(parsed.size || '');
+            setUploadedFileType(parsed.type || '');
+            setUploadedFileData(parsed.data || '');
+            if ((parsed.type || '').includes('pdf') || (parsed.name || '').endsWith('.pdf')) {
+              setPdfFileName(parsed.name || '');
+              setPdfFileSize(parsed.size || '');
+              setPdfFileType(parsed.type || '');
+              setPdfFileData(parsed.data || '');
+            } else if ((parsed.type || '').includes('zip') || (parsed.name || '').endsWith('.zip')) {
+              setFolderFileName(parsed.name || '');
+              setFolderFileSize(parsed.size || '');
+              setFolderFileType(parsed.type || '');
+              setFolderFileData(parsed.data || '');
+            }
+          }
+        }
+      } catch (e) {}
+    } else {
+      setSubmissionUrl('');
+      setSubmissionNotes('');
+      setUploadedFileName('');
+      setUploadedFileData('');
+      setUploadedFileType('');
+      setUploadedFileSize('');
+      setVideoFileName('');
+      setVideoFileData('');
+      setVideoFileSize('');
+      setVideoFileType('');
+      setVideoUrl('');
+      setPdfFileName('');
+      setPdfFileData('');
+      setPdfFileSize('');
+      setPdfFileType('');
+      setFolderFileName('');
+      setFolderFileData('');
+      setFolderFileSize('');
+      setFolderFileType('');
+      setFolderUrl('');
+      setImagesList([]);
+    }
+  }, [selectedTask]);
 
   // Log Standup Modal State
   const [showLogModal, setShowLogModal] = useState(false);
@@ -787,28 +887,73 @@ function getAttendanceTimelineAndRate(logs) {
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTask) return;
-    if (!submissionUrl && !uploadedFileName) {
-      addToast("Please provide a deliverable URL or upload your report file.");
+
+    const isRevision = selectedTask.status === 'REVISION_REQUESTED';
+    
+    // Check if any deliverable was attached
+    const hasAnyFile = Boolean(
+      pdfFileName || folderFileName || videoFileName || videoUrl || folderUrl || 
+      submissionUrl || uploadedFileName || (imagesList && imagesList.length > 0)
+    );
+
+    if (!hasAnyFile && !submissionNotes.trim()) {
+      addToast("Please provide at least one required deliverable file or URL.");
       return;
     }
+
     setIsSubmitting(true);
     try {
       const uKey = (user?.username || 'intern').toLowerCase();
-      const finalSubmissionUrl = uploadedFileName 
-        ? `${submissionUrl || ''} ${submissionUrl ? '|' : ''} Report File: ${uploadedFileName}${uploadedFileSize ? ` (${uploadedFileSize})` : ''}`.trim() 
-        : submissionUrl;
+
+      const submittedFiles = {
+        video: (videoFileName || videoUrl) ? {
+          name: videoFileName || 'Demo Video',
+          size: videoFileSize,
+          type: videoFileType || 'video/mp4',
+          data: videoFileData,
+          url: videoUrl
+        } : null,
+        pdf: pdfFileName ? {
+          name: pdfFileName,
+          size: pdfFileSize,
+          type: pdfFileType || 'application/pdf',
+          data: pdfFileData
+        } : null,
+        folder: (folderFileName || folderUrl || submissionUrl) ? {
+          name: folderFileName || 'Project_Folder.zip',
+          size: folderFileSize,
+          type: folderFileType || 'application/zip',
+          data: folderFileData,
+          url: folderUrl || submissionUrl
+        } : null,
+        images: imagesList || []
+      };
+
+      const primaryFile = pdfFileName 
+        ? { name: pdfFileName, size: pdfFileSize, type: pdfFileType, data: pdfFileData }
+        : folderFileName 
+        ? { name: folderFileName, size: folderFileSize, type: folderFileType, data: folderFileData }
+        : videoFileName 
+        ? { name: videoFileName, size: videoFileSize, type: videoFileType, data: videoFileData }
+        : imagesList[0] 
+        ? { name: imagesList[0].name, size: imagesList[0].size, type: imagesList[0].type, data: imagesList[0].data }
+        : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: uploadedFileData };
+
+      const finalSubmissionUrl = (folderUrl || videoUrl || submissionUrl || '').trim();
 
       // Save file data to localStorage for instant admin inspection & download
-      if (uploadedFileData) {
-        try {
-          localStorage.setItem(`worksphere_file_${selectedTask.id}`, JSON.stringify({
-            data: uploadedFileData,
-            name: uploadedFileName,
-            type: uploadedFileType,
-            size: uploadedFileSize,
-            taskId: selectedTask.id
-          }));
-        } catch(e) {}
+      try {
+        const keyId = selectedTask.id || selectedTask.taskId;
+        localStorage.setItem(`worksphere_file_${keyId}`, JSON.stringify({
+          files: submittedFiles,
+          data: primaryFile.data || '',
+          name: primaryFile.name || '',
+          type: primaryFile.type || '',
+          size: primaryFile.size || '',
+          taskId: keyId
+        }));
+      } catch(e) {
+        console.warn('LocalStorage quota warning:', e);
       }
 
       // Update local storage immediately for real-time reactivity
@@ -820,10 +965,12 @@ function getAttendanceTimelineAndRate(logs) {
               status: 'SUBMITTED', 
               submissionUrl: finalSubmissionUrl, 
               submissionNotes,
-              fileName: uploadedFileName,
-              fileSize: uploadedFileSize,
-              fileType: uploadedFileType,
-              fileData: uploadedFileData
+              fileName: primaryFile.name,
+              fileSize: primaryFile.size,
+              fileType: primaryFile.type,
+              fileData: primaryFile.data,
+              submittedFiles,
+              videoUrl: videoUrl || ''
             };
           }
           return t;
@@ -850,10 +997,12 @@ function getAttendanceTimelineAndRate(logs) {
             status: 'SUBMITTED',
             submissionUrl: finalSubmissionUrl,
             submissionNotes: submissionNotes,
-            fileName: uploadedFileName,
-            fileSize: uploadedFileSize,
-            fileType: uploadedFileType,
-            fileData: uploadedFileData
+            fileName: primaryFile.name,
+            fileSize: primaryFile.size,
+            fileType: primaryFile.type,
+            fileData: primaryFile.data,
+            submittedFiles,
+            videoUrl: videoUrl || ''
           })
         });
       } catch(e) {}
@@ -861,39 +1010,35 @@ function getAttendanceTimelineAndRate(logs) {
       const res = await api.submitInternTask(selectedTask.id, {
         submissionUrl: finalSubmissionUrl,
         notes: submissionNotes,
-        fileName: uploadedFileName,
-        fileSize: uploadedFileSize,
-        fileType: uploadedFileType,
-        fileData: uploadedFileData
+        fileName: primaryFile.name,
+        fileSize: primaryFile.size,
+        fileType: primaryFile.type,
+        fileData: primaryFile.data,
+        submittedFiles,
+        videoUrl: videoUrl || ''
       });
 
       // Play pleasant audio chime and trigger success right mark modal
       playSuccessSound();
       setSuccessModalData({
-        title: "Deliverable Submitted Successfully!",
-        message: "Your report document & project deliverables have been uploaded and submitted for supervisor review."
+        title: isRevision ? "Revised Deliverables Submitted!" : "Deliverable Submitted Successfully!",
+        message: isRevision 
+          ? "Your revised materials (videos, documentation, project code & screenshots) have been uploaded and submitted for supervisor re-evaluation."
+          : "Your report document & project deliverables have been uploaded and submitted for supervisor review."
       });
 
-      addToast(res?.message || "✓ Task deliverable & report submitted successfully! Awaiting Admin approval.");
+      addToast(res?.message || (isRevision ? "✓ Revised deliverables submitted successfully! Awaiting supervisor approval." : "✓ Task deliverable & report submitted successfully! Awaiting Admin approval."));
       setSelectedTask(null);
-      setSubmissionUrl('');
-      setSubmissionNotes('');
-      setUploadedFileName('');
-      setUploadedFileData('');
-      setUploadedFileType('');
-      setUploadedFileSize('');
       fetchInternData(true);
     } catch (err) {
       console.error(err);
       playSuccessSound();
       setSuccessModalData({
-        title: "Deliverable Submitted Successfully!",
-        message: "Your task deliverable has been recorded and submitted for supervisor review."
+        title: "Deliverables Submitted!",
+        message: "Your task deliverables have been recorded and submitted for supervisor review."
       });
       addToast("✓ Task deliverable & report submitted successfully! Awaiting Admin approval.");
       setSelectedTask(null);
-      setUploadedFileName('');
-      setUploadedFileData('');
       fetchInternData(true);
     } finally {
       setIsSubmitting(false);
@@ -1561,20 +1706,64 @@ function getAttendanceTimelineAndRate(logs) {
                             Action Required
                           </span>
                         </div>
-                        <div className="text-xs space-y-1">
-                          <span className="text-[11px] font-bold text-slate-700 block">Supervisor Evaluation Feedback:</span>
-                          <div className="text-xs text-amber-950 font-medium bg-white/90 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
-                            {renderRichFormattedText(task.adminFeedback || 'Please review requirements, attach all required files/documentation, and resubmit for evaluation.')}
-                          </div>
-                        </div>
-                        {isAssignedToMe && (
-                          <button
-                            onClick={() => setSelectedTask(task)}
-                            className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01] active:scale-95"
-                          >
-                            <Upload className="w-3.5 h-3.5" /> Submit Revised Files & Deliverables ↗
-                          </button>
-                        )}
+                        {(() => {
+                          const reqs = Array.isArray(task.requiredDeliverables) 
+                            ? task.requiredDeliverables 
+                            : (typeof task.requiredDeliverables === 'object' && task.requiredDeliverables !== null 
+                                ? Object.keys(task.requiredDeliverables).filter(k => task.requiredDeliverables[k]) 
+                                : ['video', 'pdf', 'folder', 'images']);
+
+                          return (
+                            <>
+                              <div className="text-xs space-y-1">
+                                <span className="text-[11px] font-bold text-slate-700 block">Supervisor Evaluation Feedback:</span>
+                                <div className="text-xs text-amber-950 font-medium bg-white/90 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                                  {renderRichFormattedText(task.adminFeedback || 'Please review requirements, attach all required files/documentation, and resubmit for evaluation.')}
+                                </div>
+                              </div>
+
+                              {/* Admin Required Deliverables */}
+                              {reqs && reqs.length > 0 && (
+                                <div className="space-y-1 pt-0.5">
+                                  <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider block">
+                                    Admin Requested Deliverables:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {reqs.includes('video') && (
+                                      <span className="bg-rose-100 text-rose-900 border border-rose-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Video className="w-3 h-3 text-rose-600" /> Video Demo
+                                      </span>
+                                    )}
+                                    {reqs.includes('pdf') && (
+                                      <span className="bg-indigo-100 text-indigo-900 border border-indigo-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <FileText className="w-3 h-3 text-indigo-600" /> PDF Document
+                                      </span>
+                                    )}
+                                    {reqs.includes('folder') && (
+                                      <span className="bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Folder className="w-3 h-3 text-amber-600" /> Folder / Code
+                                      </span>
+                                    )}
+                                    {(reqs.includes('images') || reqs.includes('image')) && (
+                                      <span className="bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Image className="w-3 h-3 text-emerald-600" /> Screenshots
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isAssignedToMe && (
+                                <button
+                                  onClick={() => setSelectedTask(task)}
+                                  className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-extrabold text-xs py-2 px-3 rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:scale-[1.01] active:scale-95"
+                                >
+                                  <Upload className="w-3.5 h-3.5" /> Submit Revised Files & Deliverables ↗
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -2263,112 +2452,472 @@ function getAttendanceTimelineAndRate(logs) {
         </div>
       )}
 
-      {/* MODAL: SUBMIT TASK */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card bg-white w-full max-w-lg p-6 rounded-3xl shadow-2xl border border-slate-100 space-y-4">
-            <h3 className="text-lg font-poppins font-bold text-slate-800">Submit Deliverable for {selectedTask.id}</h3>
-            <p className="text-xs text-slate-600 font-medium">{selectedTask.title}</p>
+      {/* MODAL: SUBMIT TASK (Normal: PDF & Folders | Revision: Video, PDF, Folders, Images) */}
+      {selectedTask && (() => {
+        const isRevision = selectedTask.status === 'REVISION_REQUESTED';
+        const reqs = Array.isArray(selectedTask.requiredDeliverables)
+          ? selectedTask.requiredDeliverables
+          : (typeof selectedTask.requiredDeliverables === 'object' && selectedTask.requiredDeliverables !== null
+              ? Object.keys(selectedTask.requiredDeliverables).filter(k => selectedTask.requiredDeliverables[k])
+              : (isRevision ? ['video', 'pdf', 'folder', 'images'] : ['pdf', 'folder']));
 
-            <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
-              <div className="flex flex-col space-y-1.5">
-                <label>GitHub PR / Demo / Drive Folder URL</label>
-                <input
-                  type="url"
-                  value={submissionUrl}
-                  onChange={(e) => setSubmissionUrl(e.target.value)}
-                  placeholder="https://github.com/org/repo/pull/12 or Google Drive folder"
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500"
-                />
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+            <div className="glass-card bg-white w-full max-w-xl max-h-[92vh] overflow-y-auto p-5 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 space-y-5">
+              
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {isRevision ? '🔄 Deliverable Revision Submission' : '📄 Task Submission Portal'}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-poppins font-extrabold text-slate-900">
+                    {isRevision ? 'Submit Revised Deliverables' : 'Submit Task Deliverables'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {selectedTask.id}: <strong className="text-slate-800">{selectedTask.title}</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedTask(null)}
+                  className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Upload Report / Project Folder (ZIP, PDF, DOCX) */}
-              <div className="flex flex-col space-y-1.5">
-                <label>Upload Report Document / Deliverable Folder (ZIP, PDF, DOCX)</label>
-                <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/40 rounded-2xl p-4 text-center transition-colors cursor-pointer relative">
-                  <input
-                    type="file"
-                    accept=".zip,.rar,.pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.tar.gz"
-                    onChange={(e) => {
-                      const f = e.target.files[0];
-                      if (f) {
-                        const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
-                        setUploadedFileName(f.name);
-                        setUploadedFileSize(sizeStr);
-                        setUploadedFileType(f.type || 'application/octet-stream');
-                        const reader = new FileReader();
-                        reader.onload = (loadEv) => {
-                          setUploadedFileData(loadEv.target.result);
-                        };
-                        reader.readAsDataURL(f);
-                      }
-                    }}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  />
-                  {uploadedFileName ? (
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-indigo-200 shadow-sm">
-                      <div className="flex items-center gap-2 truncate">
-                        <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <div className="text-left truncate">
-                          <span className="font-bold text-slate-800 truncate text-[11px] block">{uploadedFileName}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block">{uploadedFileSize || 'Ready to upload'}</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUploadedFileName('');
-                          setUploadedFileData('');
-                          setUploadedFileType('');
-                          setUploadedFileSize('');
-                        }}
-                        className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1 py-1">
-                      <Upload className="w-6 h-6 text-indigo-500 mx-auto" />
-                      <p className="font-bold text-indigo-700 text-xs">Click to browse or drag & drop reports / zip folders</p>
-                      <p className="text-[10px] text-slate-400">Supports PDF, Word Doc, ZIP, TAR, Images (up to 50MB)</p>
+              {/* Revision Feedback Banner (if in revision mode) */}
+              {isRevision && (
+                <div className="bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-300/80 rounded-2xl p-4 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-black text-amber-950 uppercase tracking-wide">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" /> Supervisor Requested Revisions
+                    </span>
+                    <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md border border-rose-200">
+                      Revision Required
+                    </span>
+                  </div>
+
+                  {selectedTask.adminFeedback && (
+                    <div className="text-xs text-amber-950 font-medium bg-white/95 p-3 rounded-xl border border-amber-200 leading-relaxed shadow-2xs">
+                      {renderRichFormattedText(selectedTask.adminFeedback)}
                     </div>
                   )}
+
+                  {/* Required Deliverables Checklist */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider block">
+                      Supervisor Specifically Requested:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {reqs.includes('video') && (
+                        <span className="bg-rose-100 text-rose-900 border border-rose-300 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                          <Video className="w-3 h-3 text-rose-600" /> 📹 Video Demonstration
+                        </span>
+                      )}
+                      {reqs.includes('pdf') && (
+                        <span className="bg-indigo-100 text-indigo-900 border border-indigo-300 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                          <FileText className="w-3 h-3 text-indigo-600" /> 📄 PDF Report Document
+                        </span>
+                      )}
+                      {reqs.includes('folder') && (
+                        <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                          <Folder className="w-3 h-3 text-amber-600" /> 📁 Folder / Code Archive
+                        </span>
+                      )}
+                      {(reqs.includes('images') || reqs.includes('image')) && (
+                        <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                          <Image className="w-3 h-3 text-emerald-600" /> 🖼️ Screenshots & Proof
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex flex-col space-y-1.5">
-                <label>Submission Notes / Execution Details</label>
-                <textarea
-                  value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Describe your implementation, tests run, or key features built..."
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500"
-                ></textarea>
-              </div>
+              {/* Normal Mode Banner */}
+              {!isRevision && (
+                <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3.5 flex items-center gap-2.5 text-xs text-indigo-900 font-medium">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-extrabold block text-indigo-950">Standard Task Deliverables</span>
+                    <span className="text-[11px] text-indigo-700">Attach your PDF report and project folder/code repository below.</span>
+                  </div>
+                </div>
+              )}
 
-              <div className="flex items-center justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTask(null)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Deliverable & Report'}
-                </button>
-              </div>
-            </form>
+              {/* SUBMISSION FORM */}
+              <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
+
+                {/* 1. VIDEO DELIVERABLE SECTION (Only when revision includes video) */}
+                {isRevision && reqs.includes('video') && (
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <Video className="w-4 h-4 text-rose-600" />
+                        <span>1. Video Demonstration File / Walkthrough</span>
+                      </label>
+                      <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                        Required by Admin
+                      </span>
+                    </div>
+
+                    {/* Video File Dropzone */}
+                    <div className="border-2 border-dashed border-rose-200 hover:border-rose-400 bg-rose-50/30 rounded-xl p-3.5 text-center transition-colors cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept="video/*,.mp4,.webm,.mov,.mkv,.avi"
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) {
+                            const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
+                            setVideoFileName(f.name);
+                            setVideoFileSize(sizeStr);
+                            setVideoFileType(f.type || 'video/mp4');
+                            const reader = new FileReader();
+                            reader.onload = (loadEv) => {
+                              setVideoFileData(loadEv.target.result);
+                            };
+                            reader.readAsDataURL(f);
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      {videoFileName ? (
+                        <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-rose-200 shadow-2xs">
+                          <div className="flex items-center gap-2 truncate">
+                            <Video className="w-4 h-4 text-rose-600 shrink-0" />
+                            <div className="text-left truncate">
+                              <span className="font-bold text-slate-900 text-xs block truncate">{videoFileName}</span>
+                              <span className="text-[10px] text-slate-400 font-mono block">{videoFileSize || 'Video attached'}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVideoFileName('');
+                              setVideoFileData('');
+                              setVideoFileSize('');
+                              setVideoFileType('');
+                            }}
+                            className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 py-1">
+                          <Upload className="w-5 h-5 text-rose-500 mx-auto" />
+                          <p className="font-bold text-rose-800 text-xs">Click or drop MP4 / WebM demo video</p>
+                          <p className="text-[10px] text-slate-400">Screen recording or walkthrough demonstration</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* In-Modal Video Player Preview if data loaded */}
+                    {videoFileData && (
+                      <div className="rounded-xl overflow-hidden bg-black border border-slate-800 shadow-inner">
+                        <video controls src={videoFileData} className="w-full max-h-48 object-contain bg-black" />
+                      </div>
+                    )}
+
+                    {/* Or Video URL input */}
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[11px] font-bold text-slate-600">Or Paste Video Demo Link (YouTube, Loom, Google Drive):</label>
+                      <input
+                        type="url"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        placeholder="https://loom.com/share/... or YouTube / Drive link"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-rose-500 text-xs font-normal"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. PDF REPORT DOCUMENT SECTION (In Normal Mode OR Revision Mode if requested) */}
+                {(!isRevision || (isRevision && reqs.includes('pdf'))) && (
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <span>Project Documentation Report (PDF)</span>
+                      </label>
+                      <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                        {isRevision ? 'Required by Admin' : 'Required Deliverable'}
+                      </span>
+                    </div>
+
+                    <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/30 rounded-xl p-3.5 text-center transition-colors cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) {
+                            const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
+                            setPdfFileName(f.name);
+                            setPdfFileSize(sizeStr);
+                            setPdfFileType('application/pdf');
+                            const reader = new FileReader();
+                            reader.onload = (loadEv) => {
+                              setPdfFileData(loadEv.target.result);
+                            };
+                            reader.readAsDataURL(f);
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      {pdfFileName ? (
+                        <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-indigo-200 shadow-2xs">
+                          <div className="flex items-center gap-2.5 truncate">
+                            <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0 font-black text-[10px]">
+                              PDF
+                            </div>
+                            <div className="text-left truncate">
+                              <span className="font-bold text-slate-900 text-xs block truncate">{pdfFileName}</span>
+                              <span className="text-[10px] text-slate-400 font-mono block">{pdfFileSize || 'Ready for evaluation'}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPdfFileName('');
+                              setPdfFileData('');
+                              setPdfFileSize('');
+                              setPdfFileType('');
+                            }}
+                            className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 py-1">
+                          <Upload className="w-5 h-5 text-indigo-500 mx-auto" />
+                          <p className="font-bold text-indigo-800 text-xs">Click or drop project PDF documentation report</p>
+                          <p className="text-[10px] text-slate-400">Upload comprehensive PDF with architecture, SRS, or report</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. FOLDER / CODE DELIVERABLE SECTION (In Normal Mode OR Revision Mode if requested) */}
+                {(!isRevision || (isRevision && reqs.includes('folder'))) && (
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <Folder className="w-4 h-4 text-amber-600" />
+                        <span>Project Folder / Code Archive (ZIP) & Repository</span>
+                      </label>
+                      <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                        {isRevision ? 'Required by Admin' : 'Required Deliverable'}
+                      </span>
+                    </div>
+
+                    {/* Folder Archive Upload Dropzone */}
+                    <div className="border-2 border-dashed border-amber-200 hover:border-amber-400 bg-amber-50/30 rounded-xl p-3.5 text-center transition-colors cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept=".zip,.rar,.tar.gz,.7z"
+                        onChange={(e) => {
+                          const f = e.target.files[0];
+                          if (f) {
+                            const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
+                            setFolderFileName(f.name);
+                            setFolderFileSize(sizeStr);
+                            setFolderFileType(f.type || 'application/zip');
+                            const reader = new FileReader();
+                            reader.onload = (loadEv) => {
+                              setFolderFileData(loadEv.target.result);
+                            };
+                            reader.readAsDataURL(f);
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      {folderFileName ? (
+                        <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-amber-200 shadow-2xs">
+                          <div className="flex items-center gap-2.5 truncate">
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 font-black text-[10px]">
+                              ZIP
+                            </div>
+                            <div className="text-left truncate">
+                              <span className="font-bold text-slate-900 text-xs block truncate">{folderFileName}</span>
+                              <span className="text-[10px] text-slate-400 font-mono block">{folderFileSize || 'Project folder attached'}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFolderFileName('');
+                              setFolderFileData('');
+                              setFolderFileSize('');
+                              setFolderFileType('');
+                            }}
+                            className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 py-1">
+                          <Upload className="w-5 h-5 text-amber-500 mx-auto" />
+                          <p className="font-bold text-amber-800 text-xs">Click or drop project source folder (ZIP / TAR)</p>
+                          <p className="text-[10px] text-slate-400">Zip archive containing project codebase and files</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GitHub or Drive Folder Link */}
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[11px] font-bold text-slate-600">GitHub PR / Project Repository / Drive Folder Link:</label>
+                      <input
+                        type="url"
+                        value={folderUrl || submissionUrl}
+                        onChange={(e) => {
+                          setFolderUrl(e.target.value);
+                          setSubmissionUrl(e.target.value);
+                        }}
+                        placeholder="https://github.com/org/repo or Google Drive folder"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-amber-500 text-xs font-normal"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. IMAGES / SCREENSHOTS SECTION (Only when revision includes images) */}
+                {isRevision && (reqs.includes('images') || reqs.includes('image')) && (
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <Image className="w-4 h-4 text-emerald-600" />
+                        <span>Deliverable Screenshots & Visual Proof</span>
+                      </label>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        Required by Admin
+                      </span>
+                    </div>
+
+                    {/* Multi-Image Dropzone */}
+                    <div className="border-2 border-dashed border-emerald-200 hover:border-emerald-400 bg-emerald-50/30 rounded-xl p-3.5 text-center transition-colors cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept="image/*,.png,.jpg,.jpeg,.webp"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          files.forEach(f => {
+                            const sizeStr = (f.size / (1024 * 1024)).toFixed(2) + ' MB';
+                            const reader = new FileReader();
+                            reader.onload = (loadEv) => {
+                              setImagesList(prev => [...prev, {
+                                name: f.name,
+                                size: sizeStr,
+                                type: f.type || 'image/png',
+                                data: loadEv.target.result
+                              }]);
+                            };
+                            reader.readAsDataURL(f);
+                          });
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <div className="space-y-1 py-1">
+                        <Upload className="w-5 h-5 text-emerald-500 mx-auto" />
+                        <p className="font-bold text-emerald-800 text-xs">Click or drop UI screenshots / execution proof</p>
+                        <p className="text-[10px] text-slate-400">Supports PNG, JPG, WebP (select multiple files)</p>
+                      </div>
+                    </div>
+
+                    {/* Image Thumbnails Gallery */}
+                    {imagesList && imagesList.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-bold text-slate-500 block">
+                          Attached Images ({imagesList.length}):
+                        </span>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {imagesList.map((img, i) => (
+                            <div 
+                              key={i} 
+                              onClick={() => setPreviewImageModal(img.data)}
+                              className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 group bg-slate-900 cursor-pointer shadow-2xs"
+                            >
+                              <img src={img.data} alt={img.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setImagesList(prev => prev.filter((_, idx) => idx !== i));
+                                }}
+                                className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black cursor-pointer shadow-sm"
+                                title="Remove screenshot"
+                              >
+                                ✕
+                              </button>
+                              <span className="absolute bottom-1 left-1 bg-black/75 text-white text-[8px] font-mono px-1 rounded truncate max-w-[90%]">
+                                {img.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 5. SUBMISSION NOTES / EXECUTION DETAILS */}
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800">
+                    {isRevision ? 'Revision Changes & Implementation Notes:' : 'Submission Notes / Execution Details:'}
+                  </label>
+                  <textarea
+                    value={submissionNotes}
+                    onChange={(e) => setSubmissionNotes(e.target.value)}
+                    rows={3}
+                    placeholder={isRevision 
+                      ? "Describe the changes and corrections you made based on the supervisor's feedback..." 
+                      : "Describe your implementation, tests run, or key features built..."}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-xs font-normal"
+                  ></textarea>
+                </div>
+
+                {/* ACTION BUTTONS */}
+                <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTask(null)}
+                    className="px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95 disabled:opacity-50 text-xs flex items-center gap-1.5"
+                  >
+                    {isSubmitting ? (
+                      <span>Uploading Deliverables...</span>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{isRevision ? 'Submit Revised Deliverables' : 'Submit Deliverable & Report'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL: LOG STANDUP */}
       {showLogModal && (
@@ -2637,6 +3186,28 @@ function getAttendanceTimelineAndRate(logs) {
                 <CheckCircle2 className="w-4 h-4" /> Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Screenshot / Image Preview Lightbox */}
+      {previewImageModal && (
+        <div 
+          onClick={() => setPreviewImageModal(null)}
+          className="fixed inset-0 z-[10001] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150 cursor-zoom-out"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute -top-12 right-0 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={previewImageModal} 
+              alt="Deliverable Screenshot Preview" 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/20" 
+            />
           </div>
         </div>
       )}

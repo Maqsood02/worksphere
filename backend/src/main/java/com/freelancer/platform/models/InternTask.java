@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(collection = "intern_tasks")
 public class InternTask {
@@ -19,6 +20,9 @@ public class InternTask {
     private String status;   // IN_PROGRESS, SUBMITTED, COMPLETED, PENDING
     private String submissionUrl;
     private String submissionNotes;
+    private String adminFeedback;
+    private List<String> requiredDeliverables;
+    private Object submittedFiles;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -136,5 +140,29 @@ public class InternTask {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getAdminFeedback() {
+        return adminFeedback;
+    }
+
+    public void setAdminFeedback(String adminFeedback) {
+        this.adminFeedback = adminFeedback;
+    }
+
+    public List<String> getRequiredDeliverables() {
+        return requiredDeliverables;
+    }
+
+    public void setRequiredDeliverables(List<String> requiredDeliverables) {
+        this.requiredDeliverables = requiredDeliverables;
+    }
+
+    public Object getSubmittedFiles() {
+        return submittedFiles;
+    }
+
+    public void setSubmittedFiles(Object submittedFiles) {
+        this.submittedFiles = submittedFiles;
     }
 }

@@ -1361,7 +1361,9 @@ export const api = {
               fileName: payload.fileName || t.fileName || '',
               fileSize: payload.fileSize || t.fileSize || '',
               fileType: payload.fileType || t.fileType || '',
-              fileData: payload.fileData || t.fileData || ''
+              fileData: payload.fileData || t.fileData || '',
+              submittedFiles: payload.submittedFiles || t.submittedFiles || null,
+              videoUrl: payload.videoUrl || t.videoUrl || ''
             };
           }
           return t;

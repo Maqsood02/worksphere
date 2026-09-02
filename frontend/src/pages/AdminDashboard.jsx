@@ -6,7 +6,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Layout, Users, FileText, Calendar, MessageSquare, ChevronDown, Check, Send, Mail, X, Phone, Eye, EyeOff,
   Bot, ShieldCheck, GraduationCap, PlusCircle, Award, DollarSign, ExternalLink, CheckCircle2, Search, UserPlus, Trash2, Edit3, BookOpen, Clock,
-  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List, Download
+  ClipboardList, Bell, AlertCircle, Filter, Sparkles, RefreshCw, Bold, Italic, Highlighter, List, Download,
+  Video, Image, Folder
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
 
@@ -76,6 +77,13 @@ export default function AdminDashboard() {
   const [successModalData, setSuccessModalData] = useState(null);
   const [showFeedbackPreview, setShowFeedbackPreview] = useState(true);
   const feedbackTextareaRef = useRef(null);
+  const [revisionDeliverables, setRevisionDeliverables] = useState({
+    video: true,
+    pdf: true,
+    folder: true,
+    images: true
+  });
+  const [previewImageModal, setPreviewImageModal] = useState(null);
 
   // Attendance Management States
   const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
@@ -850,6 +858,8 @@ export default function AdminDashboard() {
     let fileType = task?.fileType || '';
     let fileData = task?.fileData || '';
     let urlLink = '';
+    let submittedFiles = task?.submittedFiles || null;
+    let storedFilesObj = null;
 
     // Check stored file in localStorage
     try {
@@ -858,6 +868,7 @@ export default function AdminDashboard() {
       const storedFile = localStorage.getItem(`worksphere_file_${keyId}`) || (keyTaskId ? localStorage.getItem(`worksphere_file_${keyTaskId}`) : null);
       if (storedFile) {
         const parsed = JSON.parse(storedFile);
+        if (parsed.files && typeof parsed.files === 'object') storedFilesObj = parsed.files;
         if (parsed.data && !fileData) fileData = parsed.data;
         if (parsed.name && !fileName) fileName = parsed.name;
         if (parsed.size && !fileSize) fileSize = parsed.size;
@@ -886,6 +897,18 @@ export default function AdminDashboard() {
     const isZip = lowerName.match(/\.(zip|rar|tar\.gz|7z)$/i) || (fileType || '').includes('zip');
     const isDoc = lowerName.match(/\.(doc|docx|txt|md)$/i) || (fileType || '').includes('document');
 
+    // Consolidate multi-file deliverables from submittedFiles or storedFilesObj
+    const allFiles = submittedFiles || storedFilesObj || {};
+    const videoDeliverable = allFiles.video || (task?.videoUrl ? { url: task.videoUrl, name: 'Video Demo Link' } : null);
+    const pdfDeliverable = allFiles.pdf || (isPdf ? { name: fileName, size: fileSize, type: fileType, data: fileData } : null);
+    const folderDeliverable = allFiles.folder || (isZip ? { name: fileName, size: fileSize, type: fileType, data: fileData, url: urlLink } : (urlLink ? { url: urlLink } : null));
+    const imagesDeliverables = Array.isArray(allFiles.images) ? allFiles.images : (isImage ? [{ name: fileName, size: fileSize, type: fileType, data: fileData }] : []);
+
+    const hasVideo = Boolean(videoDeliverable?.data || videoDeliverable?.url || videoDeliverable?.name);
+    const hasPdf = Boolean(pdfDeliverable?.data || pdfDeliverable?.name);
+    const hasFolder = Boolean(folderDeliverable?.data || folderDeliverable?.name || folderDeliverable?.url);
+    const hasImages = Boolean(imagesDeliverables && imagesDeliverables.length > 0);
+
     return {
       rawUrl,
       rawNotes,
@@ -898,9 +921,18 @@ export default function AdminDashboard() {
       isImage,
       isZip,
       isDoc,
-      hasAttachment: Boolean(fileName),
+      hasAttachment: Boolean(fileName) || hasPdf || hasFolder || hasVideo || hasImages,
       hasLiveUrl: Boolean(urlLink),
-      hasNotes: Boolean(rawNotes)
+      hasNotes: Boolean(rawNotes),
+      videoDeliverable,
+      pdfDeliverable,
+      folderDeliverable,
+      imagesDeliverables,
+      hasVideo,
+      hasPdf,
+      hasFolder,
+      hasImages,
+      requiredDeliverables: task?.requiredDeliverables || []
     };
   };
 
@@ -1175,6 +1207,9 @@ export default function AdminDashboard() {
       const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
       const taskTitle = taskObj.title || 'Project Deliverable';
       const deadline = taskObj.deadline || '2026-08-31';
+      
+      const selectedReqs = Object.keys(revisionDeliverables).filter(k => revisionDeliverables[k]);
+      const requiredDeliverables = selectedReqs.length > 0 ? selectedReqs : ['video', 'pdf', 'folder', 'images'];
 
       // 1. Direct Serverless Revision Email & MongoDB status update
       try {
@@ -1186,7 +1221,8 @@ export default function AdminDashboard() {
             username: targetUser,
             taskTitle,
             deadline,
-            feedbackNotes: feedback
+            feedbackNotes: feedback,
+            requiredDeliverables
           })
         });
       } catch (e) {}
@@ -1199,7 +1235,8 @@ export default function AdminDashboard() {
           body: JSON.stringify({
             taskId,
             status: 'REVISION_REQUESTED',
-            adminFeedback: feedback
+            adminFeedback: feedback,
+            requiredDeliverables
           })
         });
       } catch (e) {}
@@ -1208,7 +1245,7 @@ export default function AdminDashboard() {
       try {
         const updateTaskObj = (t) => {
           if (t.id === taskId || t.taskId === taskId) {
-            return { ...t, status: 'REVISION_REQUESTED', adminFeedback: feedback };
+            return { ...t, status: 'REVISION_REQUESTED', adminFeedback: feedback, requiredDeliverables };
           }
           return t;
         };
@@ -2435,16 +2472,61 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Revision Feedback Notice (if revision was requested) */}
-                        {task.status === 'REVISION_REQUESTED' && (
-                          <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-3.5 rounded-2xl border border-rose-200 shadow-2xs space-y-1.5 text-xs">
-                            <div className="flex items-center gap-1.5 font-extrabold text-rose-900 text-[11px] uppercase tracking-wide">
-                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Requested from Intern
+                        {task.status === 'REVISION_REQUESTED' && (() => {
+                          const reqs = Array.isArray(task.requiredDeliverables) 
+                            ? task.requiredDeliverables 
+                            : (typeof task.requiredDeliverables === 'object' && task.requiredDeliverables !== null 
+                                ? Object.keys(task.requiredDeliverables).filter(k => task.requiredDeliverables[k]) 
+                                : ['video', 'pdf', 'folder', 'images']);
+
+                          return (
+                            <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-3.5 rounded-2xl border border-rose-200 shadow-2xs space-y-2 text-xs">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 font-extrabold text-rose-900 text-[11px] uppercase tracking-wide">
+                                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Requested from Intern
+                                </div>
+                                <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md border border-rose-200">
+                                  Action Required
+                                </span>
+                              </div>
+
+                              {/* Required Deliverables Chips */}
+                              {reqs && reqs.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                                    Requested Deliverables:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {reqs.includes('video') && (
+                                      <span className="bg-rose-100/90 text-rose-900 border border-rose-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Video className="w-3 h-3 text-rose-600" /> Video Demo
+                                      </span>
+                                    )}
+                                    {reqs.includes('pdf') && (
+                                      <span className="bg-indigo-100/90 text-indigo-900 border border-indigo-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <FileText className="w-3 h-3 text-indigo-600" /> PDF Document
+                                      </span>
+                                    )}
+                                    {reqs.includes('folder') && (
+                                      <span className="bg-amber-100/90 text-amber-900 border border-amber-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Folder className="w-3 h-3 text-amber-600" /> Folder / Code
+                                      </span>
+                                    )}
+                                    {(reqs.includes('images') || reqs.includes('image')) && (
+                                      <span className="bg-emerald-100/90 text-emerald-900 border border-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <Image className="w-3 h-3 text-emerald-600" /> Screenshots
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              <p className="text-rose-950 font-medium italic bg-white/90 p-2.5 rounded-xl border border-rose-100">
+                                "{task.adminFeedback || 'Revisions requested by administrator.'}"
+                              </p>
                             </div>
-                            <p className="text-rose-950 font-medium italic bg-white/90 p-2 rounded-xl border border-rose-100">
-                              "{task.adminFeedback || 'Revisions requested by administrator.'}"
-                            </p>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Submitted Deliverables Details (if submitted or in review) */}
                         {(task.submissionUrl || task.submissionNotes || task.status === 'SUBMITTED') && (() => {
@@ -2460,19 +2542,47 @@ export default function AdminDashboard() {
                                 </span>
                               </div>
 
+                              {/* Multi-Format Asset Badges Bar */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {sub.hasVideo && (
+                                  <span className="text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Video className="w-3 h-3" /> Video Attached
+                                  </span>
+                                )}
+                                {sub.hasPdf && (
+                                  <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <FileText className="w-3 h-3" /> PDF Report
+                                  </span>
+                                )}
+                                {sub.hasFolder && (
+                                  <span className="text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Folder className="w-3 h-3" /> Project Folder
+                                  </span>
+                                )}
+                                {sub.hasImages && (
+                                  <span className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Image className="w-3 h-3" /> {sub.imagesDeliverables.length} Image(s)
+                                  </span>
+                                )}
+                              </div>
+
                               <div className="space-y-2 text-xs">
                                 {sub.hasAttachment ? (
                                   <div className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs">
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0 font-black text-[10px]">
-                                        PDF
+                                      <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 font-black text-[10px] ${
+                                        sub.isZip ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                        sub.isImage ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                                        'bg-rose-50 text-rose-600 border-rose-100'
+                                      }`}>
+                                        {sub.isZip ? 'ZIP' : sub.isImage ? 'IMG' : 'PDF'}
                                       </div>
                                       <div className="min-w-0">
                                         <span className="font-extrabold text-slate-800 text-xs block truncate">
-                                          {sub.fileName}
+                                          {sub.fileName || sub.pdfDeliverable?.name || sub.folderDeliverable?.name || 'Deliverable Assets Attached'}
                                         </span>
                                         <span className="text-[10px] text-slate-400 font-mono block">
-                                          {sub.fileSize ? `${sub.fileSize} • ` : ''}Project Report File
+                                          {sub.fileSize ? `${sub.fileSize} • ` : ''}{sub.isZip ? 'Folder Archive' : 'Deliverable File'}
                                         </span>
                                       </div>
                                     </div>
@@ -4147,146 +4257,276 @@ export default function AdminDashboard() {
                   <FileText className="w-4 h-4 text-indigo-600" /> Attached Deliverable Assets & Project Folders
                 </span>
 
-                {sub.hasAttachment && (
+                {/* 1. Video Deliverable (if submitted) */}
+                {sub.hasVideo && (
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-md">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Video className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="font-extrabold text-white text-xs block">
+                            {sub.videoDeliverable?.name || 'Project Video Demonstration'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            {sub.videoDeliverable?.size ? `${sub.videoDeliverable.size} • ` : ''}Screen Recording / Video Walkthrough
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold bg-rose-950/80 text-rose-300 border border-rose-800 px-2.5 py-1 rounded-lg shrink-0 self-start sm:self-auto">
+                        📹 Video Walkthrough
+                      </span>
+                    </div>
+
+                    {sub.videoDeliverable?.data ? (
+                      <div className="rounded-xl overflow-hidden bg-black border border-slate-800 shadow-inner">
+                        <video 
+                          controls 
+                          src={sub.videoDeliverable.data} 
+                          className="w-full max-h-72 object-contain bg-black" 
+                        />
+                      </div>
+                    ) : sub.videoDeliverable?.url ? (
+                      <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ExternalLink className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          <span className="font-mono text-xs text-slate-200 truncate">{sub.videoDeliverable.url}</span>
+                        </div>
+                        <a
+                          href={sub.videoDeliverable.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shrink-0 flex items-center gap-1.5 transition-colors"
+                        >
+                          <Video className="w-3.5 h-3.5" /> Watch Video ↗
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* 2. PDF Document Report (if submitted) */}
+                {sub.hasPdf && (
                   <div className="bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/40 p-4 rounded-2xl border border-indigo-200/80 shadow-sm space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 font-black text-xs shadow-xs ${
-                          sub.isZip 
-                            ? 'bg-amber-100 text-amber-800 border-amber-300' 
-                            : sub.isImage 
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
-                            : 'bg-rose-100 text-rose-700 border-rose-200'
-                        }`}>
-                          {sub.isZip ? 'ZIP' : sub.isImage ? 'IMG' : sub.isDoc ? 'DOC' : 'PDF'}
+                        <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0 font-black text-xs shadow-xs">
+                          PDF
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-extrabold text-slate-900 text-sm block truncate">
-                              {sub.fileName}
+                              {sub.pdfDeliverable?.name || sub.fileName || 'Project Documentation Report'}
                             </span>
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
-                              ✓ Ready for Review
+                              ✓ Verified PDF
                             </span>
                           </div>
                           <span className="text-[11px] text-slate-500 font-mono block">
-                            {sub.fileSize ? `File Size: ${sub.fileSize} • ` : ''}
-                            {sub.isZip ? 'Deliverable Project Folder & Archive' : sub.isImage ? 'Visual Asset / Screenshot' : 'Project Documentation Report'}
+                            {sub.pdfDeliverable?.size || sub.fileSize ? `File Size: ${sub.pdfDeliverable?.size || sub.fileSize} • ` : ''}Project Documentation Report
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {/* View Button */}
                         <button
                           type="button"
-                          onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
+                          onClick={() => handleViewDeliverableFile({
+                            fileData: sub.pdfDeliverable?.data || sub.fileData,
+                            fileName: sub.pdfDeliverable?.name || sub.fileName || 'Project_Report.pdf',
+                            fileType: 'application/pdf',
+                            isPdf: true
+                          }, reviewTaskModal)}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
                           title="View and inspect document in browser"
                         >
                           <Eye className="w-3.5 h-3.5" /> 
-                          <span>{sub.isZip ? 'Inspect Folder' : 'View'}</span>
+                          <span>View in Browser</span>
                         </button>
 
-                        {/* Download Button (after View) */}
                         <button
                           type="button"
-                          onClick={() => handleDownloadDeliverableFile(sub, reviewTaskModal)}
+                          onClick={() => handleDownloadDeliverableFile({
+                            fileData: sub.pdfDeliverable?.data || sub.fileData,
+                            fileName: sub.pdfDeliverable?.name || sub.fileName || 'Project_Report.pdf',
+                            fileType: 'application/pdf'
+                          }, reviewTaskModal)}
                           className="bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
                           title="Download deliverable file to your computer"
                         >
                           <Download className="w-3.5 h-3.5" /> 
-                          <span>{sub.isZip ? 'Download (ZIP)' : 'Download'}</span>
+                          <span>Download</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* In-Modal Live Preview / Inspector Sheet */}
-                    {sub.isImage && sub.fileData ? (
-                      <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-center">
-                        <img src={sub.fileData} alt={sub.fileName} className="max-h-60 mx-auto rounded-lg object-contain" />
-                      </div>
-                    ) : sub.isPdf && sub.fileData ? (
-                      <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs text-slate-700 space-y-2.5">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-sans font-bold border-b border-slate-100 pb-1.5">
-                          <span className="flex items-center gap-1.5 text-indigo-700 font-extrabold">
-                            <FileText className="w-3.5 h-3.5" /> Document Content Preview: <strong className="text-slate-800 font-semibold">{sub.fileName}</strong> ({sub.fileSize || '0.30 MB'})
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
-                              className="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-0.5 rounded-md hover:bg-indigo-100"
-                            >
-                              <Eye className="w-3 h-3" /> Open Full Screen ↗
-                            </button>
-                            <span className="text-emerald-600 font-bold">Verified Submission</span>
-                          </div>
-                        </div>
-
-                        {/* Interactive In-Modal PDF Document Viewer */}
-                        <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 h-80 w-full">
-                          <iframe
-                            src={sub.fileData}
-                            title={sub.fileName}
-                            className="w-full h-full border-0"
-                          />
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 font-sans gap-1">
-                          <p>
-                            Intern <strong className="text-slate-800 font-semibold">@{reviewTaskModal.assignedTo}</strong> has submitted this file for supervisor review.
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
-                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
-                            >
-                              View in Browser
-                            </button>
-                            <span>•</span>
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadDeliverableFile(sub, reviewTaskModal)}
-                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
-                            >
-                              Download File
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs font-mono text-slate-700 space-y-2">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-sans font-bold border-b border-slate-100 pb-1.5">
-                          <span className="flex items-center gap-1.5 text-indigo-700">
-                            <FileText className="w-3.5 h-3.5" /> {sub.isZip ? 'Project Folder Structure & Files' : 'Document Content Preview'}
-                          </span>
-                          <span className="text-emerald-600 font-bold">Verified Submission</span>
-                        </div>
-                        
-                        {sub.isZip ? (
-                          <div className="space-y-1 text-slate-600 text-[11px]">
-                            <p className="font-bold text-slate-800">📁 {sub.fileName.replace(/\.zip$/i, '')}/</p>
-                            <p className="pl-4">├── 📁 src/ (Source code & modules)</p>
-                            <p className="pl-4">├── 📄 {sub.fileName.replace(/\.zip$/i, '')}_Report.pdf</p>
-                            <p className="pl-4">└── 📄 README.md (Setup instructions & test runs)</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-1 text-slate-600 text-[11px] font-sans">
-                            <p>
-                              Uploaded Document: <strong className="text-indigo-900 font-bold">{sub.fileName}</strong> ({sub.fileSize || '1.02 MB'})
-                            </p>
-                            <p className="text-slate-500">
-                              Intern <strong className="text-slate-800 font-semibold">@{reviewTaskModal.assignedTo}</strong> has submitted this file for supervisor review. Click 'View' to inspect or 'Download' to save the complete original document.
-                            </p>
-                          </div>
-                        )}
+                    {/* In-Modal Live PDF Viewer */}
+                    {(sub.pdfDeliverable?.data || (sub.isPdf && sub.fileData)) && (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 h-80 w-full">
+                        <iframe
+                          src={sub.pdfDeliverable?.data || sub.fileData}
+                          title={sub.pdfDeliverable?.name || sub.fileName}
+                          className="w-full h-full border-0"
+                        />
                       </div>
                     )}
                   </div>
                 )}
 
+                {/* 3. Folder / Code ZIP Archive (if submitted) */}
+                {sub.hasFolder && (
+                  <div className="bg-gradient-to-r from-amber-50/70 via-white to-amber-50/40 p-4 rounded-2xl border border-amber-200/90 shadow-sm space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 font-black text-xs shadow-xs">
+                          ZIP
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 text-sm block truncate">
+                              {sub.folderDeliverable?.name || sub.fileName || 'Project_Source_Code.zip'}
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                              📁 Project Folder
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono block">
+                            {sub.folderDeliverable?.size || sub.fileSize ? `File Size: ${sub.folderDeliverable?.size || sub.fileSize} • ` : ''}Deliverable Project Folder & Code Archive
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDeliverableFile({
+                            fileData: sub.folderDeliverable?.data || sub.fileData,
+                            fileName: sub.folderDeliverable?.name || sub.fileName || 'Project_Folder.zip',
+                            isZip: true
+                          }, reviewTaskModal)}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 
+                          <span>Inspect Folder</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDeliverableFile({
+                            fileData: sub.folderDeliverable?.data || sub.fileData,
+                            fileName: sub.folderDeliverable?.name || sub.fileName || 'Project_Folder.zip',
+                            fileType: 'application/zip'
+                          }, reviewTaskModal)}
+                          className="bg-white hover:bg-slate-50 text-amber-800 border border-amber-300 font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        >
+                          <Download className="w-3.5 h-3.5" /> 
+                          <span>Download (ZIP)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Folder Structure Preview */}
+                    <div className="bg-white p-3 rounded-xl border border-amber-100 text-[11px] font-mono text-slate-700 space-y-1">
+                      <p className="font-bold text-slate-900 flex items-center gap-1">
+                        <Folder className="w-3.5 h-3.5 text-amber-600" /> {(sub.folderDeliverable?.name || sub.fileName || 'Project').replace(/\.zip$/i, '')}/
+                      </p>
+                      <p className="pl-4 text-slate-600">├── 📁 src/ (Source code & components)</p>
+                      <p className="pl-4 text-slate-600">├── 📄 README.md (Setup instructions & execution summary)</p>
+                      <p className="pl-4 text-slate-600">└── 📄 package.json / build configs</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Images / Screenshots (if submitted) */}
+                {sub.hasImages && (
+                  <div className="bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/40 p-4 rounded-2xl border border-emerald-200/90 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Image className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="font-extrabold text-slate-900 text-xs block">
+                            Screenshots & Visual Deliverables ({sub.imagesDeliverables.length})
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            UI Screens, Proof of Execution & Output Diagrams
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        ✓ Attached Images
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                      {sub.imagesDeliverables.map((img, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setPreviewImageModal(img.data || img.url)}
+                          className="bg-slate-900 rounded-xl overflow-hidden border border-slate-200 relative group cursor-pointer aspect-video flex items-center justify-center shadow-2xs hover:shadow-md transition-all"
+                        >
+                          <img 
+                            src={img.data || img.url} 
+                            alt={img.name || `Screenshot ${i + 1}`} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                          />
+                          <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                            <Eye className="w-3.5 h-3.5" /> Enlarge
+                          </div>
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-mono truncate max-w-[90%]">
+                            {img.name || `Image ${i + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy Fallback if neither multi-format was triggered but attachment exists */}
+                {!sub.hasVideo && !sub.hasPdf && !sub.hasFolder && !sub.hasImages && sub.hasAttachment && (
+                  <div className="bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/40 p-4 rounded-2xl border border-indigo-200/80 shadow-sm space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 font-black text-xs shadow-xs ${
+                          sub.isZip ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                          sub.isImage ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                          'bg-rose-100 text-rose-700 border-rose-200'
+                        }`}>
+                          {sub.isZip ? 'ZIP' : sub.isImage ? 'IMG' : sub.isDoc ? 'DOC' : 'PDF'}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-extrabold text-slate-900 text-sm block truncate">
+                            {sub.fileName}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-mono block">
+                            {sub.fileSize ? `File Size: ${sub.fileSize} • ` : ''}Attached Deliverable File
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDeliverableFile(sub, reviewTaskModal)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDeliverableFile(sub, reviewTaskModal)}
+                          className="bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* External URL link (if submitted) */}
                 {sub.hasLiveUrl && (
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -4448,6 +4688,109 @@ export default function AdminDashboard() {
                 </span>
               </div>
 
+              {/* Set Deliverables Required for Revision Box */}
+              <div className="bg-gradient-to-r from-amber-50/90 via-white to-rose-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-2.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Set Deliverables Required for Revision</span>
+                  </label>
+                  <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-md border border-amber-300 shrink-0 self-start sm:self-auto">
+                    Intern Portal Adapts to Your Selection
+                  </span>
+                </div>
+                
+                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                  Select what the intern must submit when you click <strong className="text-amber-900">"↩ Request Revision"</strong>:
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                  {/* Video Option */}
+                  <button
+                    type="button"
+                    onClick={() => setRevisionDeliverables(prev => ({ ...prev, video: !prev.video }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      revisionDeliverables.video 
+                        ? 'bg-rose-50 border-rose-300 text-rose-950 shadow-2xs font-extrabold ring-1 ring-rose-200' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      revisionDeliverables.video ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <Video className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs block font-bold leading-tight">Video Files</span>
+                      <span className="text-[9px] block opacity-75 font-mono">.mp4 / demo</span>
+                    </div>
+                  </button>
+
+                  {/* PDF Option */}
+                  <button
+                    type="button"
+                    onClick={() => setRevisionDeliverables(prev => ({ ...prev, pdf: !prev.pdf }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      revisionDeliverables.pdf 
+                        ? 'bg-indigo-50 border-indigo-300 text-indigo-950 shadow-2xs font-extrabold ring-1 ring-indigo-200' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      revisionDeliverables.pdf ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <FileText className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs block font-bold leading-tight">PDF Document</span>
+                      <span className="text-[9px] block opacity-75 font-mono">.pdf report</span>
+                    </div>
+                  </button>
+
+                  {/* Folder Option */}
+                  <button
+                    type="button"
+                    onClick={() => setRevisionDeliverables(prev => ({ ...prev, folder: !prev.folder }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      revisionDeliverables.folder 
+                        ? 'bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-extrabold ring-1 ring-amber-200' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      revisionDeliverables.folder ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <Folder className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs block font-bold leading-tight">Folder / Code</span>
+                      <span className="text-[9px] block opacity-75 font-mono">.zip / link</span>
+                    </div>
+                  </button>
+
+                  {/* Images Option */}
+                  <button
+                    type="button"
+                    onClick={() => setRevisionDeliverables(prev => ({ ...prev, images: !prev.images }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      revisionDeliverables.images 
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-2xs font-extrabold ring-1 ring-emerald-200' 
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      revisionDeliverables.images ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <Image className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs block font-bold leading-tight">Images</span>
+                      <span className="text-[9px] block opacity-75 font-mono">.png, .jpg</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 <button
@@ -4525,6 +4868,28 @@ export default function AdminDashboard() {
                 <CheckCircle2 className="w-4 h-4" /> Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox / Preview Image Modal */}
+      {previewImageModal && (
+        <div 
+          onClick={() => setPreviewImageModal(null)}
+          className="fixed inset-0 z-[10001] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150 cursor-zoom-out"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute -top-12 right-0 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={previewImageModal} 
+              alt="Deliverable Screenshot Preview" 
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl border border-white/20" 
+            />
           </div>
         </div>
       )}
