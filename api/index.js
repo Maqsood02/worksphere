@@ -835,9 +835,7 @@ export default async function handler(req, res) {
         (storedPass && storedPass === inputPass) ||
         (uNameLower === 'worksphere' && (inputPass === 'Worksphere@123' || inputPass === 'Workshere@123' || inputPass === 'worksphere')) ||
         (uNameLower === 'maqsood' && (inputPass === '123456' || inputPass === 'Maqsood@123' || inputPass === 'Worksphere@123')) ||
-        (uNameLower === 'chinmaykv' && (inputPass === '123456' || inputPass === 'Chinmay@123' || inputPass === 'Worksphere@123')) ||
-        (uNameLower === 'client' && (inputPass === '123456' || inputPass === 'Worksphere@123')) ||
-        (uNameLower === 'freelancer' && (inputPass === '123456' || inputPass === 'Worksphere@123'));
+        (uNameLower === 'chinmaykv' && (inputPass === '123456' || inputPass === 'Chinmay@123' || inputPass === 'Worksphere@123'));
 
       if (!isMatch) {
         return res.status(401).json({ success: false, message: 'Incorrect password.' });
@@ -848,15 +846,10 @@ export default async function handler(req, res) {
         role = 'ROLE_INTERN';
       } else if (uNameLower === 'worksphere' || uNameLower === 'admin' || user.email === 'worksphere.ac.in@gmail.com') {
         role = 'ROLE_ADMIN';
-      } else if (uNameLower === 'freelancer') {
-        role = 'ROLE_FREELANCER';
-      } else if (uNameLower === 'client') {
-        role = 'ROLE_CLIENT';
       }
 
       const designation = role === 'ROLE_INTERN' ? 'Full-Stack Engineering Intern' :
-        (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 
-        (role === 'ROLE_FREELANCER' ? 'Senior Technical Freelancer' : 'Valued Client'));
+        (role === 'ROLE_ADMIN' ? 'Platform Administrator' : 'Valued Client');
 
       const sanitizedUser = {
         id: user.id || (user._id ? user._id.toString() : user.username),

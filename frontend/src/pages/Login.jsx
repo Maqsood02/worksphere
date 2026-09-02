@@ -27,12 +27,6 @@ export default function Login() {
     }
   };
 
-  const autofillCredentials = (u, p) => {
-    setUsername(u);
-    setPassword(p);
-    addToast(`Autofilled credentials for @${u}`);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -141,62 +135,6 @@ export default function Login() {
             </button>
           </div>
         </form>
-
-        {/* Quick Demo Logins Helper */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 text-center">
-            🚀 Quick 1-Click Demo Logins
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => autofillCredentials('client', '123456')}
-              className="bg-white hover:bg-indigo-50/80 border border-slate-200 hover:border-indigo-300 rounded-xl p-2 text-left transition-all group cursor-pointer"
-            >
-              <div className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
-                <span>🏢 Client</span>
-                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">123456</span>
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">@client</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => autofillCredentials('freelancer', '123456')}
-              className="bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 rounded-xl p-2 text-left transition-all group cursor-pointer"
-            >
-              <div className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
-                <span>💻 Freelancer</span>
-                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">123456</span>
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">@freelancer</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => autofillCredentials('chinmaykv', '123456')}
-              className="bg-white hover:bg-blue-50/80 border border-slate-200 hover:border-blue-300 rounded-xl p-2 text-left transition-all group cursor-pointer"
-            >
-              <div className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
-                <span>🎓 Intern</span>
-                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">123456</span>
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">@chinmaykv</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => autofillCredentials('worksphere', 'Worksphere@123')}
-              className="bg-white hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 rounded-xl p-2 text-left transition-all group cursor-pointer"
-            >
-              <div className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
-                <span>🛡️ Admin</span>
-                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">Worksphere@123</span>
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">@worksphere</div>
-            </button>
-          </div>
-        </div>
 
         <div className="text-center pt-2 border-t border-slate-200/80">
           <p className="text-xs text-slate-500">

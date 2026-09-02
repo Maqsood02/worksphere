@@ -28,9 +28,7 @@ function getStoredUsersList() {
   const defaultList = [
     { id: 'u1', username: 'worksphere', name: 'Maqsood M D', email: 'worksphere.ac.in@gmail.com', phone: '8792404950', role: 'ROLE_ADMIN', rawPassword: 'Worksphere@123', emailVerified: true, phoneVerified: true },
     { id: 'u2', username: 'maqsood', name: 'Maqsood MD', email: 'maqsoodmdhrl@gmail.com', phone: '8792404950', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u4', username: 'client', name: 'Demo Client', email: 'client@worksphere.ac.in', phone: '9876543210', role: 'ROLE_CLIENT', rawPassword: '123456', emailVerified: true, phoneVerified: true },
-    { id: 'u5', username: 'freelancer', name: 'Demo Freelancer', email: 'freelancer@worksphere.ac.in', phone: '9876543211', role: 'ROLE_FREELANCER', rawPassword: '123456', emailVerified: true, phoneVerified: true }
+    { id: 'u3', username: 'chinmaykv', name: 'Chinmay K V', email: 'chinmaykv555@gmail.com', phone: '7760674555', role: 'ROLE_INTERN', rawPassword: '123456', emailVerified: true, phoneVerified: true }
   ];
 
   const saved = localStorage.getItem('worksphere_users_list');
@@ -206,9 +204,7 @@ function getMockFallbackResponse(url, options = {}) {
     const isPassCorrect = storedPass === inputPass || 
       (inputUname === 'worksphere' && (inputPass === 'Worksphere@123' || inputPass === 'Workshere@123' || inputPass === 'worksphere' || inputPass === '123456')) ||
       (inputUname === 'chinmaykv' && (inputPass === '123456' || inputPass === 'Chinmay@123' || inputPass === 'Worksphere@123')) ||
-      (inputUname === 'maqsood' && (inputPass === '123456' || inputPass === 'Maqsood@123' || inputPass === 'Worksphere@123')) ||
-      (inputUname === 'client' && (inputPass === '123456' || inputPass === 'Worksphere@123')) ||
-      (inputUname === 'freelancer' && (inputPass === '123456' || inputPass === 'Worksphere@123'));
+      (inputUname === 'maqsood' && (inputPass === '123456' || inputPass === 'Maqsood@123' || inputPass === 'Worksphere@123'));
 
     if (!isPassCorrect) {
       return { 
