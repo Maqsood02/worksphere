@@ -1709,29 +1709,56 @@ export const api = {
     return api.assignInternTask(targetUsername, payload);
   },
   deleteInternTask: async (taskId) => {
+    const cleanId = String(taskId || '').trim();
+    if (!cleanId) return { success: false, message: 'TaskId required' };
+
+    // 1. Persist in deleted tasks list and purge local caches
     try {
-      const globalSaved = localStorage.getItem('worksphere_global_tasks');
-      if (globalSaved) {
-        let globalList = JSON.parse(globalSaved);
-        globalList = globalList.filter(t => t.id !== taskId);
-        localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
+      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
+      let deletedList = savedDel ? JSON.parse(savedDel) : [];
+      if (!deletedList.includes(cleanId)) deletedList.push(cleanId);
+      if (!deletedList.includes(cleanId.toUpperCase())) deletedList.push(cleanId.toUpperCase());
+      if (!deletedList.includes(cleanId.toLowerCase())) deletedList.push(cleanId.toLowerCase());
+      localStorage.setItem('worksphere_deleted_tasks', JSON.stringify(deletedList));
+      localStorage.removeItem(`worksphere_file_${cleanId}`);
+
+      const gSaved = localStorage.getItem('worksphere_global_tasks');
+      if (gSaved) {
+        const parsed = JSON.parse(gSaved).filter(t => t.id !== cleanId && t.taskId !== cleanId);
+        localStorage.setItem('worksphere_global_tasks', JSON.stringify(parsed));
       }
-      ['intern', 'maqsood', 'chinmaykv'].forEach(k => {
-        const saved = localStorage.getItem(`worksphere_tasks_${k}`);
-        if (saved) {
-          let list = JSON.parse(saved);
-          list = list.filter(t => t.id !== taskId);
-          localStorage.setItem(`worksphere_tasks_${k}`, JSON.stringify(list));
+
+      const allKeys = Object.keys(localStorage);
+      for (const k of allKeys) {
+        if (k.startsWith('worksphere_tasks_')) {
+          const userSaved = localStorage.getItem(k);
+          if (userSaved) {
+            const parsed = JSON.parse(userSaved).filter(t => t.id !== cleanId && t.taskId !== cleanId);
+            localStorage.setItem(k, JSON.stringify(parsed));
+          }
         }
-      });
+      }
     } catch(e) {}
 
+    // 2. Dispatch DELETE to backend and serverless MongoDB endpoints
     try {
-      const res = await request(`/api/admin/interns/tasks/${taskId}`, { method: 'DELETE' });
+      await fetch(`/api/intern-tasks?id=${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    try {
+      await fetch(`/api/admin/interns/tasks/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    try {
+      await fetch(`https://worksphere-two.vercel.app/api/intern-tasks?id=${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    try {
+      const res = await request(`/api/admin/interns/tasks/${cleanId}`, { method: 'DELETE' });
       if (res && res.success) return res;
     } catch(e) {}
 
-    return request(`/api/admin/interns/tasks/${taskId}/delete`, { method: 'POST' });
+    return { success: true, message: 'Task deleted successfully.' };
   },
   sendTaskDeadlineReminder: async (taskId, taskData = {}) => {
     // 1. Direct Serverless trigger

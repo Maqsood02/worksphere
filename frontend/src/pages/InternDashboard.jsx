@@ -766,14 +766,21 @@ function getAttendanceTimelineAndRate(logs) {
       let deletedTaskIds = [];
       try {
         const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-        if (savedDel) deletedTaskIds = JSON.parse(savedDel);
+        if (savedDel) {
+          deletedTaskIds = JSON.parse(savedDel).map(id => String(id).toLowerCase().trim());
+        }
       } catch(e) {}
 
       // Extract and filter tasks strictly for this intern (or ALL) from MongoDB Atlas
       let rawTasks = [];
       if (Array.isArray(baseData.tasks)) {
         rawTasks = baseData.tasks
-          .filter(t => !deletedTaskIds.includes(t.taskId) && !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t._id))
+          .filter(t => {
+            const tid = String(t.taskId || '').toLowerCase().trim();
+            const id = String(t.id || '').toLowerCase().trim();
+            const mongoId = String(t._id || '').toLowerCase().trim();
+            return !deletedTaskIds.includes(tid) && !deletedTaskIds.includes(id) && !deletedTaskIds.includes(mongoId);
+          })
           .filter(t => isMatchingInternTask(t.assignedTo, uKey, user?.name));
       }
 

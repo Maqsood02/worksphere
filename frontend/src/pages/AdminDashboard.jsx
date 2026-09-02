@@ -511,7 +511,13 @@ export default function AdminDashboard() {
         }
       } catch (e) {}
 
-      const filteredTasks = rawTasks.filter(t => !deletedTaskIds.includes(t.id) && !deletedTaskIds.includes(t.taskId));
+      const lowerDeleted = deletedTaskIds.map(id => String(id).toLowerCase().trim());
+      const filteredTasks = rawTasks.filter(t => {
+        const tid = String(t.taskId || '').toLowerCase().trim();
+        const id = String(t.id || '').toLowerCase().trim();
+        const mongoId = String(t._id || '').toLowerCase().trim();
+        return !lowerDeleted.includes(tid) && !lowerDeleted.includes(id) && !lowerDeleted.includes(mongoId);
+      });
       setAllInternTasks(filteredTasks);
 
       // Fetch MongoDB Atlas serverless profiles

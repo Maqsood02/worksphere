@@ -1418,8 +1418,17 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: `Task updated!` });
       }
 
-      if (req.method === 'DELETE') {
-        const id = query.id || query.taskId || body.taskId || body.id;
+      if (req.method === 'DELETE' || (req.method === 'POST' && cleanPath.endsWith('/delete'))) {
+        let pathId = '';
+        const parts = cleanPath.split('/').filter(Boolean);
+        const lastPart = parts[parts.length - 1];
+        if (lastPart !== 'delete' && lastPart !== 'intern-tasks' && lastPart !== 'tasks') {
+          pathId = lastPart;
+        } else if (lastPart === 'delete' && parts.length >= 2) {
+          pathId = parts[parts.length - 2];
+        }
+
+        const id = query.id || query.taskId || body.taskId || body.id || pathId;
         if (id) {
           const cleanId = String(id).trim();
           await col.deleteMany({
@@ -1430,6 +1439,14 @@ export default async function handler(req, res) {
               { id: new RegExp(`^${cleanId}$`, 'i') }
             ]
           });
+          try {
+            await db.collection('task_media').deleteMany({
+              $or: [
+                { taskId: cleanId },
+                { taskId: new RegExp(`^${cleanId}$`, 'i') }
+              ]
+            });
+          } catch (mErr) {}
         }
         return res.status(200).json({ success: true, message: `Task deleted from database!` });
       }
