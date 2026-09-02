@@ -1572,6 +1572,30 @@ export default function AdminDashboard() {
     return `ATT-${String(num).padStart(3, '0')}`;
   };
 
+  const internHoursList = React.useMemo(() => {
+    const map = {};
+    // 1. Gather all registered interns from usersList
+    (usersList || [])
+      .filter(u => (u.role || '').toUpperCase().includes('INTERN') || u.username === 'chinmaykv' || u.username === 'maqsood')
+      .forEach(u => {
+        const key = (u.username || '').toLowerCase().trim();
+        if (key && !map[key]) {
+          map[key] = { username: u.username, name: u.name || u.username, hours: 0 };
+        }
+      });
+
+    // 2. Sum hours from allAttendanceLogs
+    (allAttendanceLogs || []).forEach(l => {
+      const rawUser = (l.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+      if (!map[rawUser]) {
+        map[rawUser] = { username: l.username, name: l.username, hours: 0 };
+      }
+      map[rawUser].hours += (Number(l.hours) || 0);
+    });
+
+    return Object.values(map);
+  }, [usersList, allAttendanceLogs]);
+
   const cancelAppointment = async (appId) => {
     // Instant optimistic state update
     setAppointments(prev => prev.filter(a => a.id !== appId));
@@ -2552,24 +2576,48 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Quick Summary Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl">
-                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Total Hours Logged</span>
-                  <span className="text-xl font-poppins font-black text-indigo-600">
-                    {allAttendanceLogs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0)} hrs
+              {/* Quick Summary Metric Cards - Individual Hours of Each Intern */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {internHoursList.map(intern => (
+                  <div key={intern.username} className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block truncate">
+                          Hours Logged (@{intern.username})
+                        </span>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded shrink-0">
+                          {intern.name}
+                        </span>
+                      </div>
+                      <span className="text-2xl font-poppins font-black text-indigo-600 mt-1 block">
+                        {intern.hours} hrs
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-semibold mt-1 block">
+                      {allAttendanceLogs.filter(l => (l.username || '').toLowerCase().replace(/^@+/, '') === intern.username.toLowerCase()).length} Standup Logs
+                    </span>
+                  </div>
+                ))}
+                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Approved Timesheets</span>
+                    <span className="text-2xl font-poppins font-black text-emerald-600 mt-1 block">
+                      {allAttendanceLogs.filter(l => l.status === 'APPROVED').length} Approved
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 font-semibold mt-1 block">
+                    Verified Standup Entries
                   </span>
                 </div>
-                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl">
-                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Approved Timesheets</span>
-                  <span className="text-xl font-poppins font-black text-emerald-600">
-                    {allAttendanceLogs.filter(l => l.status === 'APPROVED').length} Approved
-                  </span>
-                </div>
-                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl">
-                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Pending Review</span>
-                  <span className="text-xl font-poppins font-black text-amber-600">
-                    {allAttendanceLogs.filter(l => l.status !== 'APPROVED').length} In Review
+                <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Pending Review</span>
+                    <span className="text-2xl font-poppins font-black text-amber-600 mt-1 block">
+                      {allAttendanceLogs.filter(l => l.status !== 'APPROVED').length} In Review
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-700 font-semibold mt-1 block">
+                    Awaiting Supervisor Action
                   </span>
                 </div>
               </div>
