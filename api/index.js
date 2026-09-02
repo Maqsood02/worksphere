@@ -1572,7 +1572,7 @@ export default async function handler(req, res) {
       }
 
       const { username } = query;
-      const allLogs = await col.find({}).sort({ createdAt: -1 }).toArray();
+      const allLogs = await col.find({}).sort({ date: -1, createdAt: -1 }).toArray();
       if (!username || username === 'all') return res.status(200).json({ success: true, logs: allLogs });
       const uKey = username.toLowerCase().trim();
       const userLogs = allLogs.filter(l => (l.username || '').toLowerCase().trim() === uKey);
@@ -1595,7 +1595,7 @@ export default async function handler(req, res) {
         return a === uKey || a === 'all' || a.includes(uKey) || uKey.includes(a);
       });
 
-      const myLogs = await attendanceCol.find({ username: new RegExp(`^${uKey}$`, 'i') }).sort({ createdAt: -1 }).toArray();
+      const myLogs = await attendanceCol.find({ username: new RegExp(`^${uKey}$`, 'i') }).sort({ date: -1, createdAt: -1 }).toArray();
 
       const allModules = await modulesCol.find({}).sort({ createdAt: -1 }).toArray();
       const myModules = allModules.filter(m => {

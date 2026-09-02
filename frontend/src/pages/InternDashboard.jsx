@@ -374,20 +374,38 @@ export default function InternDashboard() {
   }
 
   function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (rawId) {
+      const str = String(rawId).trim();
+      const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
+      if (cleanMatch) {
+        const num = parseInt(cleanMatch[2], 10);
+        return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
+      }
+    }
     if (index !== null && index !== undefined) {
       return `${prefix}-${String(index + 1).padStart(3, '0')}`;
     }
-    if (!rawId) {
-      return `${prefix}-001`;
-    }
-    const str = String(rawId).trim();
-    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (cleanMatch) {
-      const num = parseInt(cleanMatch[2], 10);
-      return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
-    }
-    return str.toUpperCase();
+    return `${prefix}-001`;
   }
+
+  const getAttendanceDisplayId = (log, logsList = []) => {
+    const rawKey = log?.logId || log?.id;
+    if (rawKey) {
+      const match = String(rawKey).match(/^ATT-(\d+)$/i);
+      if (match) {
+        return `ATT-${String(parseInt(match[1], 10)).padStart(3, '0')}`;
+      }
+    }
+    // Fallback: Chronological order based on date (earliest date = ATT-001)
+    const sorted = [...(logsList || [])].sort((a, b) => {
+      const da = new Date(a.date || a.createdAt || 0);
+      const db = new Date(b.date || b.createdAt || 0);
+      return da - db;
+    });
+    const foundIdx = sorted.findIndex(l => (l.id || l.logId) === rawKey);
+    const num = foundIdx >= 0 ? foundIdx + 1 : 1;
+    return `ATT-${String(num).padStart(3, '0')}`;
+  };
 
   useEffect(() => {
     if (!user) {
@@ -1819,7 +1837,7 @@ function getAttendanceTimelineAndRate(logs) {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-xl">
-                              {formatDisplayId(log.id, 'ATT', idx)}
+                              {getAttendanceDisplayId(log, myLogs)}
                             </span>
                             <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />

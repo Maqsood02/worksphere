@@ -1539,20 +1539,38 @@ export default function AdminDashboard() {
   };
 
   function formatDisplayId(rawId, prefix = 'TSK', index = null) {
+    if (rawId) {
+      const str = String(rawId).trim();
+      const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
+      if (cleanMatch) {
+        const num = parseInt(cleanMatch[2], 10);
+        return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
+      }
+    }
     if (index !== null && index !== undefined) {
       return `${prefix}-${String(index + 1).padStart(3, '0')}`;
     }
-    if (!rawId) {
-      return `${prefix}-001`;
-    }
-    const str = String(rawId).trim();
-    const cleanMatch = str.match(/^(TSK|ATT|TASK)[-_]?(\d+)$/i);
-    if (cleanMatch) {
-      const num = parseInt(cleanMatch[2], 10);
-      return `${cleanMatch[1].toUpperCase()}-${String(num).padStart(3, '0')}`;
-    }
-    return str.toUpperCase();
+    return `${prefix}-001`;
   }
+
+  const getAttendanceDisplayId = (log) => {
+    const rawKey = log?.logId || log?.id;
+    if (rawKey) {
+      const match = String(rawKey).match(/^ATT-(\d+)$/i);
+      if (match) {
+        return `ATT-${String(parseInt(match[1], 10)).padStart(3, '0')}`;
+      }
+    }
+    // Fallback: Chronological order based on date (earliest date = ATT-001)
+    const sorted = [...allAttendanceLogs].sort((a, b) => {
+      const da = new Date(a.date || a.createdAt || 0);
+      const db = new Date(b.date || b.createdAt || 0);
+      return da - db;
+    });
+    const foundIdx = sorted.findIndex(l => (l.id || l.logId) === rawKey);
+    const num = foundIdx >= 0 ? foundIdx + 1 : 1;
+    return `ATT-${String(num).padStart(3, '0')}`;
+  };
 
   const cancelAppointment = async (appId) => {
     // Instant optimistic state update
@@ -2586,7 +2604,7 @@ export default function AdminDashboard() {
                           <tr key={logKey} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-4 px-4 font-mono font-extrabold text-indigo-600 text-[11px] whitespace-nowrap align-middle">
                               <span className="bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">
-                                {formatDisplayId(logKey, 'ATT', idx)}
+                                {getAttendanceDisplayId(log)}
                               </span>
                             </td>
                             <td className="py-4 px-4 font-bold text-slate-800 whitespace-nowrap align-middle">

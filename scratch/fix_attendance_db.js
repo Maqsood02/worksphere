@@ -4,9 +4,9 @@ async function run() {
   const { db } = await connectToDatabase();
   const col = db.collection('intern_attendance');
   
-  // Sort newest first (same as API endpoint sort: { createdAt: -1 } or date -1)
-  const logs = await col.find({}).sort({ date: -1, createdAt: -1 }).toArray();
-  console.log('Found', logs.length, 'logs to standardize with unique Entry IDs...');
+  // Sort chronologically (earliest date first: Day 1 = ATT-001, today = latest)
+  const logs = await col.find({}).sort({ date: 1, createdAt: 1 }).toArray();
+  console.log('Found', logs.length, 'logs to standardize chronologically by date...');
 
   for (let i = 0; i < logs.length; i++) {
     const doc = logs[i];
