@@ -63,7 +63,7 @@ export async function getDeliverableAsset(taskId, assetKey) {
 }
 
 // Upload chunks to Serverless MongoDB
-async function uploadMediaChunks(taskId, assetType, data, metadata = {}) {
+async function uploadMediaChunks(taskId, assetType, data, metadata = {}, onProgress = null) {
   if (!taskId || !data || data.length < 50) return;
   // Guard against giant payloads (>35MB base64 / ~25MB file) exceeding serverless timeout limits
   if (data.length > 35 * 1024 * 1024) {
@@ -107,6 +107,11 @@ async function uploadMediaChunks(taskId, assetType, data, metadata = {}) {
         });
       } catch (err) {}
     }
+
+    if (typeof onProgress === 'function') {
+      const pct = Math.round(((i + 1) / totalChunks) * 100);
+      onProgress(pct, i + 1, totalChunks);
+    }
   }
 }
 
@@ -137,7 +142,7 @@ async function fetchMediaFromCloud(taskId, assetType = 'video') {
   return null;
 }
 
-export async function saveDeliverableVideo(taskId, videoData, metadata = {}) {
+export async function saveDeliverableVideo(taskId, videoData, metadata = {}, onProgress = null) {
   if (!videoData) return false;
   const cleanId = String(taskId || 'latest').trim();
   const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
@@ -147,8 +152,12 @@ export async function saveDeliverableVideo(taskId, videoData, metadata = {}) {
     await saveDeliverableAsset(k, 'video', videoData);
   }
 
-  // 2. Upload chunks to cloud in background for cross-device visibility
-  uploadMediaChunks(cleanId, 'video', videoData, metadata).catch(() => {});
+  // 2. Upload chunks to cloud and await so connection is not aborted
+  try {
+    await uploadMediaChunks(cleanId, 'video', videoData, metadata, onProgress);
+  } catch (err) {
+    console.warn('Cloud video sync error:', err);
+  }
   return true;
 }
 
