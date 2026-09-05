@@ -65,6 +65,11 @@ export async function getDeliverableAsset(taskId, assetKey) {
 // Upload chunks to Serverless MongoDB
 async function uploadMediaChunks(taskId, assetType, data, metadata = {}) {
   if (!taskId || !data || data.length < 50) return;
+  // Guard against giant payloads (>35MB base64 / ~25MB file) exceeding serverless timeout limits
+  if (data.length > 35 * 1024 * 1024) {
+    console.info('Large deliverable saved locally in IndexedDB. For instant streaming across devices, Video URL is recommended.');
+    return;
+  }
   const totalLength = data.length;
   const totalChunks = Math.ceil(totalLength / CHUNK_SIZE);
 
@@ -168,4 +173,45 @@ export async function getDeliverableVideo(taskId, fileName = '') {
   }
 
   return null;
+}
+
+// Robust browser-native binary blob downloader (bypasses Chrome data-URI limits)
+export async function downloadDeliverableVideo(videoSrc, fileName = 'walkthrough.mp4') {
+  if (!videoSrc) return false;
+  try {
+    let blob;
+    if (videoSrc.startsWith('blob:')) {
+      const res = await fetch(videoSrc);
+      blob = await res.blob();
+    } else if (videoSrc.startsWith('data:')) {
+      const res = await fetch(videoSrc);
+      blob = await res.blob();
+    } else if (videoSrc.startsWith('http')) {
+      // Direct link
+      const a = document.createElement('a');
+      a.href = videoSrc;
+      a.target = '_blank';
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return true;
+    } else {
+      blob = new Blob([videoSrc], { type: 'video/mp4' });
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName.toLowerCase().endsWith('.mp4') || fileName.toLowerCase().endsWith('.webm') ? fileName : `${fileName}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    return true;
+  } catch (err) {
+    console.error('Download video helper error:', err);
+    window.open(videoSrc, '_blank');
+    return false;
+  }
 }

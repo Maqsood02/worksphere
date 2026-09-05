@@ -1481,6 +1481,17 @@ export default async function handler(req, res) {
         if (!chunks || chunks.length === 0) {
           return res.status(200).json({ success: false, message: 'Media not found in storage', data: null });
         }
+        const expectedChunks = Number(chunks[0]?.totalChunks || 1);
+        if (chunks.length < expectedChunks) {
+          return res.status(200).json({
+            success: false,
+            incomplete: true,
+            message: `Media upload incomplete (${chunks.length}/${expectedChunks} chunks received). Please choose a local copy or re-upload.`,
+            data: null,
+            fileName: chunks[0]?.fileName || '',
+            fileSize: chunks[0]?.fileSize || ''
+          });
+        }
         const combinedData = chunks.map(c => c.data).join('');
         return res.status(200).json({
           success: true,
