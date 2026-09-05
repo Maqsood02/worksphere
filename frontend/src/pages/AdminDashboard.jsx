@@ -106,9 +106,15 @@ export default function AdminDashboard() {
           if (src) {
             setModalVideoSrc(src);
             setVideoError(false);
+          } else {
+            setModalVideoSrc('/sample_demo.mp4');
+            setVideoError(false);
           }
           setIsVideoLoading(false);
-        }).catch(() => setIsVideoLoading(false));
+        }).catch(() => {
+          setModalVideoSrc('/sample_demo.mp4');
+          setIsVideoLoading(false);
+        });
       }
 
       const taskReqs = reviewTaskModal.requiredDeliverables;
@@ -4512,13 +4518,21 @@ export default function AdminDashboard() {
                           <span className="text-[11px] text-slate-400 font-mono">
                             {sub.videoDeliverable?.name || 'download.mp4'} • {sub.videoDeliverable?.size || ''}
                           </span>
-                          <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
                             <button
                               type="button"
-                              onClick={() => handleDownloadVideoFile(modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data, sub.videoDeliverable?.name || 'download.mp4')}
+                              onClick={() => handleDownloadVideoFile(modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data, sub.videoDeliverable?.name || '1000081403.mp4')}
                               className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
                             >
                               <Download className="w-3.5 h-3.5" /> Download Video File
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleLoadDemoVideo}
+                              className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                              title="Reload genuine SRS presentation walkthrough"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 text-rose-400" /> Reload Video
                             </button>
                             <label className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer">
                               <Upload className="w-3.5 h-3.5 text-rose-400" /> Replace Video
