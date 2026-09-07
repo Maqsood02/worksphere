@@ -1336,18 +1336,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRequestRevisionFromModal = async (taskId) => {
+  const handleRequestRevisionFromModal = async (taskId, customReqs = null, customFeedback = null) => {
     if (!taskId) return;
     setIsProcessingReview(true);
     try {
-      const feedback = reviewFeedback.trim() || 'Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.';
+      const feedback = customFeedback || reviewFeedback.trim() || 'Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.';
       const taskObj = reviewTaskModal || allInternTasks.find(t => t.id === taskId || t.taskId === taskId) || {};
       const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
       const targetEmail = resolveInternEmail(targetUser);
       const taskTitle = taskObj.title || 'Project Deliverable';
       const deadline = taskObj.deadline || '2026-08-31';
       
-      const selectedReqs = Object.keys(revisionDeliverables).filter(k => revisionDeliverables[k]);
+      const selectedReqs = customReqs || Object.keys(revisionDeliverables).filter(k => revisionDeliverables[k]);
       const requiredDeliverables = selectedReqs.length > 0 ? selectedReqs : ['video', 'pdf', 'folder', 'images'];
 
       const payload = {
@@ -5003,13 +5003,13 @@ export default function AdminDashboard() {
                   </div>
                   
                   {/* Preset Buttons */}
-                  <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true })}
-                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                      onClick={() => setRevisionDeliverables({ video: true, pdf: false, folder: false, images: false })}
+                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-2xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                     >
-                      <CheckSquare className="w-3 h-3" /> Select All 4
+                      📹 Video Only
                     </button>
                     <button
                       type="button"
@@ -5017,6 +5017,13 @@ export default function AdminDashboard() {
                       className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition-all cursor-pointer active:scale-95"
                     >
                       📹 Video + 📄 PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true })}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                    >
+                      <CheckSquare className="w-3 h-3" /> Select All 4
                     </button>
                   </div>
                 </div>
@@ -5171,6 +5178,21 @@ export default function AdminDashboard() {
                   >
                     <Mail className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Email Feedback</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRevisionDeliverables({ video: true, pdf: false, folder: false, images: false });
+                      const videoFeedback = reviewFeedback.trim() || 'Please submit your genuine video walkthrough demonstration for Task 2. Your PDF report is already verified and accepted.';
+                      handleRequestRevisionFromModal(reviewTaskModal.id, ['video'], videoFeedback);
+                    }}
+                    disabled={isProcessingReview}
+                    className="flex-1 sm:flex-initial bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-extrabold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shadow-2xs"
+                    title="Request only video submission from intern (PDF/code already accepted)"
+                  >
+                    <Video className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Request Video Only</span>
                   </button>
 
                   <button
