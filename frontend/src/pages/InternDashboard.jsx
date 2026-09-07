@@ -311,8 +311,18 @@ export default function InternDashboard() {
   const { user, addToast } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'standup', 'curriculum', 'certificates'
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => {
+    try {
+      const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+      const s = localStorage.getItem(`worksphere_cached_intern_data_${uKey}`);
+      if (s) {
+        const p = JSON.parse(s);
+        if (p && p.profile) return p;
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
 
   // Task Submission Modal State (Supports Normal: PDF & Folders | Revision: Video, PDF, Folders, Images)
   const [selectedTask, setSelectedTask] = useState(null);
@@ -743,26 +753,11 @@ function getAttendanceTimelineAndRate(logs) {
         }
       } catch (e) {}
 
-      let serverProfile = null;
-      try {
-        const pRes = await fetch(`/api/intern-profile?username=${uKey}`);
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          if (pData && pData.profile) serverProfile = pData.profile;
-        }
-      } catch(e) {}
-
-      const [res, directAtt, directMods] = await Promise.allSettled([
-        api.getInternOverview(uKey),
-        api.getInternAttendance ? api.getInternAttendance(uKey) : api.getAdminAttendance(),
-        api.getLearningModules ? api.getLearningModules(uKey) : Promise.resolve({ success: true, modules: [] })
-      ]);
-
-      const baseData = (res.status === 'fulfilled' && res.value && res.value.success) ? res.value : defaultInternData;
+      const res = await api.getInternOverview(uKey);
+      const baseData = (res && res.success) ? res : defaultInternData;
       const apiProfile = baseData.profile || baseData.intern || defaultInternData.profile;
       const finalProfile = {
         ...apiProfile,
-        ...(serverProfile || {}),
         ...(localOverride || {})
       };
 
@@ -791,12 +786,7 @@ function getAttendanceTimelineAndRate(logs) {
       // Attendance logs strictly for this intern from MongoDB Atlas
       let rawLogs = [];
       if (Array.isArray(baseData.attendanceLogs)) {
-        rawLogs = baseData.attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uKey, user?.name));
-      }
-
-      // Merge direct attendance API logs from MongoDB Atlas
-      if (directAtt.status === 'fulfilled' && Array.isArray(directAtt.value)) {
-        const directFiltered = directAtt.value.filter(l => isMatchingInternAttendance(l.username, uKey, user?.name)).map(l => {
+        rawLogs = baseData.attendanceLogs.filter(l => isMatchingInternAttendance(l.username, uKey, user?.name)).map(l => {
           let timeStr = l.time;
           if (!timeStr && l.createdAt) {
             try {
@@ -823,16 +813,6 @@ function getAttendanceTimelineAndRate(logs) {
             createdAt: l.createdAt || new Date()
           };
         });
-
-        for (const dl of directFiltered) {
-          const key = dl.logId || dl.id;
-          const idx = rawLogs.findIndex(existing => (existing.logId === key || existing.id === key || existing.date === dl.date));
-          if (idx >= 0) {
-            rawLogs[idx] = { ...rawLogs[idx], ...dl };
-          } else {
-            rawLogs.push(dl);
-          }
-        }
       }
 
       // Strictly deduplicate by date (one log per calendar date, sorted newest first)
@@ -851,20 +831,12 @@ function getAttendanceTimelineAndRate(logs) {
 
       // Extract and merge learning modules from MongoDB Atlas / API
       let rawModules = Array.isArray(baseData.learningModules) ? baseData.learningModules : [];
-      let directList = [];
-      if (directMods.status === 'fulfilled' && directMods.value) {
-        if (Array.isArray(directMods.value)) {
-          directList = directMods.value;
-        } else if (Array.isArray(directMods.value.modules)) {
-          directList = directMods.value.modules;
-        }
-      }
-      if (directList.length === 0 && rawModules.length === 0) {
+      if (rawModules.length === 0) {
         try {
           const saved = localStorage.getItem('worksphere_learning_modules');
           if (saved) {
             const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) directList = parsed;
+            if (Array.isArray(parsed)) rawModules = parsed;
           }
         } catch (e) {}
       }

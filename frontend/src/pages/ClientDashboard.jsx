@@ -12,15 +12,51 @@ export default function ClientDashboard() {
 
   const [activeTab, setActiveTab] = useState('projects');
   
-  // Lists
-  const [projects, setProjects] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  // Lists (Initialized with instant cache for 0ms visual delay)
+  const [projects, setProjects] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_projects');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_invoices');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
+  const [appointments, setAppointments] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_appointments');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
 
-  // Stats
-  const [activeCount, setActiveCount] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [totalSpent, setTotalSpent] = useState(0);
+  // Stats (Derived immediately from cache)
+  const [activeCount, setActiveCount] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_projects');
+      if (!cached) return 0;
+      const list = JSON.parse(cached);
+      return list.filter(p => p.status !== 'COMPLETED').length;
+    } catch { return 0; }
+  });
+  const [completedCount, setCompletedCount] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_projects');
+      if (!cached) return 0;
+      const list = JSON.parse(cached);
+      return list.filter(p => p.status === 'COMPLETED').length;
+    } catch { return 0; }
+  });
+  const [totalSpent, setTotalSpent] = useState(() => {
+    try {
+      const cached = localStorage.getItem('worksphere_client_invoices');
+      if (!cached) return 0;
+      const list = JSON.parse(cached);
+      return list.filter(i => i.status === 'PAID').reduce((sum, current) => sum + (current.amount || 0), 0);
+    } catch { return 0; }
+  });
 
   // Chat
   const [chatRecipient, setChatRecipient] = useState('admin');
@@ -43,7 +79,7 @@ export default function ClientDashboard() {
   const [bookSlot, setBookSlot] = useState('10:00 AM - 11:00 AM');
   const [bookDesc, setBookDesc] = useState('');
 
-  // Initial Sync
+  // Initial Sync & Background Polling
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -59,6 +95,14 @@ export default function ClientDashboard() {
       return;
     }
     fetchData();
+
+    // Background live synchronization every 10 seconds
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    }, 10000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Chat Polling
@@ -83,33 +127,31 @@ export default function ClientDashboard() {
 
   const fetchData = async () => {
     try {
-      const pData = await api.getClientProjects();
-      const iData = await api.getClientInvoices();
-      const aData = await api.getClientAppointments();
+      const [pData, iData, aData] = await Promise.allSettled([
+        api.getClientProjects(),
+        api.getClientInvoices(),
+        api.getClientAppointments()
+      ]);
 
-      const projList = Array.isArray(pData) ? pData : (pData?.projects || []);
-      const invList = Array.isArray(iData) ? iData : (iData?.invoices || []);
-      const appList = Array.isArray(aData) ? aData : (aData?.appointments || []);
+      const projList = pData.status === 'fulfilled' ? (Array.isArray(pData.value) ? pData.value : (pData.value?.projects || [])) : [];
+      const invList = iData.status === 'fulfilled' ? (Array.isArray(iData.value) ? iData.value : (iData.value?.invoices || [])) : [];
+      const appList = aData.status === 'fulfilled' ? (Array.isArray(aData.value) ? aData.value : (aData.value?.appointments || [])) : [];
 
-      const finalProjects = projList;
-      setProjects(finalProjects);
-      const comp = finalProjects.filter(p => p.status === 'COMPLETED').length;
+      setProjects(projList);
+      try { localStorage.setItem('worksphere_client_projects', JSON.stringify(projList)); } catch {}
+      const comp = projList.filter(p => p.status === 'COMPLETED').length;
       setCompletedCount(comp);
-      setActiveCount(finalProjects.length - comp);
+      setActiveCount(projList.length - comp);
 
-      const finalInvoices = invList;
-      setInvoices(finalInvoices);
-      const paid = finalInvoices.filter(i => i.status === 'PAID').reduce((sum, current) => sum + (current.amount || 0), 0);
+      setInvoices(invList);
+      try { localStorage.setItem('worksphere_client_invoices', JSON.stringify(invList)); } catch {}
+      const paid = invList.filter(i => i.status === 'PAID').reduce((sum, current) => sum + (current.amount || 0), 0);
       setTotalSpent(paid);
 
-      const finalAppointments = appList;
-      setAppointments(finalAppointments);
+      setAppointments(appList);
+      try { localStorage.setItem('worksphere_client_appointments', JSON.stringify(appList)); } catch {}
     } catch (err) {
-      console.error(err);
-      setProjects([]);
-      setInvoices([]);
-      setAppointments([]);
-      setTotalSpent(0);
+      console.error('Client dashboard background sync error:', err);
     }
   };
 

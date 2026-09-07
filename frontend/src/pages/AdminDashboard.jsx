@@ -32,13 +32,37 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState('users'); // 'users', 'interns', 'deliverables', 'attendance', 'curriculum', 'projects', 'analytics', 'chat', 'appointments'
   
-  // Data
-  const [projects, setProjects] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  // Data (with Instant Local Cache for Zero Delay)
+  const [projects, setProjects] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_admin_projects');
+      return s ? JSON.parse(s) : [];
+    } catch (e) { return []; }
+  });
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_admin_invoices');
+      return s ? JSON.parse(s) : [];
+    } catch (e) { return []; }
+  });
+  const [appointments, setAppointments] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_admin_appointments');
+      return s ? JSON.parse(s) : [];
+    } catch (e) { return []; }
+  });
 
   // User Directory Data
-  const [usersList, setUsersList] = useState([]);
+  const [usersList, setUsersList] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_users_list');
+      if (s) {
+        const p = JSON.parse(s);
+        if (Array.isArray(p) && p.length > 0) return p;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [userRoleFilter, setUserRoleFilter] = useState('ALL');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -55,9 +79,27 @@ export default function AdminDashboard() {
   const [newUserRole, setNewUserRole] = useState('ROLE_CLIENT');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // Interns & Deliverables Data
-  const [internsList, setInternsList] = useState([]);
-  const [allInternTasks, setAllInternTasks] = useState([]);
+  // Interns & Deliverables Data (with Instant Local Cache for Zero Delay)
+  const [internsList, setInternsList] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_interns_list');
+      if (s) {
+        const p = JSON.parse(s);
+        if (Array.isArray(p) && p.length > 0) return p;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [allInternTasks, setAllInternTasks] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_intern_tasks');
+      if (s) {
+        const p = JSON.parse(s);
+        if (Array.isArray(p) && p.length > 0) return p;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
   const [targetInternUsername, setTargetInternUsername] = useState('intern');
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -98,6 +140,18 @@ export default function AdminDashboard() {
       const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
       const sub = parseSubmissionDetails(reviewTaskModal);
       const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
+
+      // On-demand fetch of full fileData (PDFs/ZIPs) if not already loaded in lightweight task list
+      if (!reviewTaskModal.fileData && (reviewTaskModal.fileName || reviewTaskModal.fileSize)) {
+        fetch(`/api/intern-tasks?id=${encodeURIComponent(keyId)}&includeFileData=true`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.task?.fileData) {
+              setReviewTaskModal(prev => prev && (prev.id === keyId || prev.taskId === keyId) ? { ...prev, fileData: data.task.fileData } : prev);
+            }
+          })
+          .catch(() => {});
+      }
 
       // 1. If an external or cloud video URL is available
       if (sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:')) {
@@ -174,8 +228,17 @@ export default function AdminDashboard() {
     };
   }, [modalVideoSrc]);
 
-  // Attendance Management States
-  const [allAttendanceLogs, setAllAttendanceLogs] = useState([]);
+  // Attendance Management States (with Instant Local Cache)
+  const [allAttendanceLogs, setAllAttendanceLogs] = useState(() => {
+    try {
+      const s = localStorage.getItem('worksphere_cached_attendance_logs');
+      if (s) {
+        const p = JSON.parse(s);
+        if (Array.isArray(p) && p.length > 0) return p;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [editingLogId, setEditingLogId] = useState(null);
   const [editingHours, setEditingHours] = useState(8);
   const [resetTargetUsername, setResetTargetUsername] = useState('all');
@@ -229,11 +292,32 @@ export default function AdminDashboard() {
       }
       return;
     }
-    fetchData();
-    fetchUsersData();
-    fetchInternsData();
-    fetchAttendanceData();
-    fetchLearningModules();
+
+    // Parallel fetch for lightning-fast concurrent data sync
+    Promise.allSettled([
+      fetchData(),
+      fetchUsersData(),
+      fetchInternsData(),
+      fetchAttendanceData(),
+      fetchLearningModules()
+    ]);
+
+    // Live background polling (every 5 seconds) so deliverable updates & new submissions sync live automatically
+    const syncInterval = setInterval(() => {
+      fetchInternsData(true);
+    }, 5000);
+
+    const handleFocusSync = () => {
+      fetchInternsData(true);
+    };
+    window.addEventListener('focus', handleFocusSync);
+    window.addEventListener('storage', handleFocusSync);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('focus', handleFocusSync);
+      window.removeEventListener('storage', handleFocusSync);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -306,6 +390,9 @@ export default function AdminDashboard() {
       }
       setProjects(projList);
       setProjectsCount(projList.length);
+      try {
+        localStorage.setItem('worksphere_cached_admin_projects', JSON.stringify(projList));
+      } catch (e) {}
 
       // Clients for Chat - only real client accounts, filter out admin names, intern names, or dummy placeholder
       const registeredClients = (usersList || []).filter(u => (u.role || '').toUpperCase().includes('CLIENT')).map(u => u.username);
@@ -335,6 +422,9 @@ export default function AdminDashboard() {
         invs = [];
       }
       setInvoices(invs);
+      try {
+        localStorage.setItem('worksphere_cached_admin_invoices', JSON.stringify(invs));
+      } catch (e) {}
       const totalPaid = invs.filter(i => i.status === 'PAID').reduce((sum, i) => sum + (i.amount || 0), 0);
       setRevenue(totalPaid);
 
@@ -357,6 +447,9 @@ export default function AdminDashboard() {
       }
       setAppointments(apps);
       setAppointmentsCount(apps.length);
+      try {
+        localStorage.setItem('worksphere_cached_admin_appointments', JSON.stringify(apps));
+      } catch (e) {}
     } catch (err) {
       console.error("Admin dashboard fetch error:", err);
       setProjects(defaultProjects);
@@ -520,7 +613,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchInternsData = async () => {
+  const fetchInternsData = async (isSilent = false) => {
     try {
       const res = await api.getAdminInterns();
       let interns = [];
@@ -536,55 +629,45 @@ export default function AdminDashboard() {
         if (savedDel) deletedTaskIds = JSON.parse(savedDel);
       } catch(e) {}
 
-      let rawTasks = (res && Array.isArray(res.allTasks)) ? res.allTasks : [];
-      try {
-        const sRes = await fetch('/api/intern-tasks?username=all');
-        if (sRes.ok) {
-          const sData = await sRes.json();
-          if (sData && Array.isArray(sData.tasks)) {
-            rawTasks = sData.tasks.map(t => ({
-              ...t,
-              id: t.taskId || t.id || t._id,
-              taskId: t.taskId || t.id || t._id,
-              assignedTo: (t.assignedTo || '').replace(/^@+/, ''),
-              title: t.title,
-              description: t.description,
-              deadline: t.deadline,
-              priority: t.priority,
-              status: t.status,
-              submissionUrl: t.submissionUrl || '',
-              submissionNotes: t.submissionNotes || '',
-              fileName: t.fileName || '',
-              fileSize: t.fileSize || '',
-              fileType: t.fileType || '',
-              fileData: t.fileData || ''
-            }));
+      let rawTasks = (res && Array.isArray(res.allTasks) && res.allTasks.length > 0) ? res.allTasks : [];
+      if (rawTasks.length === 0) {
+        try {
+          const sRes = await fetch('/api/intern-tasks?username=all');
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            if (sData && Array.isArray(sData.tasks)) {
+              rawTasks = sData.tasks;
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
+
+      const normalizedTasks = rawTasks.map(t => ({
+        ...t,
+        id: t.taskId || t.id || t._id,
+        taskId: t.taskId || t.id || t._id,
+        assignedTo: (t.assignedTo || '').replace(/^@+/, ''),
+        title: t.title,
+        description: t.description,
+        deadline: t.deadline,
+        priority: t.priority,
+        status: t.status,
+        submissionUrl: t.submissionUrl || '',
+        submissionNotes: t.submissionNotes || '',
+        fileName: t.fileName || '',
+        fileSize: t.fileSize || '',
+        fileType: t.fileType || '',
+        fileData: t.fileData || ''
+      }));
 
       const lowerDeleted = deletedTaskIds.map(id => String(id).toLowerCase().trim());
-      const filteredTasks = rawTasks.filter(t => {
+      const filteredTasks = normalizedTasks.filter(t => {
         const tid = String(t.taskId || '').toLowerCase().trim();
         const id = String(t.id || '').toLowerCase().trim();
         const mongoId = String(t._id || '').toLowerCase().trim();
         return !lowerDeleted.includes(tid) && !lowerDeleted.includes(id) && !lowerDeleted.includes(mongoId);
       });
       setAllInternTasks(filteredTasks);
-
-      // Fetch MongoDB Atlas serverless profiles
-      let serverProfiles = {};
-      try {
-        const pRes = await fetch('/api/intern-profile?username=all');
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          if (pData && Array.isArray(pData.profiles)) {
-            pData.profiles.forEach(p => {
-              if (p.username) serverProfiles[p.username.toLowerCase().replace(/^@+/, '').trim()] = p;
-            });
-          }
-        }
-      } catch(e) {}
 
       // Deduplicate interns by lowercase username & merge profile overrides
       const seen = new Set();
@@ -599,13 +682,11 @@ export default function AdminDashboard() {
             if (ov) localOv = JSON.parse(ov);
           } catch(e) {}
 
-          const sProf = serverProfiles[uKey] || {};
           const defaultTrack = i.track || 'Full-Stack Software Engineering';
-          const finalTrack = sProf.track || (localOv && localOv.track) || defaultTrack;
+          const finalTrack = (localOv && localOv.track) || i.track || defaultTrack;
 
           const merged = {
             ...i,
-            ...sProf,
             ...(localOv || {}),
             track: finalTrack,
             username: uKey
@@ -619,7 +700,12 @@ export default function AdminDashboard() {
         }
       });
 
-      setInternsList(uniqueInterns);
+      setInternsList(uniqueInterns.length > 0 ? uniqueInterns : defaultInterns);
+
+      try {
+        localStorage.setItem('worksphere_cached_intern_tasks', JSON.stringify(filteredTasks));
+        localStorage.setItem('worksphere_cached_interns_list', JSON.stringify(uniqueInterns.length > 0 ? uniqueInterns : defaultInterns));
+      } catch (e) {}
     } catch (err) {
       console.error(err);
       setInternsList(defaultInterns);
@@ -1545,7 +1631,11 @@ export default function AdminDashboard() {
   const fetchAttendanceData = async () => {
     try {
       const logs = await api.getAdminAttendance();
-      setAllAttendanceLogs(Array.isArray(logs) ? logs : []);
+      const list = Array.isArray(logs) ? logs : [];
+      setAllAttendanceLogs(list);
+      try {
+        localStorage.setItem('worksphere_cached_attendance_logs', JSON.stringify(list));
+      } catch (e) {}
     } catch(e) {}
   };
 

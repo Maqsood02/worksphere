@@ -1262,85 +1262,162 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 7.5. ADMIN INTERNS MANAGEMENT: /api/admin/interns
+    // ==========================================
+    if (cleanPath === '/api/admin/interns' || cleanPath === '/admin/interns' || cleanPath.startsWith('/api/admin/interns/') || cleanPath.startsWith('/admin/interns/')) {
+      const usersCol = db.collection('users');
+      const tasksCol = db.collection('intern_tasks');
+      const profilesCol = db.collection('intern_profiles');
+
+      // Update Intern Profile: POST /api/admin/interns/:username/update
+      if (cleanPath.includes('/update')) {
+        const parts = cleanPath.split('/').filter(Boolean);
+        const updateIdx = parts.indexOf('update');
+        const targetUsername = (updateIdx > 0 ? parts[updateIdx - 1] : (body.username || query.username || '')).replace(/^@+/, '').trim().toLowerCase();
+        if (targetUsername) {
+          await profilesCol.updateOne(
+            { username: new RegExp(`^${targetUsername}$`, 'i') },
+            { $set: { ...body, username: targetUsername, updatedAt: new Date() } },
+            { upsert: true }
+          );
+          return res.status(200).json({ success: true, message: `Profile updated for @${targetUsername}!`, profile: body });
+        }
+      }
+
+      // Assign Intern Task: POST /api/admin/interns/assign-task
+      if (cleanPath.includes('/assign-task') && req.method === 'POST') {
+        const { targetUsername = 'ALL', title, description = '', deadline = '2026-08-31', priority = 'HIGH' } = body;
+        if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Task title is required' });
+        const totalCount = await tasksCol.countDocuments();
+        const taskId = `TSK-${String(totalCount + 1).padStart(3, '0')}`;
+        const newTaskDoc = {
+          taskId, id: taskId, assignedTo: targetUsername.replace(/^@+/, '').trim(), title: title.trim(), description: description.trim(),
+          deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
+          deadlineReminderSent: false,
+          createdAt: new Date(), updatedAt: new Date()
+        };
+        await tasksCol.insertOne(newTaskDoc);
+        return res.status(200).json({ success: true, message: `Task assigned successfully!`, task: newTaskDoc });
+      }
+
+      // GET /api/admin/interns - Fast parallel retrieval of all interns and active tasks
+      if (req.method === 'GET') {
+        const [internUsers, allTasks, serverProfiles] = await Promise.all([
+          usersCol.find({ role: { $regex: /intern/i } }).project({ password: 0, rawPassword: 0 }).toArray(),
+          tasksCol.find({}, { projection: { fileData: 0 } }).sort({ createdAt: -1 }).toArray(),
+          profilesCol.find({}).toArray()
+        ]);
+
+        const profileMap = new Map();
+        for (const p of serverProfiles) {
+          if (p.username) profileMap.set(p.username.toLowerCase().trim(), p);
+        }
+
+        const interns = internUsers.map(u => {
+          const uKey = (u.username || '').toLowerCase().trim();
+          const prof = profileMap.get(uKey) || {};
+          const pTasks = allTasks.filter(t => {
+            const a = (t.assignedTo || '').toLowerCase().trim();
+            return a === uKey || a === 'all' || a.includes(uKey) || uKey.includes(a);
+          });
+
+          return {
+            id: u._id || u.username,
+            username: u.username,
+            name: u.name || u.username,
+            email: u.email,
+            phone: u.phone || '8792404950',
+            track: prof.track || 'Full-Stack Software Engineering',
+            mentorName: prof.mentorName || 'Unassigned Mentor',
+            stipendType: prof.stipendType || 'UNPAID',
+            stipendAmount: prof.stipendAmount || 'Unpaid (Academic Credit)',
+            performanceRating: prof.performanceRating || 'New Intern',
+            certificateStatus: prof.certificateStatus || 'NOT_ISSUED',
+            tasksTotal: pTasks.length,
+            tasksCompleted: pTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length,
+            ...prof
+          };
+        });
+
+        return res.status(200).json({ success: true, interns, allTasks });
+      }
+    }
+
+    // ==========================================
     // 8. INTERN: TASKS (/api/intern-tasks or /api/admin/interns/tasks)
     // ==========================================
     if (cleanPath.includes('intern-tasks') || cleanPath.includes('/interns/tasks')) {
       const col = db.collection('intern_tasks');
       const usersCol = db.collection('users');
 
+      // Task Status Update: POST or PATCH /api/admin/interns/tasks/:taskId/status or /api/intern-tasks/status
+      if ((req.method === 'POST' || req.method === 'PATCH') && cleanPath.includes('/status')) {
+        const parts = cleanPath.split('/').filter(Boolean);
+        const statusIdx = parts.indexOf('status');
+        const taskId = (statusIdx > 0 ? parts[statusIdx - 1] : (body.taskId || query.taskId || '')).trim();
+        const newStatus = body.status || 'IN_PROGRESS';
+        if (taskId) {
+          await col.updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }] },
+            { $set: { status: newStatus, updatedAt: new Date() } }
+          );
+          return res.status(200).json({ success: true, message: `Task ${taskId} status updated to ${newStatus}`, taskId, status: newStatus });
+        }
+      }
+
+      // Task Claim: POST /api/intern/tasks/:taskId/claim
+      if (req.method === 'POST' && cleanPath.includes('/claim')) {
+        const parts = cleanPath.split('/').filter(Boolean);
+        const claimIdx = parts.indexOf('claim');
+        const taskId = (claimIdx > 0 ? parts[claimIdx - 1] : (body.taskId || query.taskId || '')).trim();
+        const uKey = (req.headers['x-username'] || body.username || 'intern').toLowerCase().trim();
+        if (taskId) {
+          await col.updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }] },
+            { $set: { assignedTo: uKey, status: 'IN_PROGRESS', updatedAt: new Date() } }
+          );
+          return res.status(200).json({ success: true, message: `Task ${taskId} claimed by @${uKey}!` });
+        }
+      }
+
+      // Task Submit: POST /api/intern/tasks/:taskId/submit
+      if (req.method === 'POST' && cleanPath.includes('/submit')) {
+        const parts = cleanPath.split('/').filter(Boolean);
+        const submitIdx = parts.indexOf('submit');
+        const taskId = (submitIdx > 0 ? parts[submitIdx - 1] : (body.taskId || query.taskId || '')).trim();
+        if (taskId) {
+          await col.updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }] },
+            { $set: { ...body, status: 'SUBMITTED', updatedAt: new Date() } }
+          );
+          return res.status(200).json({ success: true, message: `Task ${taskId} submitted for evaluation!` });
+        }
+      }
+
       if (req.method === 'GET') {
-        const { username } = query;
-        const allTasks = await col.find({}).sort({ createdAt: -1 }).toArray();
+        const { username, id, taskId: qTaskId, includeFileData } = query;
+        const targetId = id || qTaskId;
 
-        // Background automatic 1-day-before deadline reminder checker
-        (async () => {
-          try {
-            const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
-            const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-            for (const t of allTasks) {
-              if (t.status === 'COMPLETED') continue;
-              const dueStr = t.deadline || '';
-              const isDueTomorrow = dueStr === tomorrowStr;
-              
-              // Also check if date diff is within ~24 hours
-              let isWithin24Hours = false;
-              if (dueStr) {
-                const dueDate = new Date(dueStr);
-                const diffTime = dueDate.getTime() - now.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays === 1 || isDueTomorrow) isWithin24Hours = true;
-              }
-
-              if (isWithin24Hours && t.lastReminderSentDate !== todayStr) {
-                const targetClean = (t.assignedTo || 'intern').replace(/^@+/, '').trim().toLowerCase();
-                let targetEmail = '';
-                let targetName = targetClean;
-
-                if (targetClean === 'all') {
-                  const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
-                  for (const i of interns) {
-                    if (i.email) {
-                      await sendDeadlineReminderNotification({
-                        toEmail: i.email,
-                        internName: i.name,
-                        username: i.username,
-                        taskTitle: t.title,
-                        description: t.description,
-                        deadline: t.deadline,
-                        priority: t.priority,
-                        daysLeft: 1
-                      });
-                    }
-                  }
-                } else {
-                  const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
-                  targetEmail = found?.email || (targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com');
-                  targetName = found?.name || targetClean;
-                  await sendDeadlineReminderNotification({
-                    toEmail: targetEmail,
-                    internName: targetName,
-                    username: targetClean,
-                    taskTitle: t.title,
-                    description: t.description,
-                    deadline: t.deadline,
-                    priority: t.priority,
-                    daysLeft: 1
-                  });
-                }
-
-                await col.updateOne(
-                  { $or: [{ taskId: t.taskId || t.id }, { id: t.taskId || t.id }] },
-                  { $set: { deadlineReminderSent: true, lastReminderSentDate: todayStr, lastReminderSentAt: new Date() } }
-                );
-              }
-            }
-          } catch (e) {
-            console.error('[AUTO DEADLINE REMINDER BACKGROUND ERROR]:', e);
+        // If specific task requested, return full document (with fileData if requested or present)
+        if (targetId) {
+          const cleanId = String(targetId).trim();
+          const task = await col.findOne({
+            $or: [
+              { taskId: cleanId },
+              { id: cleanId },
+              { taskId: new RegExp(`^${cleanId}$`, 'i') },
+              { id: new RegExp(`^${cleanId}$`, 'i') }
+            ]
+          });
+          if (task) {
+            return res.status(200).json({ success: true, task });
           }
-        })();
+          return res.status(404).json({ success: false, message: 'Task not found' });
+        }
+
+        // List queries: project { fileData: 0 } unless includeFileData === 'true' for 99.5% bandwidth reduction
+        const projection = includeFileData === 'true' ? {} : { fileData: 0 };
+        const allTasks = await col.find({}, { projection }).sort({ createdAt: -1 }).toArray();
 
         if (!username || username === 'all' || username === 'admin') {
           return res.status(200).json({ success: true, tasks: allTasks });
@@ -1907,41 +1984,42 @@ export default async function handler(req, res) {
       const modulesCol = db.collection('learning_modules');
       const profilesCol = db.collection('intern_profiles');
 
-      const allTasks = await tasksCol.find({}).sort({ createdAt: -1 }).toArray();
+      const [allTasks, myLogs, allModules, internProfile] = await Promise.all([
+        tasksCol.find({}, { projection: { fileData: 0 } }).sort({ createdAt: -1 }).toArray(),
+        attendanceCol.find({ username: new RegExp(`^${uKey}$`, 'i') }).sort({ date: -1, createdAt: -1 }).toArray(),
+        modulesCol.find({}).sort({ createdAt: -1 }).toArray(),
+        profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') })
+      ]);
+
       const myTasks = allTasks.filter(t => {
         const a = (t.assignedTo || '').toLowerCase().trim();
         return a === uKey || a === 'all' || a.includes(uKey) || uKey.includes(a);
       });
 
-      const myLogs = await attendanceCol.find({ username: new RegExp(`^${uKey}$`, 'i') }).sort({ date: -1, createdAt: -1 }).toArray();
-
-      const allModules = await modulesCol.find({}).sort({ createdAt: -1 }).toArray();
       const myModules = allModules.filter(m => {
+        if (!m) return false;
         const a = (m.assignedTo || 'ALL').toLowerCase().replace(/^@+/, '').trim();
         return a === 'all' || a === uKey || a.includes(uKey) || uKey.includes(a) ||
           (uKey.includes('maqsood') && a.includes('maqsood')) ||
           (uKey.includes('chinmay') && a.includes('chinmay'));
       });
 
-      let internProfile = await profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') });
-      if (!internProfile) {
-        internProfile = {
-          username: uKey,
-          role: 'ROLE_INTERN',
-          track: 'Full-Stack Software Engineering',
-          mentorName: 'Unassigned Mentor',
-          mentorEmail: 's.jenkins@worksphere.ac.in',
-          stipendType: 'UNPAID',
-          stipendAmount: 'Unpaid (Academic Credit)',
-          performanceRating: 'Active Intern',
-          startDate: '2026-06-01',
-          endDate: '2026-08-31'
-        };
-      }
+      const finalProfile = internProfile || {
+        username: uKey,
+        role: 'ROLE_INTERN',
+        track: 'Full-Stack Software Engineering',
+        mentorName: 'Unassigned Mentor',
+        mentorEmail: 's.jenkins@worksphere.ac.in',
+        stipendType: 'UNPAID',
+        stipendAmount: 'Unpaid (Academic Credit)',
+        performanceRating: 'Active Intern',
+        startDate: '2026-06-01',
+        endDate: '2026-08-31'
+      };
 
       return res.status(200).json({
         success: true,
-        profile: internProfile,
+        profile: finalProfile,
         tasks: myTasks,
         attendanceLogs: myLogs,
         learningModules: myModules
@@ -2089,7 +2167,10 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'DELETE') {
-        const targetId = query.id || query.moduleId || body.id || body.moduleId;
+        const parts = cleanPath.split('/').filter(Boolean);
+        const lastPart = parts[parts.length - 1];
+        const pathId = (lastPart !== 'learning-modules' && lastPart !== 'admin') ? lastPart : null;
+        const targetId = query.id || query.moduleId || body.id || body.moduleId || pathId;
         if (targetId) {
           await col.deleteOne({ $or: [{ id: targetId }, { moduleId: targetId }] });
         }

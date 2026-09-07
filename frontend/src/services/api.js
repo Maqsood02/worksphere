@@ -1,7 +1,7 @@
 /* API Client Services: React 19 Client with Live Backend & Cloud Demo Fallback */
 
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8088' : 'https://worksphere-k6h8.onrender.com');
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8088' : '');
 
 // Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
@@ -766,14 +766,14 @@ async function request(url, options = {}) {
     const candidateAuthUrls = [
       '/api/auth-login',
       '/api/auth/login',
-      `${API_BASE_URL}/api/auth/login`,
+      ...(API_BASE_URL ? [`${API_BASE_URL}/api/auth/login`] : []),
       ...(isLocalhost ? ['http://localhost:8088/api/auth/login'] : [])
     ];
 
     for (const authUrl of candidateAuthUrls) {
       try {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 3500);
+        const tid = setTimeout(() => ctrl.abort(), 3000);
         const response = await fetch(authUrl, { ...config, signal: ctrl.signal });
         clearTimeout(tid);
         const contentType = response.headers.get('content-type') || '';
@@ -799,19 +799,19 @@ async function request(url, options = {}) {
     return getMockFallbackResponse(url, options);
   }
 
-  // Build ordered candidate URLs (Vercel Serverless MongoDB API first, then live Spring Boot Render backend)
+  // Build ordered candidate URLs (Vercel Serverless MongoDB API first)
   const candidateUrls = url.startsWith('http') ? [url] : [
     url,
-    `${API_BASE_URL}${url}`,
+    ...(API_BASE_URL ? [`${API_BASE_URL}${url}`] : []),
     ...(isLocalhost ? [`http://localhost:8088${url}`] : [])
-  ];
+  ].filter(Boolean);
 
   const uniqueUrls = [...new Set(candidateUrls)];
 
   for (const targetUrl of uniqueUrls) {
     try {
       const ctrl = new AbortController();
-      const timeoutId = setTimeout(() => ctrl.abort(), 3500);
+      const timeoutId = setTimeout(() => ctrl.abort(), 3000);
       const response = await fetch(targetUrl, { ...config, signal: ctrl.signal });
       clearTimeout(timeoutId);
       const contentType = response.headers.get('content-type') || '';
@@ -963,28 +963,21 @@ export const api = {
       return false;
     }
 
-    // 1. Fetch directly from MongoDB Atlas serverless endpoints in parallel
+    // 1. Fetch directly from unified MongoDB Atlas serverless endpoint
     let serverlessOverview = null;
-    let serverlessAttendance = [];
-    let serverlessTasks = [];
 
     try {
-      const [ovRes, attRes, taskRes] = await Promise.allSettled([
-        fetch(`/api/intern-overview?username=${defaultUKey}`).then(r => r.ok ? r.json() : null),
-        fetch(`/api/intern-attendance?username=all`).then(r => r.ok ? r.json() : null),
-        fetch(`/api/intern-tasks?username=all`).then(r => r.ok ? r.json() : null)
-      ]);
-
-      if (ovRes.status === 'fulfilled' && ovRes.value && ovRes.value.success) {
-        serverlessOverview = ovRes.value;
-      }
-      if (attRes.status === 'fulfilled' && attRes.value && Array.isArray(attRes.value.logs)) {
-        serverlessAttendance = attRes.value.logs;
-      }
-      if (taskRes.status === 'fulfilled' && taskRes.value && Array.isArray(taskRes.value.tasks)) {
-        serverlessTasks = taskRes.value.tasks;
+      const ovRes = await fetch(`/api/intern-overview?username=${defaultUKey}`);
+      if (ovRes.ok) {
+        const ovData = await ovRes.json();
+        if (ovData && ovData.success) {
+          serverlessOverview = ovData;
+        }
       }
     } catch (e) {}
+
+    const serverlessAttendance = Array.isArray(serverlessOverview?.attendanceLogs) ? serverlessOverview.attendanceLogs : [];
+    const serverlessTasks = Array.isArray(serverlessOverview?.tasks) ? serverlessOverview.tasks : [];
 
     // 2. Fallback to Java backend candidate endpoints
     let res = serverlessOverview;
@@ -1497,43 +1490,16 @@ export const api = {
 
   // Admin Intern Management
   getAdminInterns: async () => {
-    let allTasks = [];
-    // 1. Fetch all tasks directly from MongoDB Atlas serverless endpoint
     try {
-      const taskRes = await fetch('/api/intern-tasks?username=all');
-      if (taskRes.ok) {
-        const taskData = await taskRes.json();
-        if (taskData && Array.isArray(taskData.tasks)) {
-          allTasks = taskData.tasks.map(t => ({
-            id: t.taskId || t.id || t._id,
-            taskId: t.taskId || t.id || t._id,
-            assignedTo: t.assignedTo,
-            title: t.title,
-            description: t.description,
-            deadline: t.deadline,
-            priority: t.priority,
-            status: t.status,
-            submissionUrl: t.submissionUrl || '',
-            submissionNotes: t.submissionNotes || ''
-          }));
+      const res = await fetch('/api/admin/interns');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.interns)) {
+          return data;
         }
       }
-    } catch(e) {}
+    } catch (e) {}
 
-    // Fallback or merge with localStorage
-    try {
-      const gSaved = localStorage.getItem('worksphere_global_tasks');
-      if (gSaved) {
-        const gList = JSON.parse(gSaved);
-        for (const gt of gList) {
-          if (!allTasks.some(t => (t.id && t.id === gt.id) || (t.taskId && t.taskId === gt.taskId))) {
-            allTasks.push(gt);
-          }
-        }
-      }
-    } catch(e) {}
-
-    // Also call backend
     let res = null;
     try {
       res = await request('/api/admin/interns');
@@ -1542,8 +1508,6 @@ export const api = {
     if (!res || !res.success || !Array.isArray(res.interns)) {
       res = getMockFallbackResponse('/api/admin/interns');
     }
-
-    res.allTasks = allTasks;
     return res;
   },
   updateAdminIntern: async (username, payload) => {
