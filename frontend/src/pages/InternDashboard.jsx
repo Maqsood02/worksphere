@@ -841,15 +841,13 @@ function getAttendanceTimelineAndRate(logs) {
         } catch (e) {}
       }
 
-      if (directList.length > 0) {
-        const modMap = new Map();
-        [...rawModules, ...directList].forEach(m => {
-          if (m && (m.id || m.moduleId)) {
-            modMap.set(m.id || m.moduleId, m);
-          }
-        });
-        rawModules = Array.from(modMap.values());
-      }
+      const modMap = new Map();
+      rawModules.forEach(m => {
+        if (m && (m.id || m.moduleId)) {
+          modMap.set(m.id || m.moduleId, m);
+        }
+      });
+      rawModules = Array.from(modMap.values());
 
       const totalHours = uniqueLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0);
       const attStats = getAttendanceTimelineAndRate(uniqueLogs);
