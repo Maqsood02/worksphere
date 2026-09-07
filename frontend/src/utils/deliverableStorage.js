@@ -1,35 +1,57 @@
 // IndexedDB Persistent Storage & Cloud Media Sync for Large Deliverables (Videos, ZIPs, Proof Images)
 // Supports files from 1MB up to 500MB via memory-safe File.slice chunking, bypassing Vercel 4.5MB limits.
 
-const DB_NAME = 'worksphere_deliverables_v3';
+const DB_NAME = 'worksphere_deliverables_v4';
 const DB_VERSION = 1;
 const STORE_NAME = 'deliverable_assets';
 const BINARY_CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5 MB binary -> ~2.0 MB base64 (strictly under Vercel 4.5MB limit)
-
-// Automatically clear legacy database cache to eliminate old dummy videos
-if (typeof window !== 'undefined' && window.indexedDB) {
-  try {
-    window.indexedDB.deleteDatabase('worksphere_deliverables_db');
-  } catch (e) {}
-}
 
 function openDB() {
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
       return resolve(null);
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(null);
       }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => {
-      console.warn('IndexedDB open error:', e);
+    }, 1200);
+
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+        }
+      };
+      request.onsuccess = (e) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(e.target.result);
+        }
+      };
+      request.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      };
+      request.onblocked = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      };
+    } catch {
+      clearTimeout(timer);
       resolve(null);
-    };
+    }
   });
 }
 
@@ -38,12 +60,37 @@ export async function saveDeliverableAsset(taskId, assetKey, data) {
     const db = await openDB();
     if (!db || !data) return false;
     return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const key = `${taskId}_${assetKey}`;
-      store.put({ key, taskId, assetKey, data, updatedAt: Date.now() });
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(false);
+        }
+      }, 1500);
+
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const key = `${taskId}_${assetKey}`;
+        store.put({ key, taskId, assetKey, data, updatedAt: Date.now() });
+        tx.oncomplete = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(true);
+          }
+        };
+        tx.onerror = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(false);
+          }
+        };
+      } catch {
+        clearTimeout(timer);
+        resolve(false);
+      }
     });
   } catch (err) {
     console.warn('Error saving to IndexedDB:', err);
@@ -56,12 +103,42 @@ export async function getDeliverableAsset(taskId, assetKey) {
     const db = await openDB();
     if (!db || !taskId) return null;
     return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const key = `${taskId}_${assetKey}`;
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result ? req.result.data : null);
-      req.onerror = () => resolve(null);
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(null);
+        }
+      }, 1200);
+
+      try {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const key = `${taskId}_${assetKey}`;
+        const req = store.get(key);
+        req.onsuccess = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            const val = req.result ? req.result.data : null;
+            if (val && typeof Blob !== 'undefined' && val instanceof Blob) {
+              resolve(URL.createObjectURL(val));
+            } else {
+              resolve(val);
+            }
+          }
+        };
+        req.onerror = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(null);
+          }
+        };
+      } catch {
+        clearTimeout(timer);
+        resolve(null);
+      }
     });
   } catch (err) {
     console.warn('Error getting from IndexedDB:', err);
@@ -247,16 +324,12 @@ export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, o
   const cleanId = String(taskId || 'latest').trim();
   const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
 
-  // A. If videoSource is a File or Blob (Memory-safe for 100MB - 500MB)
+// A. If videoSource is a File or Blob (Memory-safe for 100MB - 500MB)
   if (typeof Blob !== 'undefined' && videoSource instanceof Blob) {
-    // Save to IndexedDB locally
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      for (const k of aliasKeys) {
-        saveDeliverableAsset(k, 'video', ev.target.result);
-      }
-    };
-    reader.readAsDataURL(videoSource);
+    // Save raw Blob directly to IndexedDB locally without converting to base64 RAM
+    for (const k of aliasKeys) {
+      saveDeliverableAsset(k, 'video', videoSource).catch(() => {});
+    }
 
     // Upload chunks safely using File.slice
     try {
@@ -269,7 +342,7 @@ export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, o
 
   // B. If videoSource is a Data URL string
   for (const k of aliasKeys) {
-    await saveDeliverableAsset(k, 'video', videoSource);
+    await saveDeliverableAsset(k, 'video', videoSource).catch(() => {});
   }
 
   try {
@@ -288,17 +361,23 @@ export async function getDeliverableVideo(taskId, fileName = '', onProgress = nu
   const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), fileName, 'latest'].filter(Boolean);
 
   // 1. Try local IndexedDB first (0ms instantaneous)
-  for (const k of aliasKeys) {
-    const localData = await getDeliverableAsset(k, 'video');
-    if (localData && localData.length > 50) return localData;
-  }
+  try {
+    for (const k of aliasKeys) {
+      const localData = await getDeliverableAsset(k, 'video');
+      if (localData && (typeof localData === 'string' ? localData.length > 50 : localData)) {
+        return localData;
+      }
+    }
+  } catch (e) {}
 
   // 2. Fallback to Serverless MongoDB Atlas chunk-by-chunk streaming
   if (cleanId && cleanId !== 'latest') {
-    const cloudData = await fetchMediaFromCloud(cleanId, 'video', onProgress);
-    if (cloudData) {
-      return cloudData;
-    }
+    try {
+      const cloudData = await fetchMediaFromCloud(cleanId, 'video', onProgress);
+      if (cloudData) {
+        return cloudData;
+      }
+    } catch (e) {}
   }
 
   return null;

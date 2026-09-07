@@ -164,20 +164,26 @@ export default function AdminDashboard() {
       } else {
         setIsVideoLoading(true);
         setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
-        getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
-          setVideoBufferProgress({ pct, cur, tot });
-        }).then(src => {
+        const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 6000));
+        Promise.race([
+          getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
+            setVideoBufferProgress({ pct, cur, tot });
+          }),
+          safetyTimeout
+        ]).then(src => {
           if (src) {
             setModalVideoSrc(src);
+            setModalVideoBlobUrl(src);
             setVideoError(false);
           } else {
             setModalVideoSrc('');
-            setVideoError(false);
+            setModalVideoBlobUrl(null);
           }
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         }).catch(() => {
           setModalVideoSrc('');
+          setModalVideoBlobUrl(null);
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         });
@@ -4579,7 +4585,8 @@ export default function AdminDashboard() {
                           <video 
                             controls 
                             playsInline
-                            preload="metadata"
+                            autoPlay
+                            preload="auto"
                             src={modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data} 
                             className="w-full max-h-72 object-contain bg-black"
                             onError={(e) => {
@@ -4654,24 +4661,17 @@ export default function AdminDashboard() {
                                 setIsVideoLoading(true);
                                 const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
                                 getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'download.mp4').then(src => {
-                                  if (src) setModalVideoSrc(src);
+                                  if (src) {
+                                    setModalVideoSrc(src);
+                                    setModalVideoBlobUrl(src);
+                                  }
                                   setIsVideoLoading(false);
                                 }).catch(() => setIsVideoLoading(false));
                               }}
                               className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
                             >
-                              <Play className="w-3.5 h-3.5 fill-current" /> Play Video
+                              <Play className="w-3.5 h-3.5 fill-current" /> Stream Video
                             </button>
-
-                            <label className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors">
-                              <Upload className="w-3.5 h-3.5" /> Choose Local
-                              <input
-                                type="file"
-                                accept="video/*,.mp4,.webm,.mov"
-                                className="hidden"
-                                onChange={handleChooseLocalVideo}
-                              />
-                            </label>
                           </div>
                         </div>
                       </div>
