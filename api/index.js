@@ -1459,6 +1459,22 @@ export default async function handler(req, res) {
       const mediaCol = db.collection('task_media');
       const taskId = String(body.taskId || query.taskId || '').trim();
 
+      // PURGE / RESET: DELETE /api/task-media
+      if (req.method === 'DELETE') {
+        const assetType = String(body.assetType || query.assetType || 'video');
+        if (!taskId) {
+          return res.status(400).json({ success: false, message: 'taskId required' });
+        }
+        await mediaCol.deleteMany({
+          $or: [
+            { taskId, assetType },
+            { taskId: new RegExp(`^${taskId}$`, 'i'), assetType }
+          ]
+        });
+        return res.status(200).json({ success: true, message: `Purged media chunks for ${taskId}` });
+      }
+
+      // CHUNK UPLOAD: POST /api/task-media
       if (req.method === 'POST') {
         const { assetType = 'video', chunkIndex = 0, totalChunks = 1, data = '', fileName = '', fileSize = '' } = body;
         if (!taskId || !data) {
@@ -1469,37 +1485,87 @@ export default async function handler(req, res) {
           { $set: { taskId, assetType, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), data, fileName, fileSize, updatedAt: new Date() } },
           { upsert: true }
         );
-        return res.status(200).json({ success: true, message: `Chunk ${Number(chunkIndex) + 1}/${totalChunks} saved.` });
+        return res.status(200).json({ success: true, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), message: `Chunk ${Number(chunkIndex) + 1}/${totalChunks} saved.` });
       }
 
+      // CHUNK STREAM & MANIFEST: GET /api/task-media
       if (req.method === 'GET') {
         const assetType = String(query.assetType || 'video');
-        let chunks = await mediaCol.find({ taskId, assetType }).sort({ chunkIndex: 1 }).toArray();
+        const reqChunkIndex = query.chunkIndex !== undefined && query.chunkIndex !== '' ? Number(query.chunkIndex) : null;
+
+        // Specific single chunk request (safely within Vercel 4.5MB limit)
+        if (reqChunkIndex !== null) {
+          let chunk = await mediaCol.findOne({ taskId, assetType, chunkIndex: reqChunkIndex });
+          if (!chunk) {
+            chunk = await mediaCol.findOne({ taskId: new RegExp(`^${taskId}$`, 'i'), assetType, chunkIndex: reqChunkIndex });
+          }
+          if (!chunk) {
+            return res.status(404).json({ success: false, message: `Chunk ${reqChunkIndex} not found` });
+          }
+          return res.status(200).json({
+            success: true,
+            taskId,
+            assetType,
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            fileName: chunk.fileName || '',
+            fileSize: chunk.fileSize || '',
+            data: chunk.data
+          });
+        }
+
+        // Manifest / Full inquiry
+        let chunks = await mediaCol.find({ taskId, assetType }).sort({ chunkIndex: 1 }).project({ data: 0 }).toArray();
         if (!chunks || chunks.length === 0) {
-          chunks = await mediaCol.find({ taskId: new RegExp(`^${taskId}$`, 'i'), assetType }).sort({ chunkIndex: 1 }).toArray();
+          chunks = await mediaCol.find({ taskId: new RegExp(`^${taskId}$`, 'i'), assetType }).sort({ chunkIndex: 1 }).project({ data: 0 }).toArray();
         }
         if (!chunks || chunks.length === 0) {
           return res.status(200).json({ success: false, message: 'Media not found in storage', data: null });
         }
+
         const expectedChunks = Number(chunks[0]?.totalChunks || 1);
+        const fileName = chunks[0]?.fileName || '';
+        const fileSize = chunks[0]?.fileSize || '';
+
         if (chunks.length < expectedChunks) {
           return res.status(200).json({
             success: false,
             incomplete: true,
-            message: `Media upload incomplete (${chunks.length}/${expectedChunks} chunks received). Please choose a local copy or re-upload.`,
+            message: `Media upload incomplete (${chunks.length}/${expectedChunks} chunks received).`,
             data: null,
-            fileName: chunks[0]?.fileName || '',
-            fileSize: chunks[0]?.fileSize || ''
+            totalChunks: expectedChunks,
+            uploadedChunks: chunks.length,
+            fileName,
+            fileSize
           });
         }
-        const combinedData = chunks.map(c => c.data).join('');
+
+        // If only 1 chunk and small, return it directly for single-request speed
+        if (expectedChunks === 1) {
+          const singleChunk = await mediaCol.findOne({ taskId: chunks[0].taskId, assetType, chunkIndex: 0 });
+          if (singleChunk && singleChunk.data && singleChunk.data.length < 3500000) {
+            return res.status(200).json({
+              success: true,
+              taskId,
+              assetType,
+              fileName,
+              fileSize,
+              totalChunks: 1,
+              data: singleChunk.data
+            });
+          }
+        }
+
+        // Multi-chunk manifest: client fetches each chunk individually to bypass Vercel 4.5MB payload limit
         return res.status(200).json({
           success: true,
+          isChunked: true,
           taskId,
           assetType,
-          fileName: chunks[0]?.fileName || '',
-          fileSize: chunks[0]?.fileSize || '',
-          data: combinedData
+          fileName,
+          fileSize,
+          totalChunks: expectedChunks,
+          chunkCount: chunks.length
         });
       }
     }

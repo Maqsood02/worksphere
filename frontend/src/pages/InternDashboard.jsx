@@ -329,6 +329,8 @@ export default function InternDashboard() {
   const [videoFileSize, setVideoFileSize] = useState('');
   const [videoFileType, setVideoFileType] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [videoRawFile, setVideoRawFile] = useState(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(null);
 
   const [pdfFileName, setPdfFileName] = useState('');
   const [pdfFileData, setPdfFileData] = useState('');
@@ -421,6 +423,8 @@ export default function InternDashboard() {
       setVideoFileSize('');
       setVideoFileType('');
       setVideoUrl('');
+      setVideoRawFile(null);
+      setVideoUploadProgress(null);
       setPdfFileName('');
       setPdfFileData('');
       setPdfFileSize('');
@@ -923,27 +927,36 @@ function getAttendanceTimelineAndRate(logs) {
       const uKey = (user?.username || 'intern').toLowerCase();
       const keyId = selectedTask.id || selectedTask.taskId;
 
-      // 1. If video data is present, save full binary into IndexedDB and cloud sync
-      if (videoFileData) {
+      // 1. If video is present, slice and upload chunks to MongoDB database
+      if (videoRawFile || videoFileData) {
         try {
-          await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
+          if (videoRawFile) {
+            setVideoUploadProgress({ pct: 0, cur: 0, tot: 1 });
+            await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
+              setVideoUploadProgress({ pct, cur, tot });
+            });
+            setVideoUploadProgress(null);
+          } else if (videoFileData && !videoFileData.startsWith('blob:')) {
+            await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
+          }
         } catch (idbErr) {
-          console.warn('IndexedDB video save error:', idbErr);
+          console.warn('IndexedDB / Database video save error:', idbErr);
+          setVideoUploadProgress(null);
         }
       }
 
       // 2. Prepare submittedFiles (truncate large base64 strings in JSON to avoid localStorage QuotaExceeded and server 413)
-      const safeVideoData = (videoFileData && videoFileData.length < 500000) ? videoFileData : '';
+      const safeVideoData = (videoFileData && !videoFileData.startsWith('blob:') && videoFileData.length < 500000) ? videoFileData : '';
       const safeFolderData = (folderFileData && folderFileData.length < 1000000) ? folderFileData : '';
 
       const submittedFiles = {
-        video: (videoFileName || videoUrl || videoFileData) ? {
+        video: (videoFileName || videoUrl || videoFileData || videoRawFile) ? {
           name: videoFileName || 'Demo Video',
           size: videoFileSize,
           type: videoFileType || 'video/mp4',
           data: safeVideoData,
           url: videoUrl,
-          hasFullVideo: Boolean(videoFileData)
+          hasFullVideo: Boolean(videoFileData || videoRawFile)
         } : null,
         pdf: pdfFileName ? {
           name: pdfFileName,
@@ -2633,11 +2646,10 @@ function getAttendanceTimelineAndRate(logs) {
                             setVideoFileName(f.name);
                             setVideoFileSize(sizeStr);
                             setVideoFileType(f.type || 'video/mp4');
-                            const reader = new FileReader();
-                            reader.onload = (loadEv) => {
-                              setVideoFileData(loadEv.target.result);
-                            };
-                            reader.readAsDataURL(f);
+                            setVideoRawFile(f);
+                            // Instant local Blob URL preview without loading hundreds of MBs into memory
+                            const localUrl = URL.createObjectURL(f);
+                            setVideoFileData(localUrl);
                           }
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2659,6 +2671,7 @@ function getAttendanceTimelineAndRate(logs) {
                               setVideoFileData('');
                               setVideoFileSize('');
                               setVideoFileType('');
+                              setVideoRawFile(null);
                             }}
                             className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
                           >
@@ -2669,10 +2682,29 @@ function getAttendanceTimelineAndRate(logs) {
                         <div className="space-y-1 py-1">
                           <Upload className="w-5 h-5 text-rose-500 mx-auto" />
                           <p className="font-bold text-rose-800 text-xs">Click or drop MP4 / WebM demo video</p>
-                          <p className="text-[10px] text-slate-400">Screen recording or walkthrough demonstration</p>
+                          <p className="text-[10px] text-slate-400">Screen recording or walkthrough demonstration (large files supported)</p>
                         </div>
                       )}
                     </div>
+
+                    {/* Upload to Database Progress Banner */}
+                    {videoUploadProgress && (
+                      <div className="bg-rose-950 text-white p-3.5 rounded-xl space-y-2 shadow-lg border border-rose-800 animate-pulse">
+                        <div className="flex justify-between items-center text-xs font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                            Saving Video Deliverable to Database...
+                          </span>
+                          <span className="font-mono text-rose-300">{videoUploadProgress.pct}%</span>
+                        </div>
+                        <div className="w-full bg-rose-900/50 rounded-full h-2 overflow-hidden">
+                          <div className="bg-rose-500 h-2 transition-all duration-200 rounded-full" style={{ width: `${videoUploadProgress.pct}%` }} />
+                        </div>
+                        <p className="text-[10px] text-rose-300/80 font-mono text-left">
+                          Storing chunk {videoUploadProgress.cur} of {videoUploadProgress.tot} in MongoDB. Please do not close this window.
+                        </p>
+                      </div>
+                    )}
 
                     {/* In-Modal Video Player Preview if data loaded */}
                     {videoFileData && (

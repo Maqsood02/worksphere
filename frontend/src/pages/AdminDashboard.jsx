@@ -89,6 +89,7 @@ export default function AdminDashboard() {
   const [modalVideoBlobUrl, setModalVideoBlobUrl] = useState('');
   const [videoError, setVideoError] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [videoBufferProgress, setVideoBufferProgress] = useState(null);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
   useEffect(() => {
@@ -98,11 +99,20 @@ export default function AdminDashboard() {
       const sub = parseSubmissionDetails(reviewTaskModal);
       const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
 
-      if (sub.videoDeliverable?.data && sub.videoDeliverable.data.length > 50) {
+      // 1. If an external or cloud video URL is available
+      if (sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:')) {
+        setModalVideoSrc(sub.videoDeliverable.url);
+        setModalVideoBlobUrl(sub.videoDeliverable.url);
+        setVideoError(false);
+        setIsVideoLoading(false);
+      } else if (sub.videoDeliverable?.data && sub.videoDeliverable.data.length > 50) {
         setModalVideoSrc(sub.videoDeliverable.data);
       } else {
         setIsVideoLoading(true);
-        getDeliverableVideo(keyId, vidName).then(src => {
+        setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
+        getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
+          setVideoBufferProgress({ pct, cur, tot });
+        }).then(src => {
           if (src) {
             setModalVideoSrc(src);
             setVideoError(false);
@@ -111,9 +121,11 @@ export default function AdminDashboard() {
             setVideoError(false);
           }
           setIsVideoLoading(false);
+          setVideoBufferProgress(null);
         }).catch(() => {
           setModalVideoSrc('/sample_demo.mp4');
           setIsVideoLoading(false);
+          setVideoBufferProgress(null);
         });
       }
 
@@ -1107,20 +1119,19 @@ export default function AdminDashboard() {
     // 1. Instant 0ms playback via native Blob URL
     const localBlobUrl = URL.createObjectURL(f);
     setModalVideoBlobUrl(localBlobUrl);
+    setModalVideoSrc(localBlobUrl);
     setVideoError(false);
 
-    // 2. Read as Data URL to store in IndexedDB and sync to cloud
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      setModalVideoSrc(dataUrl);
-      const keyId = reviewTaskModal?.taskId || reviewTaskModal?.id;
-      if (keyId) {
-        saveDeliverableVideo(keyId, dataUrl, { name: f.name, size: sizeStr });
-      }
-      addToast(`✓ Video loaded successfully: ${f.name}`);
-    };
-    reader.readAsDataURL(f);
+    // 2. Memory-safe chunked upload into MongoDB Atlas database
+    const keyId = reviewTaskModal?.taskId || reviewTaskModal?.id;
+    if (keyId) {
+      addToast(`Syncing ${f.name} to MongoDB database...`);
+      saveDeliverableVideo(keyId, f, { name: f.name, size: sizeStr }).then((ok) => {
+        if (ok) {
+          addToast(`✓ Video ${f.name} stored permanently in database!`);
+        }
+      });
+    }
   };
 
   const handleLoadDemoVideo = () => {
@@ -4547,10 +4558,24 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ) : isVideoLoading ? (
-                      <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-2">
+                      <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-3">
                         <RefreshCw className="w-6 h-6 text-rose-500 animate-spin mx-auto" />
-                        <p className="text-xs font-bold text-slate-200">Loading Video Demonstration ({sub.videoDeliverable?.name || 'download.mp4'})...</p>
-                        <p className="text-[10px] text-slate-400 font-mono">Retrieving high-resolution video stream from storage</p>
+                        <p className="text-xs font-bold text-slate-200">
+                          {videoBufferProgress?.tot > 1 
+                            ? `Buffering Video Deliverable from Database (${videoBufferProgress.pct}%)...` 
+                            : `Loading Video Demonstration (${sub.videoDeliverable?.name || 'download.mp4'})...`}
+                        </p>
+                        {videoBufferProgress?.tot > 1 && (
+                          <div className="max-w-xs mx-auto space-y-1">
+                            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-rose-500 h-1.5 transition-all duration-200 rounded-full" style={{ width: `${videoBufferProgress.pct}%` }} />
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-mono">
+                              Downloaded chunk {videoBufferProgress.cur} of {videoBufferProgress.tot}
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-slate-400 font-mono">Retrieving video stream directly from MongoDB database</p>
                       </div>
                     ) : (
                       <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
