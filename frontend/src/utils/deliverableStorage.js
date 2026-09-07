@@ -265,27 +265,41 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
   const totalChunks = Number(manifest.totalChunks || 1);
   const chunkParts = new Array(totalChunks);
 
-  // 2. Fetch each chunk individually
-  for (let i = 0; i < totalChunks; i++) {
-    let chunkJson = null;
-    try {
-      let chunkRes = await fetch(getUrl(`&chunkIndex=${i}`));
-      if (!chunkRes.ok) chunkRes = await fetch(getRemoteUrl(`&chunkIndex=${i}`));
-      if (chunkRes.ok) {
-        chunkJson = await chunkRes.json();
-      }
-    } catch (e) {}
+  // 2. Fetch chunks with concurrency (3 parallel chunk requests)
+  let downloadedCount = 0;
+  const FETCH_CONCURRENCY = 3;
+  for (let i = 0; i < totalChunks; i += FETCH_CONCURRENCY) {
+    const batch = [];
+    for (let c = i; c < Math.min(i + FETCH_CONCURRENCY, totalChunks); c++) {
+      batch.push((async (chunkIdx) => {
+        let chunkJson = null;
+        try {
+          let chunkRes = await fetch(getUrl(`&chunkIndex=${chunkIdx}`));
+          if (!chunkRes.ok) chunkRes = await fetch(getRemoteUrl(`&chunkIndex=${chunkIdx}`));
+          if (chunkRes.ok) {
+            chunkJson = await chunkRes.json();
+          }
+        } catch (e) {}
 
-    if (chunkJson && chunkJson.data) {
-      chunkParts[i] = chunkJson.data;
-    } else {
-      console.warn(`Missing chunk ${i} for task ${taskId}`);
-      return null;
+        if (chunkJson && chunkJson.data) {
+          chunkParts[chunkIdx] = chunkJson.data;
+        } else {
+          console.warn(`Missing chunk ${chunkIdx} for task ${taskId}`);
+          throw new Error(`Missing chunk ${chunkIdx}`);
+        }
+
+        downloadedCount++;
+        if (typeof onProgress === 'function') {
+          const pct = Math.round((downloadedCount / totalChunks) * 100);
+          onProgress(pct, downloadedCount, totalChunks);
+        }
+      })(c));
     }
-
-    if (typeof onProgress === 'function') {
-      const pct = Math.round(((i + 1) / totalChunks) * 100);
-      onProgress(pct, i + 1, totalChunks);
+    try {
+      await Promise.all(batch);
+    } catch (batchErr) {
+      console.warn('Batch chunk download failed:', batchErr);
+      return null;
     }
   }
 
@@ -310,16 +324,13 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
     const combinedBlob = new Blob(byteArrays, { type: 'video/mp4' });
     const blobUrl = URL.createObjectURL(combinedBlob);
 
-    // Also store complete data URL into IndexedDB for instant 0ms retrieval next time
-    const fullDataUrl = chunkParts.join('');
-    saveDeliverableAsset(cleanId, assetType, fullDataUrl).catch(() => {});
+    // Also store binary Blob into IndexedDB for instant 0ms retrieval next time
+    saveDeliverableAsset(cleanId, assetType, combinedBlob).catch(() => {});
 
     return blobUrl;
   } catch (combineErr) {
     console.warn('Error combining binary chunks:', combineErr);
-    // Fallback: return concatenated data URL
-    const fullDataUrl = chunkParts.join('');
-    return fullDataUrl;
+    return null;
   }
 }
 

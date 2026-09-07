@@ -6,7 +6,7 @@ import {
   GraduationCap, CheckCircle, Clock, Calendar, Award, 
   Send, ExternalLink, PlusCircle, ShieldCheck, 
   BookOpen, FileText, CheckCircle2, Printer, X, Sparkles, DollarSign, Upload, Lock,
-  AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play
+  AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play, RefreshCw
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
 import { saveDeliverableVideo, getDeliverableVideo } from '../utils/deliverableStorage';

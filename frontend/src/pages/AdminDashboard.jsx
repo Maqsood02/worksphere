@@ -164,7 +164,7 @@ export default function AdminDashboard() {
       } else {
         setIsVideoLoading(true);
         setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
-        const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 6000));
+        const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 120000));
         Promise.race([
           getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
             setVideoBufferProgress({ pct, cur, tot });
