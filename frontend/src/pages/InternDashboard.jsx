@@ -904,16 +904,22 @@ function getAttendanceTimelineAndRate(logs) {
         try {
           if (videoRawFile) {
             setVideoUploadProgress({ pct: 0, cur: 0, tot: 1 });
-            await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
+            const uploadSuccess = await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
               setVideoUploadProgress({ pct, cur, tot });
             });
             setVideoUploadProgress(null);
+            if (uploadSuccess === false) {
+              throw new Error("Video chunk upload to database failed.");
+            }
           } else if (videoFileData && !videoFileData.startsWith('blob:')) {
             await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
           }
         } catch (idbErr) {
-          console.warn('IndexedDB / Database video save error:', idbErr);
+          console.error('Database video save error:', idbErr);
           setVideoUploadProgress(null);
+          setIsSubmitting(false);
+          addToast("Failed to upload video deliverable to database. Please check your connection and try again.");
+          return;
         }
       }
 

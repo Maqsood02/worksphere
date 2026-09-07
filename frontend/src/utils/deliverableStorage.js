@@ -4,7 +4,7 @@
 const DB_NAME = 'worksphere_deliverables_v4';
 const DB_VERSION = 1;
 const STORE_NAME = 'deliverable_assets';
-const BINARY_CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5 MB binary -> ~2.0 MB base64 (strictly under Vercel 4.5MB limit)
+const BINARY_CHUNK_SIZE = 2.5 * 1024 * 1024; // 2.5 MB binary -> ~3.3 MB base64 (strictly under Vercel 4.5MB limit)
 
 function openDB() {
   return new Promise((resolve) => {
@@ -198,34 +198,38 @@ export async function uploadFileChunks(fileOrBlob, taskId, assetType = 'video', 
     });
   } catch (e) {}
 
-  // 2. Upload chunk-by-chunk using File.slice
-  for (let i = 0; i < totalChunks; i++) {
-    const startByte = i * BINARY_CHUNK_SIZE;
-    const endByte = Math.min(startByte + BINARY_CHUNK_SIZE, totalBytes);
-    const slice = fileOrBlob.slice(startByte, endByte);
-    
-    // Read only this 1.5MB slice into base64
-    const sliceDataUrl = await readBlobSliceAsDataUrl(slice);
-
-    const payload = {
-      taskId: cleanId,
-      assetType,
-      chunkIndex: i,
-      totalChunks,
-      data: sliceDataUrl,
-      fileName,
-      fileSize: fileSizeStr
-    };
-
-    const ok = await postChunkWithRetry(payload);
-    if (!ok) {
-      console.warn(`Failed to upload chunk ${i + 1}/${totalChunks}`);
+  // 2. Upload chunk-by-chunk using File.slice with concurrency (2 parallel transfers)
+  let uploadedCount = 0;
+  const CONCURRENCY = 2;
+  for (let i = 0; i < totalChunks; i += CONCURRENCY) {
+    const batch = [];
+    for (let c = i; c < Math.min(i + CONCURRENCY, totalChunks); c++) {
+      batch.push((async (chunkIdx) => {
+        const startByte = chunkIdx * BINARY_CHUNK_SIZE;
+        const endByte = Math.min(startByte + BINARY_CHUNK_SIZE, totalBytes);
+        const slice = fileOrBlob.slice(startByte, endByte);
+        const sliceDataUrl = await readBlobSliceAsDataUrl(slice);
+        const payload = {
+          taskId: cleanId,
+          assetType,
+          chunkIndex: chunkIdx,
+          totalChunks,
+          data: sliceDataUrl,
+          fileName,
+          fileSize: fileSizeStr
+        };
+        const ok = await postChunkWithRetry(payload, 3);
+        if (!ok) {
+          throw new Error(`Failed to upload chunk ${chunkIdx + 1}/${totalChunks}`);
+        }
+        uploadedCount++;
+        if (typeof onProgress === 'function') {
+          const pct = Math.round((uploadedCount / totalChunks) * 100);
+          onProgress(pct, uploadedCount, totalChunks);
+        }
+      })(c));
     }
-
-    if (typeof onProgress === 'function') {
-      const pct = Math.round(((i + 1) / totalChunks) * 100);
-      onProgress(pct, i + 1, totalChunks);
-    }
+    await Promise.all(batch);
   }
 
   return true;
