@@ -1,10 +1,17 @@
 // IndexedDB Persistent Storage & Cloud Media Sync for Large Deliverables (Videos, ZIPs, Proof Images)
 // Supports files from 1MB up to 500MB via memory-safe File.slice chunking, bypassing Vercel 4.5MB limits.
 
-const DB_NAME = 'worksphere_deliverables_db';
-const DB_VERSION = 2;
+const DB_NAME = 'worksphere_deliverables_v3';
+const DB_VERSION = 1;
 const STORE_NAME = 'deliverable_assets';
 const BINARY_CHUNK_SIZE = 1.5 * 1024 * 1024; // 1.5 MB binary -> ~2.0 MB base64 (strictly under Vercel 4.5MB limit)
+
+// Automatically clear legacy database cache to eliminate old dummy videos
+if (typeof window !== 'undefined' && window.indexedDB) {
+  try {
+    window.indexedDB.deleteDatabase('worksphere_deliverables_db');
+  } catch (e) {}
+}
 
 function openDB() {
   return new Promise((resolve) => {

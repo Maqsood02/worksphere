@@ -1134,25 +1134,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLoadDemoVideo = () => {
-    addToast("Loading verified demonstration video...");
-    setModalVideoSrc('/sample_demo.mp4');
-    setModalVideoBlobUrl('/sample_demo.mp4');
-    setVideoError(false);
-    const keyId = reviewTaskModal?.taskId || reviewTaskModal?.id;
-    if (keyId) {
-      fetch('/sample_demo.mp4')
-        .then(r => r.blob())
-        .then(blob => {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            saveDeliverableVideo(keyId, ev.target.result, { name: '1000081403.mp4', size: '0.75 MB' });
-          };
-          reader.readAsDataURL(blob);
-        })
-        .catch(() => {});
-    }
-  };
+
 
   const handleDownloadVideoFile = (videoSrc, fileName = 'walkthrough.mp4') => {
     addToast(`Preparing download for: ${fileName}...`);
@@ -4487,13 +4469,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={handleLoadDemoVideo}
-                            className="text-xs font-bold text-amber-300 hover:text-white bg-amber-900/80 hover:bg-amber-800 border border-amber-700 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                          >
-                            Load Demo Video
-                          </button>
+
                           <label className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 transition-all">
                             <Upload className="w-3.5 h-3.5" /> Choose Local
                             <input
@@ -4537,14 +4513,7 @@ export default function AdminDashboard() {
                             >
                               <Download className="w-3.5 h-3.5" /> Download Video File
                             </button>
-                            <button
-                              type="button"
-                              onClick={handleLoadDemoVideo}
-                              className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
-                              title="Reload genuine SRS presentation walkthrough"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5 text-rose-400" /> Reload Video
-                            </button>
+
                             <label className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer">
                               <Upload className="w-3.5 h-3.5 text-rose-400" /> Replace Video
                               <input
@@ -4603,13 +4572,7 @@ export default function AdminDashboard() {
                             >
                               <Play className="w-3.5 h-3.5 fill-current" /> Play Video
                             </button>
-                            <button
-                              type="button"
-                              onClick={handleLoadDemoVideo}
-                              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors"
-                            >
-                              <Play className="w-3.5 h-3.5 text-rose-400" /> Demo Video
-                            </button>
+
                             <label className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors">
                               <Upload className="w-3.5 h-3.5" /> Choose Local
                               <input
