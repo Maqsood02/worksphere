@@ -1975,25 +1975,44 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 10. INTERN: OVERVIEW (/api/intern-overview)
+    // 10. INTERN: OVERVIEW (/api/intern-overview and /api/intern/overview)
     // ==========================================
-    if (cleanPath.includes('intern-overview')) {
-      const uKey = (query.username || req.headers['x-username'] || 'intern').toLowerCase().replace(/^@+/, '').trim();
+    if (cleanPath.includes('intern-overview') || cleanPath.includes('intern/overview')) {
+      const parts = cleanPath.split('/').filter(Boolean);
+      const lastPart = parts[parts.length - 1];
+      const pathUsername = (lastPart !== 'overview' && lastPart !== 'intern-overview' && lastPart !== 'intern') ? lastPart : null;
+      const uKey = (query.username || pathUsername || req.headers['x-username'] || 'intern').toLowerCase().replace(/^@+/, '').trim();
       const tasksCol = db.collection('intern_tasks');
       const attendanceCol = db.collection('intern_attendance');
       const modulesCol = db.collection('learning_modules');
       const profilesCol = db.collection('intern_profiles');
 
+      const attendanceQuery = {
+        $or: [
+          { username: new RegExp(`^${uKey}$`, 'i') },
+          { username: new RegExp(uKey, 'i') },
+          ...(uKey.includes('chinmay') ? [{ username: new RegExp('chinmay', 'i') }] : []),
+          ...(uKey.includes('maqsood') ? [{ username: new RegExp('maqsood', 'i') }] : [])
+        ]
+      };
+
       const [allTasks, myLogs, allModules, internProfile] = await Promise.all([
         tasksCol.find({}, { projection: { fileData: 0 } }).sort({ createdAt: -1 }).toArray(),
-        attendanceCol.find({ username: new RegExp(`^${uKey}$`, 'i') }).sort({ date: -1, createdAt: -1 }).toArray(),
+        attendanceCol.find(attendanceQuery).sort({ date: -1, createdAt: -1 }).toArray(),
         modulesCol.find({}).sort({ createdAt: -1 }).toArray(),
-        profilesCol.findOne({ username: new RegExp(`^${uKey}$`, 'i') })
+        profilesCol.findOne({
+          $or: [
+            { username: new RegExp(`^${uKey}$`, 'i') },
+            { username: new RegExp(uKey, 'i') }
+          ]
+        })
       ]);
 
       const myTasks = allTasks.filter(t => {
         const a = (t.assignedTo || '').toLowerCase().trim();
-        return a === uKey || a === 'all' || a.includes(uKey) || uKey.includes(a);
+        return a === uKey || a === 'all' || a.includes(uKey) || uKey.includes(a) ||
+          (uKey.includes('chinmay') && a.includes('chinmay')) ||
+          (uKey.includes('maqsood') && a.includes('maqsood'));
       });
 
       const myModules = allModules.filter(m => {

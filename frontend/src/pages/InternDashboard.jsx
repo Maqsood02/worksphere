@@ -869,9 +869,21 @@ function getAttendanceTimelineAndRate(logs) {
         }
       };
       setData(normalized);
+      try {
+        localStorage.setItem(`worksphere_cached_intern_data_${uKey}`, JSON.stringify(normalized));
+      } catch (e) {}
     } catch (err) {
       console.error(err);
-      if (!data) setData(defaultInternData);
+      if (!data) {
+        try {
+          const uKey = (user?.username || 'intern').toLowerCase().replace(/^@+/, '').trim();
+          const saved = localStorage.getItem(`worksphere_cached_intern_data_${uKey}`);
+          if (saved) setData(JSON.parse(saved));
+          else setData(defaultInternData);
+        } catch {
+          setData(defaultInternData);
+        }
+      }
     } finally {
       if (!isSilent) setLoading(false);
     }

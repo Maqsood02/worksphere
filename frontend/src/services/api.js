@@ -610,87 +610,7 @@ function isValidEmailFormat(email) {
     return { success: true, interns: result, allTasks: allTasks };
   }
 
-  if (url.includes('/api/intern/overview')) {
-    let currentUser = null;
-    try {
-      const savedUser = localStorage.getItem('worksphere_user');
-      if (savedUser) currentUser = JSON.parse(savedUser);
-    } catch (e) {}
-    const uname = (currentUser?.username || 'intern').toLowerCase();
 
-    const profiles = getStoredInternProfiles();
-    
-    if (!profiles[uname]) {
-      const defaultTrack = 'Full-Stack Software Engineering';
-      profiles[uname] = {
-        username: currentUser?.username || uname,
-        name: currentUser?.name || uname,
-        email: currentUser?.email || `${uname}@worksphere.ac.in`,
-        track: defaultTrack,
-        mentorName: 'Unassigned Mentor',
-        mentorEmail: 's.jenkins@worksphere.ac.in',
-        startDate: '2026-06-01',
-        endDate: '2026-08-31',
-        stipendType: 'UNPAID',
-        stipendCurrency: 'INR',
-        stipendAmount: 'Unpaid (Academic Credit)',
-        performanceRating: 'New Intern',
-        certificateStatus: 'NOT_ISSUED'
-      };
-      saveStoredInternProfiles(profiles);
-    }
-
-    const profile = profiles[uname];
-
-    // User-specific tasks & logs (fetches from both user-specific and global task stores)
-    let userTasks = [];
-    try {
-      const savedTasks = localStorage.getItem(`worksphere_tasks_${uname}`);
-      if (savedTasks) userTasks = JSON.parse(savedTasks);
-
-      const globalSaved = localStorage.getItem('worksphere_global_tasks');
-      if (globalSaved) {
-        const globalList = JSON.parse(globalSaved);
-        const matched = globalList.filter(t => {
-          if (!t.assignedTo) return true;
-          const assignedLower = t.assignedTo.toLowerCase();
-          return assignedLower === uname || 
-                 assignedLower.includes(uname) || 
-                 uname.includes(assignedLower) || 
-                 assignedLower === 'all' ||
-                 uname === 'intern';
-        });
-        const existingIds = new Set(userTasks.map(t => t.id));
-        for (const gTask of matched) {
-          if (!existingIds.has(gTask.id)) {
-            userTasks.push(gTask);
-          }
-        }
-      }
-    } catch(e) {}
-
-    let userLogs = [];
-    try {
-      const savedLogs = localStorage.getItem(`worksphere_attendance_${uname}`);
-      if (savedLogs) userLogs = JSON.parse(savedLogs);
-    } catch(e) {}
-
-    return {
-      success: true,
-      profile: profile,
-      stats: {
-        tasksCompleted: userTasks.filter(t => t.status === 'COMPLETED' || t.status === 'SUBMITTED').length,
-        tasksTotal: userTasks.length,
-        hoursLogged: userLogs.reduce((sum, a) => sum + (Number(a.hours) || 0), 0),
-        attendanceRate: userLogs.length === 0 ? '0%' : '100%',
-        stipendStatus: profile.stipendAmount || 'Unpaid (Academic Credit)'
-      },
-      tasks: userTasks,
-      attendanceLogs: userLogs,
-      learningModules: [],
-      certificate: { issued: profile.certificateStatus === 'ISSUED' }
-    };
-  }
 
   if (url.includes('/intern') || url.includes('/interns')) {
     return {
@@ -970,21 +890,27 @@ export const api = {
       const ovRes = await fetch(`/api/intern-overview?username=${defaultUKey}`);
       if (ovRes.ok) {
         const ovData = await ovRes.json();
-        if (ovData && ovData.success) {
+        if (ovData && ovData.success && Array.isArray(ovData.tasks)) {
           serverlessOverview = ovData;
         }
       }
     } catch (e) {}
 
-    const serverlessAttendance = Array.isArray(serverlessOverview?.attendanceLogs) ? serverlessOverview.attendanceLogs : [];
-    const serverlessTasks = Array.isArray(serverlessOverview?.tasks) ? serverlessOverview.tasks : [];
-
-    // 2. Fallback to Java backend candidate endpoints
-    let res = serverlessOverview;
-    if (!res || !res.success) {
-      res = await request(`/api/intern/overview?username=${defaultUKey}`);
+    if (!serverlessOverview) {
+      try {
+        const ovRes2 = await fetch(`/api/intern/overview?username=${defaultUKey}`);
+        if (ovRes2.ok) {
+          const ovData2 = await ovRes2.json();
+          if (ovData2 && ovData2.success && Array.isArray(ovData2.tasks)) {
+            serverlessOverview = ovData2;
+          }
+        }
+      } catch (e) {}
     }
-    if (!res || typeof res !== 'object') res = {};
+
+    if (serverlessOverview && serverlessOverview.success && Array.isArray(serverlessOverview.tasks)) {
+      return serverlessOverview;
+    }
 
     const isChinmay = defaultUKey.includes('chinmay');
     const cleanDefaultProfile = {
