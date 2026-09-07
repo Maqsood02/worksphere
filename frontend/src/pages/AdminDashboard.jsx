@@ -153,16 +153,16 @@ export default function AdminDashboard() {
           .catch(() => {});
       }
 
-      // 1. If an external or cloud video URL is available
-      if (sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:')) {
+      // 1. If an external or cloud video URL is available (not self-hosted or data URI)
+      if (sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
         setModalVideoSrc(sub.videoDeliverable.url);
         setModalVideoBlobUrl(sub.videoDeliverable.url);
         setVideoError(false);
         setIsVideoLoading(false);
-      } else if (sub.videoDeliverable?.data && sub.videoDeliverable.data.length > 50) {
-        setModalVideoSrc(sub.videoDeliverable.data);
       } else {
         setIsVideoLoading(true);
+        setModalVideoSrc('');
+        setModalVideoBlobUrl('');
         setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
         const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 120000));
         Promise.race([
@@ -1087,10 +1087,16 @@ export default function AdminDashboard() {
     // Consolidate multi-file deliverables from submittedFiles or storedFilesObj
     const allFiles = submittedFiles || storedFilesObj || {};
     const isCurrentModal = reviewTaskModal && (task?.id === reviewTaskModal.id || task?.taskId === reviewTaskModal.taskId);
-    const resolvedVideoData = (isCurrentModal && modalVideoSrc) ? modalVideoSrc : (allFiles.video?.data || '');
+    const resolvedVideoData = (isCurrentModal && modalVideoSrc && !modalVideoSrc.startsWith('data:application/octet_stream')) ? modalVideoSrc : '';
 
-    const videoDeliverable = allFiles.video 
-      ? { ...allFiles.video, data: resolvedVideoData || allFiles.video.data, url: allFiles.video.url || task?.videoUrl || '' } 
+    const safeVideoFile = allFiles.video ? {
+      ...allFiles.video,
+      data: resolvedVideoData || (allFiles.video.data && !allFiles.video.data.startsWith('data:application/octet_stream') ? allFiles.video.data : ''),
+      url: allFiles.video.url || task?.videoUrl || ''
+    } : null;
+
+    const videoDeliverable = safeVideoFile 
+      ? safeVideoFile 
       : (task?.videoUrl || resolvedVideoData 
           ? { url: task?.videoUrl || '', data: resolvedVideoData, name: 'Video Walkthrough' } 
           : null);
@@ -4543,139 +4549,139 @@ export default function AdminDashboard() {
                         <span className="text-[10px] font-extrabold bg-rose-950/80 text-rose-300 border border-rose-800 px-2.5 py-1 rounded-lg shrink-0">
                           📹 Video Walkthrough
                         </span>
-                        <label className="text-[10px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-lg cursor-pointer flex items-center gap-1 transition-colors">
-                          <Upload className="w-3 h-3 text-rose-400" /> Choose Local
-                          <input
-                            type="file"
-                            accept="video/*,.mp4,.webm,.mov"
-                            className="hidden"
-                            onChange={handleChooseLocalVideo}
-                          />
-                        </label>
                       </div>
                     </div>
 
                     {videoError && (
-                      <div className="bg-amber-950/50 border border-amber-800/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="bg-amber-950/50 border border-amber-800/80 rounded-xl p-3 flex items-center justify-between gap-2.5">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                           <div className="text-left">
-                            <p className="text-xs font-bold text-amber-200">Video decoding or stream playback issue</p>
-                            <p className="text-[10px] text-amber-300/80">The uploaded file stream could not be decoded. You can choose a local copy or load verified demo video.</p>
+                            <p className="text-xs font-bold text-amber-200">Video streaming buffer notice</p>
+                            <p className="text-[10px] text-amber-300/80">Click Retry Stream to reconnect and stream all chunks directly from the database.</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-
-                          <label className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 transition-all">
-                            <Upload className="w-3.5 h-3.5" /> Choose Local
-                            <input
-                              type="file"
-                              accept="video/*,.mp4,.webm,.mov"
-                              className="hidden"
-                              onChange={handleChooseLocalVideo}
-                            />
-                          </label>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoError(false);
+                            setIsVideoLoading(true);
+                            const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                            getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Task 2 Video.mp4', (pct, cur, tot) => {
+                              setVideoBufferProgress({ pct, cur, tot });
+                            }).then(src => {
+                              if (src) {
+                                setModalVideoSrc(src);
+                                setModalVideoBlobUrl(src);
+                              }
+                              setIsVideoLoading(false);
+                              setVideoBufferProgress(null);
+                            }).catch(() => {
+                              setIsVideoLoading(false);
+                              setVideoBufferProgress(null);
+                            });
+                          }}
+                          className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 transition-all shrink-0 active:scale-95"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Retry Stream
+                        </button>
                       </div>
                     )}
 
-                    {(modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data) ? (
-                      <div className="space-y-2.5">
-                        <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner">
-                          <video 
-                            controls 
-                            playsInline
-                            autoPlay
-                            preload="auto"
-                            src={modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data} 
-                            className="w-full max-h-72 object-contain bg-black"
-                            onError={(e) => {
-                              console.warn('Video playback error:', e);
-                              setVideoError(true);
-                            }}
-                            onLoadedData={() => {
-                              setVideoError(false);
-                            }}
-                          />
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
-                          <span className="text-[11px] text-slate-400 font-mono">
-                            {sub.videoDeliverable?.name || 'download.mp4'} • {sub.videoDeliverable?.size || ''}
-                          </span>
-                          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadVideoFile(modalVideoBlobUrl || modalVideoSrc || sub.videoDeliverable?.data, sub.videoDeliverable?.name || '1000081403.mp4')}
-                              className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
-                            >
-                              <Download className="w-3.5 h-3.5" /> Download Video File
-                            </button>
-
-                            <label className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer">
-                              <Upload className="w-3.5 h-3.5 text-rose-400" /> Replace Video
-                              <input
-                                type="file"
-                                accept="video/*,.mp4,.webm,.mov"
-                                className="hidden"
-                                onChange={handleChooseLocalVideo}
+                    {(() => {
+                      const activeVideoSrc = modalVideoBlobUrl || (modalVideoSrc && !modalVideoSrc.startsWith('data:application/octet_stream') ? modalVideoSrc : null);
+                      if (activeVideoSrc) {
+                        return (
+                          <div className="space-y-2.5">
+                            <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner">
+                              <video 
+                                key={activeVideoSrc}
+                                controls 
+                                playsInline
+                                autoPlay
+                                preload="auto"
+                                src={activeVideoSrc} 
+                                className="w-full max-h-72 object-contain bg-black"
+                                onError={(e) => {
+                                  console.warn('Video playback error:', e);
+                                  setVideoError(true);
+                                }}
+                                onLoadedData={() => {
+                                  setVideoError(false);
+                                }}
                               />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    ) : isVideoLoading ? (
-                      <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-3">
-                        <RefreshCw className="w-6 h-6 text-rose-500 animate-spin mx-auto" />
-                        <p className="text-xs font-bold text-slate-200">
-                          {videoBufferProgress?.tot > 1 
-                            ? `Buffering Video Deliverable from Database (${videoBufferProgress.pct}%)...` 
-                            : `Loading Video Demonstration (${sub.videoDeliverable?.name || 'download.mp4'})...`}
-                        </p>
-                        {videoBufferProgress?.tot > 1 && (
-                          <div className="max-w-xs mx-auto space-y-1">
-                            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                              <div className="bg-rose-500 h-1.5 transition-all duration-200 rounded-full" style={{ width: `${videoBufferProgress.pct}%` }} />
                             </div>
-                            <p className="text-[10px] text-slate-400 font-mono">
-                              Downloaded chunk {videoBufferProgress.cur} of {videoBufferProgress.tot}
-                            </p>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                {sub.videoDeliverable?.name || 'Task 2 Video.mp4'} • {sub.videoDeliverable?.size || '46.00 MB'}
+                              </span>
+                              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadVideoFile(activeVideoSrc, sub.videoDeliverable?.name || 'Task 2 Video.mp4')}
+                                  className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Download Video File
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        <p className="text-[10px] text-slate-400 font-mono">Retrieving video stream directly from MongoDB database</p>
-                      </div>
-                    ) : (
-                      <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <div>
+                        );
+                      }
+                      if (isVideoLoading) {
+                        return (
+                          <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-3">
+                            <RefreshCw className="w-6 h-6 text-rose-500 animate-spin mx-auto" />
                             <p className="text-xs font-bold text-slate-200">
-                              Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable?.name || 'download.mp4'}</strong> is registered ({sub.videoDeliverable?.size || '7.99 MB'}).
+                              {videoBufferProgress?.tot > 1 
+                                ? `Buffering Video Deliverable from Database (${videoBufferProgress.pct}%)...` 
+                                : `Loading Video Demonstration (${sub.videoDeliverable?.name || 'Task 2 Video.mp4'})...`}
                             </p>
-                            <p className="text-[10.5px] text-slate-400 mt-0.5">
-                              Click Play Video to stream, or choose local copy to preview immediately.
-                            </p>
+                            {videoBufferProgress?.tot > 1 && (
+                              <div className="max-w-xs mx-auto space-y-1">
+                                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                  <div className="bg-rose-500 h-1.5 transition-all duration-200 rounded-full" style={{ width: `${videoBufferProgress.pct}%` }} />
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-mono">
+                                  Downloaded chunk {videoBufferProgress.cur} of {videoBufferProgress.tot} from MongoDB Atlas
+                                </p>
+                              </div>
+                            )}
+                            <p className="text-[10px] text-slate-400 font-mono">Retrieving video stream directly from database</p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsVideoLoading(true);
-                                const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-                                getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'download.mp4').then(src => {
-                                  if (src) {
-                                    setModalVideoSrc(src);
-                                    setModalVideoBlobUrl(src);
-                                  }
-                                  setIsVideoLoading(false);
-                                }).catch(() => setIsVideoLoading(false));
-                              }}
-                              className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              <Play className="w-3.5 h-3.5 fill-current" /> Stream Video
-                            </button>
-                          </div>
+                        );
+                      }
+                      return (
+                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center space-y-3">
+                          <p className="text-xs font-bold text-slate-200">
+                            Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable?.name || 'Task 2 Video.mp4'}</strong> is registered ({sub.videoDeliverable?.size || '46.00 MB'}).
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsVideoLoading(true);
+                              const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                              getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Task 2 Video.mp4', (pct, cur, tot) => {
+                                setVideoBufferProgress({ pct, cur, tot });
+                              }).then(src => {
+                                if (src) {
+                                  setModalVideoSrc(src);
+                                  setModalVideoBlobUrl(src);
+                                }
+                                setIsVideoLoading(false);
+                                setVideoBufferProgress(null);
+                              }).catch(() => {
+                                setIsVideoLoading(false);
+                                setVideoBufferProgress(null);
+                              });
+                            }}
+                            className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                          >
+                            <Play className="w-4 h-4 fill-current" /> Stream Video from Database
+                          </button>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {sub.videoDeliverable?.url && (
                       <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3">

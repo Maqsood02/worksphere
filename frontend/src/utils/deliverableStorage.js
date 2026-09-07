@@ -379,8 +379,34 @@ export async function getDeliverableVideo(taskId, fileName = '', onProgress = nu
   try {
     for (const k of aliasKeys) {
       const localData = await getDeliverableAsset(k, 'video');
-      if (localData && (typeof localData === 'string' ? localData.length > 50 : localData)) {
-        return localData;
+      if (localData) {
+        if (typeof Blob !== 'undefined' && localData instanceof Blob) {
+          return URL.createObjectURL(localData);
+        }
+        if (typeof localData === 'string') {
+          if (localData.startsWith('blob:')) {
+            return localData;
+          }
+          if ((localData.startsWith('http://') || localData.startsWith('https://')) && !localData.startsWith('data:')) {
+            return localData;
+          }
+          if (localData.startsWith('data:')) {
+            try {
+              const base64Index = localData.indexOf(',');
+              const rawBase64 = base64Index >= 0 ? localData.substring(base64Index + 1) : localData;
+              const binaryString = atob(rawBase64);
+              const len = binaryString.length;
+              const bytes = new Uint8Array(len);
+              for (let j = 0; j < len; j++) {
+                bytes[j] = binaryString.charCodeAt(j);
+              }
+              const mp4Blob = new Blob([bytes], { type: 'video/mp4' });
+              return URL.createObjectURL(mp4Blob);
+            } catch (convErr) {
+              console.warn('Failed to parse local data-URL, falling back to MongoDB Atlas chunks:', convErr);
+            }
+          }
+        }
       }
     }
   } catch (e) {}
