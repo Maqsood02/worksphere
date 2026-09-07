@@ -117,13 +117,13 @@ export default function AdminDashboard() {
             setModalVideoSrc(src);
             setVideoError(false);
           } else {
-            setModalVideoSrc('/sample_demo.mp4');
+            setModalVideoSrc('');
             setVideoError(false);
           }
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         }).catch(() => {
-          setModalVideoSrc('/sample_demo.mp4');
+          setModalVideoSrc('');
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         });
