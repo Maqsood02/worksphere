@@ -299,6 +299,11 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Ensure any legacy deleted tasks blacklist is purged so all active tasks from DB display
+    try {
+      localStorage.removeItem('worksphere_deleted_tasks');
+    } catch (e) {}
+
     // Parallel fetch for lightning-fast concurrent data sync
     Promise.allSettled([
       fetchData(),
@@ -629,12 +634,6 @@ export default function AdminDashboard() {
         interns = res;
       }
       
-      let deletedTaskIds = [];
-      try {
-        const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-        if (savedDel) deletedTaskIds = JSON.parse(savedDel);
-      } catch(e) {}
-
       let rawTasks = (res && Array.isArray(res.allTasks) && res.allTasks.length > 0) ? res.allTasks : [];
       if (rawTasks.length === 0) {
         try {
@@ -666,14 +665,8 @@ export default function AdminDashboard() {
         fileData: t.fileData || ''
       }));
 
-      const lowerDeleted = deletedTaskIds.map(id => String(id).toLowerCase().trim());
-      const filteredTasks = normalizedTasks.filter(t => {
-        const tid = String(t.taskId || '').toLowerCase().trim();
-        const id = String(t.id || '').toLowerCase().trim();
-        const mongoId = String(t._id || '').toLowerCase().trim();
-        return !lowerDeleted.includes(tid) && !lowerDeleted.includes(id) && !lowerDeleted.includes(mongoId);
-      });
-      setAllInternTasks(filteredTasks);
+      // Server MongoDB Atlas is the single source of truth for active tasks
+      setAllInternTasks(normalizedTasks);
 
       // Deduplicate interns by lowercase username & merge profile overrides
       const seen = new Set();
@@ -709,7 +702,7 @@ export default function AdminDashboard() {
       setInternsList(uniqueInterns.length > 0 ? uniqueInterns : defaultInterns);
 
       try {
-        localStorage.setItem('worksphere_cached_intern_tasks', JSON.stringify(filteredTasks));
+        localStorage.setItem('worksphere_cached_intern_tasks', JSON.stringify(normalizedTasks));
         localStorage.setItem('worksphere_cached_interns_list', JSON.stringify(uniqueInterns.length > 0 ? uniqueInterns : defaultInterns));
       } catch (e) {}
     } catch (err) {
@@ -1568,18 +1561,14 @@ export default function AdminDashboard() {
   const handleDeleteInternTask = async (taskId) => {
     if (!window.confirm("Are you sure you want to delete this assigned deliverable task?")) return;
     
-    // 1. Immediately filter out task from React state for instant UI removal
-    setAllInternTasks(prev => prev.filter(t => t.id !== taskId));
-
-    // 2. Persist deleted task ID in localStorage to prevent re-fetching
-    try {
-      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-      let deletedList = savedDel ? JSON.parse(savedDel) : [];
-      if (!deletedList.includes(taskId)) {
-        deletedList.push(taskId);
-        localStorage.setItem('worksphere_deleted_tasks', JSON.stringify(deletedList));
-      }
-    } catch (e) {}
+    // 1. Immediately filter out task from React state and cache for instant UI removal
+    setAllInternTasks(prev => {
+      const updated = prev.filter(t => t.id !== taskId && t.taskId !== taskId);
+      try {
+        localStorage.setItem('worksphere_cached_intern_tasks', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     // 3. Dispatch deletion API call
     try {

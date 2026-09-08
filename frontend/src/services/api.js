@@ -1602,15 +1602,15 @@ export const api = {
     const cleanId = String(taskId || '').trim();
     if (!cleanId) return { success: false, message: 'TaskId required' };
 
-    // 1. Persist in deleted tasks list and purge local caches
+    // 1. Purge local task cache
     try {
-      const savedDel = localStorage.getItem('worksphere_deleted_tasks');
-      let deletedList = savedDel ? JSON.parse(savedDel) : [];
-      if (!deletedList.includes(cleanId)) deletedList.push(cleanId);
-      if (!deletedList.includes(cleanId.toUpperCase())) deletedList.push(cleanId.toUpperCase());
-      if (!deletedList.includes(cleanId.toLowerCase())) deletedList.push(cleanId.toLowerCase());
-      localStorage.setItem('worksphere_deleted_tasks', JSON.stringify(deletedList));
       localStorage.removeItem(`worksphere_file_${cleanId}`);
+
+      const cached = localStorage.getItem('worksphere_cached_intern_tasks');
+      if (cached) {
+        const parsed = JSON.parse(cached).filter(t => t.id !== cleanId && t.taskId !== cleanId);
+        localStorage.setItem('worksphere_cached_intern_tasks', JSON.stringify(parsed));
+      }
 
       const gSaved = localStorage.getItem('worksphere_global_tasks');
       if (gSaved) {

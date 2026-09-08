@@ -1287,9 +1287,16 @@ export default async function handler(req, res) {
       // Assign Intern Task: POST /api/admin/interns/assign-task
       if (cleanPath.includes('/assign-task') && req.method === 'POST') {
         const { targetUsername = 'ALL', title, description = '', deadline = '2026-08-31', priority = 'HIGH' } = body;
-        if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Task title is required' });
-        const totalCount = await tasksCol.countDocuments();
-        const taskId = `TSK-${String(totalCount + 1).padStart(3, '0')}`;
+        const existingTasks = await tasksCol.find({}, { projection: { taskId: 1, id: 1 } }).toArray();
+        let maxNum = 0;
+        for (const t of existingTasks) {
+          const m = String(t.taskId || t.id || '').match(/TSK-0*(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num) && num < 100000 && num > maxNum) maxNum = num;
+          }
+        }
+        const taskId = `TSK-${String(maxNum + 1).padStart(3, '0')}`;
         const newTaskDoc = {
           taskId, id: taskId, assignedTo: targetUsername.replace(/^@+/, '').trim(), title: title.trim(), description: description.trim(),
           deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
@@ -1434,8 +1441,16 @@ export default async function handler(req, res) {
         const { assignedTo = 'ALL', title, description = '', deadline = '2026-08-31', priority = 'HIGH' } = body;
         if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Task title is required' });
 
-        const totalCount = await col.countDocuments();
-        const taskId = `TSK-${String(totalCount + 1).padStart(3, '0')}`;
+        const existingTasks = await col.find({}, { projection: { taskId: 1, id: 1 } }).toArray();
+        let maxNum = 0;
+        for (const t of existingTasks) {
+          const m = String(t.taskId || t.id || '').match(/TSK-0*(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num) && num < 100000 && num > maxNum) maxNum = num;
+          }
+        }
+        const taskId = `TSK-${String(maxNum + 1).padStart(3, '0')}`;
         const newTaskDoc = {
           taskId, id: taskId, assignedTo, title: title.trim(), description: description.trim(),
           deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
