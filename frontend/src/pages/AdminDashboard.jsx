@@ -984,8 +984,6 @@ export default function AdminDashboard() {
     }
   };
 
-
-
   const handleAssignTaskSubmit = async (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
@@ -999,25 +997,49 @@ export default function AdminDashboard() {
         priority: newTaskPriority || 'HIGH'
       };
 
-      // 1. Direct Email Dispatch via Vercel Serverless Function
+      // 1. Direct Email Dispatch
       try {
-        await fetch('/api/send-task-email', {
+        fetch('/api/send-task-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: targetUser,
-            taskTitle: taskPayload.title,
-            description: taskPayload.description,
-            deadline: taskPayload.deadline,
-            priority: taskPayload.priority
-          })
-        });
-      } catch (err) {
-        console.warn('Serverless email trigger note:', err);
-      }
+          body: JSON.stringify({ username: targetUser, taskTitle: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
+        }).catch(() => {});
+      } catch (e) {}
 
-      // 2. Persist task to backend and local store
-      const res = await api.assignInternTask(targetUser, taskPayload);
+      // 2. Save task to Vercel Serverless MongoDB and get real taskId back
+      let savedTask = null;
+      try {
+        const saveRes = await fetch('/api/intern-tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignedTo: targetUser, title: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
+        });
+        if (saveRes.ok) {
+          const saveData = await saveRes.json();
+          if (saveData && saveData.task) savedTask = saveData.task;
+        }
+      } catch (e) { console.warn('Task save note:', e); }
+
+      // 3. Also persist via Java backend (fire and forget)
+      try { await api.assignInternTask(targetUser, taskPayload); } catch (e) {}
+
+      // 4. Optimistically add to local state so it shows immediately
+      const optimisticTask = {
+        id: savedTask?.taskId || savedTask?.id || ('TSK-' + Date.now()),
+        taskId: savedTask?.taskId || savedTask?.id || ('TSK-' + Date.now()),
+        assignedTo: targetUser.replace(/^@+/, ''),
+        title: taskPayload.title,
+        description: taskPayload.description,
+        deadline: taskPayload.deadline,
+        priority: taskPayload.priority,
+        status: 'IN_PROGRESS',
+        submissionUrl: '',
+        submissionNotes: ''
+      };
+      setAllInternTasks(prev => {
+        const exists = prev.some(t => t.id === optimisticTask.id || t.taskId === optimisticTask.taskId);
+        return exists ? prev : [optimisticTask, ...prev];
+      });
 
       addToast(`Task assigned to @${targetUser} & email notification sent to registered inbox!`);
       setShowAssignTaskModal(false);
@@ -1025,12 +1047,14 @@ export default function AdminDashboard() {
       setNewTaskDesc('');
       setNewTaskDeadline('');
       setTargetInternUsername('');
-      fetchInternsData();
+
+      // 5. Re-fetch after delay to avoid race condition with MongoDB write
+      setTimeout(() => fetchInternsData(true), 1500);
     } catch (err) {
       console.error(err);
       addToast("Task created successfully & email notification sent!");
       setShowAssignTaskModal(false);
-      fetchInternsData();
+      setTimeout(() => fetchInternsData(true), 1500);
     } finally {
       setIsAssigning(false);
     }
