@@ -384,11 +384,43 @@ public class InternRestController {
             }
         } catch (Exception ignored) {}
 
+        // Merge tasks from MongoDB with in-memory tasksList, deduplicating by taskId
+        List<Map<String, Object>> combinedTasks = new ArrayList<>(tasksList);
+        try {
+            List<InternTask> dbTasks = internTaskRepository.findAll();
+            for (InternTask dt : dbTasks) {
+                String dtId = dt.getTaskId();
+                boolean alreadyInList = combinedTasks.stream().anyMatch(t ->
+                    dtId != null && dtId.equalsIgnoreCase(String.valueOf(t.get("id"))));
+                if (!alreadyInList) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", dt.getTaskId());
+                    map.put("taskId", dt.getTaskId());
+                    map.put("assignedTo", dt.getAssignedTo());
+                    map.put("title", dt.getTitle());
+                    map.put("description", dt.getDescription());
+                    map.put("deadline", dt.getDeadline());
+                    map.put("priority", dt.getPriority());
+                    map.put("status", dt.getStatus());
+                    map.put("submissionUrl", dt.getSubmissionUrl() != null ? dt.getSubmissionUrl() : "");
+                    map.put("submissionNotes", dt.getSubmissionNotes() != null ? dt.getSubmissionNotes() : "");
+                    map.put("adminFeedback", dt.getAdminFeedback() != null ? dt.getAdminFeedback() : "");
+                    map.put("fileName", "");
+                    map.put("fileSize", "");
+                    map.put("fileType", "");
+                    map.put("fileData", dt.getSubmittedFiles() != null ? dt.getSubmittedFiles() : "");
+                    combinedTasks.add(map);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[DB NOTE] Admin intern tasks merge: " + e.getMessage());
+        }
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> p : internProfiles.values()) {
             String uname = (String) p.get("username");
-            long totalTasks = tasksList.stream().filter(t -> uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))).count();
-            long completedTasks = tasksList.stream().filter(t -> (uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))) && ("COMPLETED".equals(t.get("status")) || "SUBMITTED".equals(t.get("status")))).count();
+            long totalTasks = combinedTasks.stream().filter(t -> uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))).count();
+            long completedTasks = combinedTasks.stream().filter(t -> (uname.equalsIgnoreCase((String) t.get("assignedTo")) || "intern".equalsIgnoreCase((String) t.get("assignedTo"))) && ("COMPLETED".equals(t.get("status")) || "SUBMITTED".equals(t.get("status")))).count();
 
             Map<String, Object> copy = new HashMap<>(p);
             Optional<User> uOpt = userService.findByUsername(uname);
@@ -405,7 +437,7 @@ public class InternRestController {
         return ResponseEntity.ok(Map.of(
             "success", true,
             "interns", result,
-            "allTasks", tasksList
+            "allTasks", combinedTasks
         ));
     }
 
