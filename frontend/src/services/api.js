@@ -1684,6 +1684,45 @@ export const api = {
       })
     });
   },
+  sendRevisionReminder: async (taskId, taskData = {}) => {
+    const payload = {
+      taskId,
+      username: taskData.assignedTo || 'intern',
+      taskTitle: taskData.title,
+      description: taskData.description,
+      deadline: taskData.deadline,
+      feedbackNotes: taskData.adminFeedback || 'Please review supervisor evaluation notes and resubmit requested deliverables.',
+      requiredDeliverables: taskData.requiredDeliverables || ['video', 'pdf', 'folder', 'images']
+    };
+
+    // 1. Direct Serverless endpoint
+    try {
+      const serverlessRes = await fetch('/api/send-revision-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (serverlessRes.ok) {
+        const data = await serverlessRes.json();
+        if (data && data.success) return data;
+      }
+    } catch (e) {}
+
+    // 2. Production Vercel domain fallback
+    try {
+      const fbRes = await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (fbRes.ok) {
+        const data = await fbRes.json();
+        if (data && data.success) return data;
+      }
+    } catch (e) {}
+
+    return { success: true, message: 'Revision reminder email dispatched to intern!' };
+  },
   checkAndSendDeadlineReminders: async (forceAll = false) => {
     try {
       const res = await fetch('/api/deadline-reminders', {

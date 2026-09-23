@@ -1287,18 +1287,55 @@ export default async function handler(req, res) {
       // Assign Intern Task: POST /api/admin/interns/assign-task
       if (cleanPath.includes('/assign-task') && req.method === 'POST') {
         const { targetUsername = 'ALL', title, description = '', deadline = '2026-08-31', priority = 'HIGH' } = body;
+        if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Task title is required' });
+
+        const cleanTitle = title.trim();
+        const cleanAssigned = targetUsername.replace(/^@+/, '').trim();
+
+        // 1. Prevent duplicate task creation
+        const escapedTitle = cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedAssigned = cleanAssigned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const duplicate = await tasksCol.findOne({
+          title: { $regex: new RegExp(`^${escapedTitle}$`, 'i') },
+          assignedTo: { $regex: new RegExp(`^${escapedAssigned}$`, 'i') }
+        });
+        if (duplicate) {
+          return res.status(409).json({
+            success: false,
+            message: `Task "${cleanTitle}" is already assigned to @${cleanAssigned}. Duplicate task creation is not allowed.`
+          });
+        }
+
+        // 2. Sequential task ID generation without gaps
         const existingTasks = await tasksCol.find({}, { projection: { taskId: 1, id: 1 } }).toArray();
+        const usedNums = new Set();
         let maxNum = 0;
         for (const t of existingTasks) {
           const m = String(t.taskId || t.id || '').match(/TSK-0*(\d+)/i);
           if (m) {
             const num = parseInt(m[1], 10);
-            if (!isNaN(num) && num < 100000 && num > maxNum) maxNum = num;
+            if (!isNaN(num) && num < 100000) {
+              usedNums.add(num);
+              if (num > maxNum) maxNum = num;
+            }
           }
         }
-        const taskId = `TSK-${String(maxNum + 1).padStart(3, '0')}`;
+
+        const titleMatch = cleanTitle.match(/^Task\s*0*(\d+)/i);
+        let explicitNum = titleMatch ? parseInt(titleMatch[1], 10) : null;
+        let assignedNum;
+        if (explicitNum && explicitNum > 0 && !usedNums.has(explicitNum)) {
+          assignedNum = explicitNum;
+        } else {
+          assignedNum = 1;
+          while (usedNums.has(assignedNum)) {
+            assignedNum++;
+          }
+        }
+
+        const taskId = `TSK-${String(assignedNum).padStart(3, '0')}`;
         const newTaskDoc = {
-          taskId, id: taskId, assignedTo: targetUsername.replace(/^@+/, '').trim(), title: title.trim(), description: description.trim(),
+          taskId, id: taskId, assignedTo: cleanAssigned, title: cleanTitle, description: description.trim(),
           deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
           deadlineReminderSent: false,
           createdAt: new Date(), updatedAt: new Date()
@@ -1441,18 +1478,53 @@ export default async function handler(req, res) {
         const { assignedTo = 'ALL', title, description = '', deadline = '2026-08-31', priority = 'HIGH' } = body;
         if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Task title is required' });
 
+        const cleanTitle = title.trim();
+        const cleanAssigned = assignedTo.replace(/^@+/, '').trim();
+
+        // 1. Prevent duplicate task creation
+        const escapedTitle = cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedAssigned = cleanAssigned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const duplicate = await col.findOne({
+          title: { $regex: new RegExp(`^${escapedTitle}$`, 'i') },
+          assignedTo: { $regex: new RegExp(`^${escapedAssigned}$`, 'i') }
+        });
+        if (duplicate) {
+          return res.status(409).json({
+            success: false,
+            message: `Task "${cleanTitle}" is already assigned to @${cleanAssigned}. Duplicate task creation is not allowed.`
+          });
+        }
+
+        // 2. Sequential task ID generation without gaps
         const existingTasks = await col.find({}, { projection: { taskId: 1, id: 1 } }).toArray();
+        const usedNums = new Set();
         let maxNum = 0;
         for (const t of existingTasks) {
           const m = String(t.taskId || t.id || '').match(/TSK-0*(\d+)/i);
           if (m) {
             const num = parseInt(m[1], 10);
-            if (!isNaN(num) && num < 100000 && num > maxNum) maxNum = num;
+            if (!isNaN(num) && num < 100000) {
+              usedNums.add(num);
+              if (num > maxNum) maxNum = num;
+            }
           }
         }
-        const taskId = `TSK-${String(maxNum + 1).padStart(3, '0')}`;
+
+        const titleMatch = cleanTitle.match(/^Task\s*0*(\d+)/i);
+        let explicitNum = titleMatch ? parseInt(titleMatch[1], 10) : null;
+        let assignedNum;
+        if (explicitNum && explicitNum > 0 && !usedNums.has(explicitNum)) {
+          assignedNum = explicitNum;
+        } else {
+          assignedNum = 1;
+          while (usedNums.has(assignedNum)) {
+            assignedNum++;
+          }
+        }
+
+        const taskId = `TSK-${String(assignedNum).padStart(3, '0')}`;
         const newTaskDoc = {
-          taskId, id: taskId, assignedTo, title: title.trim(), description: description.trim(),
+          taskId, id: taskId, assignedTo: cleanAssigned, title: cleanTitle, description: description.trim(),
           deadline, priority, status: 'IN_PROGRESS', submissionUrl: '', submissionNotes: '',
           deadlineReminderSent: false,
           createdAt: new Date(), updatedAt: new Date()
@@ -1461,7 +1533,7 @@ export default async function handler(req, res) {
 
         // Auto-dispatch email notification
         try {
-          const targetClean = assignedTo.replace(/^@+/, '').trim().toLowerCase();
+          const targetClean = cleanAssigned.toLowerCase();
           let targetEmail = '';
           if (targetClean === 'all') {
             const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
@@ -1800,25 +1872,27 @@ export default async function handler(req, res) {
       const usersCol = db.collection('users');
 
       const taskId = body.taskId || query.taskId;
-      const targetUser = (body.username || query.username || '').replace(/^@+/, '').trim().toLowerCase();
-      const feedbackNotes = body.feedbackNotes || body.feedback || 'Please update your deliverables/files with updated documentation and resubmit for evaluation.';
-      const requiredDeliverables = body.requiredDeliverables || ['video', 'pdf', 'folder', 'images'];
+      let taskDoc = null;
+      if (taskId) {
+        taskDoc = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
+      }
 
-      let taskTitle = body.taskTitle || 'Project Deliverable';
-      let taskDeadline = body.deadline || '2026-08-31';
+      const targetUser = (body.username || query.username || taskDoc?.assignedTo || '').replace(/^@+/, '').trim().toLowerCase();
+      const feedbackNotes = body.feedbackNotes || body.feedback || taskDoc?.adminFeedback || 'Please update your deliverables/files with updated documentation and resubmit for evaluation.';
+      const requiredDeliverables = body.requiredDeliverables || taskDoc?.requiredDeliverables || ['video', 'pdf', 'folder', 'images'];
+
+      let taskTitle = body.taskTitle || taskDoc?.title || 'Project Deliverable';
+      let taskDeadline = body.deadline || taskDoc?.deadline || '2026-08-31';
       let taskAssigned = targetUser || 'intern';
 
-      if (taskId) {
-        const task = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
-        if (task) {
-          taskTitle = task.title || taskTitle;
-          taskDeadline = task.deadline || taskDeadline;
-          taskAssigned = (task.assignedTo || taskAssigned).replace(/^@+/, '').trim().toLowerCase();
-          await col.updateOne(
-            { $or: [{ taskId: taskId }, { id: taskId }] },
-            { $set: { status: 'REVISION_REQUESTED', adminFeedback: feedbackNotes, requiredDeliverables, updatedAt: new Date() } }
-          );
-        }
+      if (taskId && taskDoc) {
+        taskTitle = taskDoc.title || taskTitle;
+        taskDeadline = taskDoc.deadline || taskDeadline;
+        taskAssigned = (taskDoc.assignedTo || taskAssigned).replace(/^@+/, '').trim().toLowerCase();
+        await col.updateOne(
+          { $or: [{ taskId: taskId }, { id: taskId }] },
+          { $set: { status: 'REVISION_REQUESTED', adminFeedback: feedbackNotes, requiredDeliverables, updatedAt: new Date() } }
+        );
       }
 
       let recipientEmails = [];
@@ -1826,11 +1900,20 @@ export default async function handler(req, res) {
       if (body.email) recipientEmails.push(body.email);
 
       let recipientName = taskAssigned;
-      try {
-        const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
-        if (found?.email) recipientEmails.push(found.email);
-        if (found?.name) recipientName = found.name;
-      } catch (e) {}
+      if (taskAssigned === 'all') {
+        try {
+          const allInterns = await usersCol.find({ role: { $regex: /intern/i } }).toArray();
+          for (const intern of allInterns) {
+            if (intern.email) recipientEmails.push(intern.email);
+          }
+        } catch (e) {}
+      } else {
+        try {
+          const found = await usersCol.findOne({ username: new RegExp(`^${taskAssigned}$`, 'i') });
+          if (found?.email) recipientEmails.push(found.email);
+          if (found?.name) recipientName = found.name;
+        } catch (e) {}
+      }
 
       if (taskAssigned.includes('maqsood')) {
         recipientEmails.push('maqsoodmdhrl@gmail.com');
@@ -1849,7 +1932,7 @@ export default async function handler(req, res) {
         internName: recipientName,
         username: taskAssigned,
         taskTitle,
-        description: body.description || '',
+        description: body.description || taskDoc?.description || '',
         deadline: taskDeadline,
         feedbackNotes,
         requiredDeliverables
@@ -1858,7 +1941,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: sent,
         message: sent
-          ? `Revision request & feedback email successfully sent to ${recipientEmails.join(', ')}!`
+          ? `Revision reminder email successfully delivered to ${recipientEmails.join(', ')}!`
           : `Failed sending revision email to ${recipientEmails.join(', ')}.`,
         recipientEmail: recipientEmails.join(', ')
       });

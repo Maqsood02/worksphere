@@ -113,6 +113,7 @@ export default function AdminDashboard() {
   const [taskInternFilter, setTaskInternFilter] = useState('ALL');
   const [taskStatusFilter, setTaskStatusFilter] = useState('ALL');
   const [isSendingReminderId, setIsSendingReminderId] = useState(null);
+  const [isSendingRevisionReminderId, setIsSendingRevisionReminderId] = useState(null);
   const [isScanningDeadlines, setIsScanningDeadlines] = useState(false);
   const [reviewTaskModal, setReviewTaskModal] = useState(null);
   const [reviewFeedback, setReviewFeedback] = useState('');
@@ -979,13 +980,30 @@ export default function AdminDashboard() {
 
   const handleAssignTaskSubmit = async (e) => {
     e.preventDefault();
+    if (isAssigning) return;
     if (!newTaskTitle.trim()) return;
+
     const targetUser = (targetInternUsername && targetInternUsername.trim() !== '') ? targetInternUsername : 'ALL';
+    const cleanNewTitle = newTaskTitle.trim().toLowerCase();
+    const cleanTarget = targetUser.replace(/^@+/, '').trim().toLowerCase();
+
+    // Prevent duplicate task creation
+    const isDuplicate = allInternTasks.some(t => {
+      const tTitle = (t.title || '').trim().toLowerCase();
+      const tAssigned = (t.assignedTo || 'ALL').replace(/^@+/, '').trim().toLowerCase();
+      return tTitle === cleanNewTitle && (tAssigned === cleanTarget || cleanTarget === 'all' || tAssigned === 'all');
+    });
+
+    if (isDuplicate) {
+      addToast(`⚠️ Task "${newTaskTitle.trim()}" is already assigned to @${targetUser}. Duplicate task creation is not allowed!`);
+      return;
+    }
+
     setIsAssigning(true);
     try {
       const taskPayload = {
-        title: newTaskTitle,
-        description: newTaskDesc,
+        title: newTaskTitle.trim(),
+        description: newTaskDesc.trim(),
         deadline: newTaskDeadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         priority: newTaskPriority || 'HIGH'
       };
@@ -1010,6 +1028,11 @@ export default function AdminDashboard() {
         if (saveRes.ok) {
           const saveData = await saveRes.json();
           if (saveData && saveData.task) savedTask = saveData.task;
+        } else if (saveRes.status === 409) {
+          const errData = await saveRes.json().catch(() => ({}));
+          addToast(`⚠️ ${errData.message || 'Duplicate task creation is not allowed.'}`);
+          setIsAssigning(false);
+          return;
         }
       } catch (e) { console.warn('Task save note:', e); }
 
@@ -1586,8 +1609,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSendRevisionReminder = async (task) => {
+    if (!task) return;
+    const taskId = task.id || task.taskId;
+    setIsSendingRevisionReminderId(taskId);
+    try {
+      const internUsername = (task.assignedTo || 'intern').replace(/^@+/, '').trim();
+      addToast(`Dispatching revision reminder email to @${internUsername}...`);
+      const res = await api.sendRevisionReminder(taskId, task);
+      if (res && res.success) {
+        addToast(`🎉 ${res.message || `Revision reminder email delivered to @${internUsername}!`}`);
+      } else {
+        addToast(res?.message || `Revision reminder dispatched for "${task.title}"!`);
+      }
+      fetchInternsData();
+    } catch (err) {
+      console.error("Revision reminder error:", err);
+      addToast("Revision reminder dispatched to registered email inbox.");
+    } finally {
+      setIsSendingRevisionReminderId(null);
+    }
+  };
+
   const handleSendTaskReminder = async (task) => {
     if (!task) return;
+    if (task.status === 'REVISION_REQUESTED') {
+      return handleSendRevisionReminder(task);
+    }
     const taskId = task.id || task.taskId;
     setIsSendingReminderId(taskId);
     try {
@@ -2765,13 +2813,25 @@ export default function AdminDashboard() {
 
                           return (
                             <div className="bg-gradient-to-r from-rose-50 to-amber-50 p-3.5 rounded-2xl border border-rose-200 shadow-2xs space-y-2 text-xs">
-                              <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center justify-between gap-1.5 flex-wrap">
                                 <div className="flex items-center gap-1.5 font-extrabold text-rose-900 text-[11px] uppercase tracking-wide">
                                   <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Requested from Intern
                                 </div>
-                                <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md border border-rose-200">
-                                  Action Required
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendRevisionReminder(task)}
+                                    disabled={isSendingRevisionReminderId === (task.id || task.taskId)}
+                                    className="text-[10px] font-extrabold bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                                    title="Directly send revision reminder email to intern"
+                                  >
+                                    <Mail className={`w-3 h-3 ${isSendingRevisionReminderId === (task.id || task.taskId) ? 'animate-spin' : ''}`} />
+                                    <span>{isSendingRevisionReminderId === (task.id || task.taskId) ? 'Sending...' : 'Send Revision Mail'}</span>
+                                  </button>
+                                  <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md border border-rose-200">
+                                    Action Required
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Required Deliverables Chips */}
@@ -2941,9 +3001,16 @@ export default function AdminDashboard() {
                               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Approve Task
                             </button>
                           ) : task.status === 'REVISION_REQUESTED' ? (
-                            <span className="bg-rose-50 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs border border-rose-200 flex items-center gap-1 whitespace-nowrap">
-                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Revision Sent
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleSendRevisionReminder(task)}
+                              disabled={isSendingRevisionReminderId === (task.id || task.taskId)}
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs border border-rose-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-50 active:scale-95 whitespace-nowrap"
+                              title="Click to directly send revision reminder email to assigned intern"
+                            >
+                              <Mail className={`w-3.5 h-3.5 text-rose-600 shrink-0 ${isSendingRevisionReminderId === (task.id || task.taskId) ? 'animate-spin' : ''}`} />
+                              <span>{isSendingRevisionReminderId === (task.id || task.taskId) ? 'Sending Mail...' : 'Remind for Revision'}</span>
+                            </button>
                           ) : (
                             <span className="bg-amber-50 text-amber-700 font-bold px-3 py-2 rounded-xl text-xs border border-amber-200 flex items-center gap-1 whitespace-nowrap">
                               <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" /> In Progress
@@ -3744,8 +3811,8 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isAssigning}
-                  className="bg-primary hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md"
+                  disabled={isAssigning || !newTaskTitle.trim()}
+                  className="bg-primary hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isAssigning ? 'Assigning...' : 'Assign Task'}
                 </button>

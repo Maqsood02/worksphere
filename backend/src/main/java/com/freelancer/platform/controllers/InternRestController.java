@@ -500,6 +500,24 @@ public class InternRestController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task title is required."));
         }
 
+        String cleanTitle = title.trim();
+        String cleanUser = (username != null ? username.trim() : "ALL");
+
+        // Prevent duplicate task creation
+        boolean isDuplicate = tasksList.stream().anyMatch(t -> {
+            String tTitle = (String) t.get("title");
+            String tUser = (String) t.get("assignedTo");
+            return tTitle != null && tTitle.trim().equalsIgnoreCase(cleanTitle)
+                && (tUser == null || tUser.trim().equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(tUser));
+        });
+
+        if (isDuplicate) {
+            return ResponseEntity.status(409).body(Map.of(
+                "success", false,
+                "message", "Task \"" + cleanTitle + "\" is already assigned to @" + cleanUser + ". Duplicate task creation is not allowed."
+            ));
+        }
+
         String taskId = "TSK-" + (tasksList.size() + 105);
         Map<String, Object> newTask = new HashMap<>();
         newTask.put("id", taskId);
