@@ -4869,6 +4869,10 @@ export default function AdminDashboard() {
                                 {sub.videoDeliverable?.name || 'Task 2 Video.mp4'} • {sub.videoDeliverable?.size || '0.50 MB'}
                               </span>
                               <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                <label className="text-xs font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-950/70 border border-indigo-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm">
+                                  <Upload className="w-3.5 h-3.5" /> Load Local MP4
+                                  <input type="file" accept="video/mp4,video/*" className="hidden" onChange={handleChooseLocalVideo} />
+                                </label>
                                 <button
                                   type="button"
                                   onClick={() => handleDownloadVideoFile(activeVideoSrc, sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4')}
