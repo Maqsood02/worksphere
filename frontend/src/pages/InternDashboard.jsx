@@ -9,7 +9,7 @@ import {
   AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play, RefreshCw
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { saveDeliverableVideo, getDeliverableVideo, saveDeliverableFolder, getDeliverableFolder } from '../utils/deliverableStorage';
+import { saveDeliverableVideo, getDeliverableVideo, saveDeliverableFolder, getDeliverableFolder, getEmbeddableVideoInfo } from '../utils/deliverableStorage';
 
 function extractYouTubeVideoId(input) {
   if (!input) return null;
@@ -2701,15 +2701,56 @@ function getAttendanceTimelineAndRate(logs) {
                     )}
 
                     {/* Or Video URL input */}
-                    <div className="space-y-1 pt-1">
-                      <label className="text-[11px] font-bold text-slate-600">Or Paste Video Demo Link (YouTube, Loom, Google Drive):</label>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                          <span>Or Paste Cloud Video Link (Google Drive / YouTube / Loom):</span>
+                        </label>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                          15 GB Cloud Storage
+                        </span>
+                      </div>
+
                       <input
                         type="url"
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
-                        placeholder="https://loom.com/share/... or YouTube / Drive link"
+                        placeholder="https://drive.google.com/file/d/.../view or YouTube / Loom"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-rose-500 text-xs font-normal"
                       />
+
+                      {/* Google Drive Tip Alert */}
+                      <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-2.5 text-[11px] text-emerald-900 flex items-start gap-2">
+                        <span className="text-base shrink-0 leading-none">☁️</span>
+                        <div>
+                          <p className="font-bold text-emerald-950">Recommended for videos &gt;25 MB:</p>
+                          <p className="text-emerald-800 leading-tight">
+                            Upload your screen recording to your Google Drive, set sharing to <strong>"Anyone with the link can view"</strong>, and paste the link above. WorkSphere embeds and plays the video natively for your admin!
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Live Embed Preview for Intern */}
+                      {(() => {
+                        const embed = getEmbeddableVideoInfo(videoUrl);
+                        if (!embed) return null;
+                        return (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                              ✓ Verified {embed.provider} Stream Preview:
+                            </span>
+                            <div className="rounded-xl overflow-hidden bg-black border border-slate-700 shadow-inner h-52 w-full">
+                              <iframe
+                                src={embed.embedUrl}
+                                title={`${embed.provider} Live Preview`}
+                                className="w-full h-full border-0"
+                                allow="autoplay; encrypted-media; fullscreen"
+                                allowFullScreen
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ) : isRevision ? (

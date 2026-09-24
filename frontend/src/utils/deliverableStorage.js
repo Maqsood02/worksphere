@@ -565,3 +565,68 @@ export async function downloadDeliverableVideo(videoSrc, fileName = 'walkthrough
   }
 }
 
+// Universal Cloud Video Parser for Google Drive, YouTube, Loom, Vimeo, and Cloudinary
+export function getEmbeddableVideoInfo(url) {
+  if (!url || typeof url !== 'string') return null;
+  const cleanUrl = url.trim();
+
+  // 1. Google Drive File Preview Embed
+  const gdriveMatch = cleanUrl.match(/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/i);
+  if (gdriveMatch && gdriveMatch[1]) {
+    const fileId = gdriveMatch[1];
+    return {
+      type: 'gdrive',
+      provider: 'Google Drive',
+      fileId,
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      directUrl: `https://drive.google.com/file/d/${fileId}/view`,
+      badgeColor: 'emerald'
+    };
+  }
+
+  // 2. YouTube Embed
+  const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+  if (ytMatch && ytMatch[1]) {
+    const fileId = ytMatch[1];
+    return {
+      type: 'youtube',
+      provider: 'YouTube',
+      fileId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${fileId}?autoplay=0`,
+      directUrl: cleanUrl,
+      badgeColor: 'rose'
+    };
+  }
+
+  // 3. Loom Video Embed
+  const loomMatch = cleanUrl.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9_-]+)/i);
+  if (loomMatch && loomMatch[1]) {
+    const fileId = loomMatch[1];
+    return {
+      type: 'loom',
+      provider: 'Loom',
+      fileId,
+      embedUrl: `https://www.loom.com/embed/${fileId}`,
+      directUrl: cleanUrl,
+      badgeColor: 'indigo'
+    };
+  }
+
+  // 4. Vimeo Embed
+  const vimeoMatch = cleanUrl.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    const fileId = vimeoMatch[1];
+    return {
+      type: 'vimeo',
+      provider: 'Vimeo',
+      fileId,
+      embedUrl: `https://player.vimeo.com/video/${fileId}`,
+      directUrl: cleanUrl,
+      badgeColor: 'sky'
+    };
+  }
+
+  return null;
+}
+
+

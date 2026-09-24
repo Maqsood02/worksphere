@@ -10,7 +10,7 @@ import {
   Video, Image, Folder, CheckSquare, Square, Play, Upload
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { getDeliverableVideo, saveDeliverableVideo, downloadDeliverableVideo, getDeliverableFolder, saveDeliverableFolder } from '../utils/deliverableStorage';
+import { getDeliverableVideo, saveDeliverableVideo, downloadDeliverableVideo, getDeliverableFolder, saveDeliverableFolder, getEmbeddableVideoInfo } from '../utils/deliverableStorage';
 
 export function renderRichFormattedText(text) {
   if (!text) return null;
@@ -133,6 +133,9 @@ export default function AdminDashboard() {
   const [videoError, setVideoError] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [videoBufferProgress, setVideoBufferProgress] = useState(null);
+  const [cloudVideoInput, setCloudVideoInput] = useState('');
+  const [showCloudVideoInput, setShowCloudVideoInput] = useState(false);
+  const [isSavingCloudVideo, setIsSavingCloudVideo] = useState(false);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
   useEffect(() => {
@@ -1320,6 +1323,49 @@ export default function AdminDashboard() {
       return;
     }
     handleDownloadFolderZip(folderDeliverable, task);
+  };
+
+  const handleSaveCloudVideoUrl = async (taskId, url) => {
+    if (!url || !url.trim()) return;
+    const cleanUrl = url.trim();
+    const cleanId = String(taskId || '').trim();
+    try {
+      setIsSavingCloudVideo(true);
+      addToast("Linking cloud video to task...");
+      const res = await fetch('/api/intern-tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: cleanId,
+          taskId: cleanId,
+          videoUrl: cleanUrl,
+          'submittedFiles.video.url': cleanUrl
+        })
+      });
+      if (res.ok) {
+        addToast("Google Drive / Cloud video attached successfully!");
+        setReviewTaskModal(prev => prev ? {
+          ...prev,
+          videoUrl: cleanUrl,
+          submittedFiles: {
+            ...(prev.submittedFiles || {}),
+            video: {
+              ...((prev.submittedFiles && prev.submittedFiles.video) || {}),
+              url: cleanUrl
+            }
+          }
+        } : prev);
+        setShowCloudVideoInput(false);
+        setCloudVideoInput('');
+        setTimeout(() => fetchInternsData(true), 1200);
+      } else {
+        addToast("Failed to link cloud video.");
+      }
+    } catch (e) {
+      addToast("Failed to connect to server.");
+    } finally {
+      setIsSavingCloudVideo(false);
+    }
   };
 
   const handleChooseLocalVideo = (e) => {
@@ -4831,6 +4877,46 @@ export default function AdminDashboard() {
                     )}
 
                     {(() => {
+                      const embedInfo = getEmbeddableVideoInfo(sub.videoDeliverable?.url || sub.rawUrl || reviewTaskModal.videoUrl);
+                      if (embedInfo) {
+                        return (
+                          <div className="space-y-2.5">
+                            <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner h-80 w-full relative">
+                              <iframe
+                                src={embedInfo.embedUrl}
+                                title={`${embedInfo.provider} Video Player`}
+                                className="w-full h-full border-0"
+                                allow="autoplay; encrypted-media; fullscreen"
+                                allowFullScreen
+                              />
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
+                              <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1.5 font-bold">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                ☁️ Streamed from {embedInfo.provider} (Cloud Storage)
+                              </span>
+                              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowCloudVideoInput(prev => !prev)}
+                                  className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                                >
+                                  Change Cloud Link
+                                </button>
+                                <a
+                                  href={embedInfo.directUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-bold text-emerald-300 hover:text-emerald-200 bg-emerald-950/70 border border-emerald-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> Open in {embedInfo.provider} ↗
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const activeVideoSrc = modalVideoBlobUrl || (modalVideoSrc && !modalVideoSrc.startsWith('data:application/octet_stream') ? modalVideoSrc : null);
                       if (activeVideoSrc) {
                         return (
@@ -4869,6 +4955,13 @@ export default function AdminDashboard() {
                                 {sub.videoDeliverable?.name || 'Task 2 Video.mp4'} • {sub.videoDeliverable?.size || '0.50 MB'}
                               </span>
                               <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowCloudVideoInput(prev => !prev)}
+                                  className="text-xs font-bold text-emerald-300 hover:text-emerald-200 bg-emerald-950/70 border border-emerald-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                                >
+                                  ☁️ Attach Google Drive Link
+                                </button>
                                 <label className="text-xs font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-950/70 border border-indigo-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm">
                                   <Upload className="w-3.5 h-3.5" /> Load Local MP4
                                   <input type="file" accept="video/mp4,video/*" className="hidden" onChange={handleChooseLocalVideo} />
@@ -4913,40 +5006,80 @@ export default function AdminDashboard() {
                           <p className="text-xs font-bold text-slate-200">
                             Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4'}</strong> is registered ({sub.videoDeliverable?.size || '0.50 MB'}).
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsVideoLoading(true);
-                              const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-                              getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4', (pct, cur, tot) => {
-                                setVideoBufferProgress({ pct, cur, tot });
-                              }).then(src => {
-                                const finalSrc = src || (keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null));
-                                if (finalSrc) {
-                                  setModalVideoSrc(finalSrc);
-                                  setModalVideoBlobUrl(finalSrc);
-                                }
-                                setIsVideoLoading(false);
-                                setVideoBufferProgress(null);
-                              }).catch(() => {
-                                const fallbackSrc = keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null);
-                                if (fallbackSrc) {
-                                  setModalVideoSrc(fallbackSrc);
-                                  setModalVideoBlobUrl(fallbackSrc);
-                                }
-                                setIsVideoLoading(false);
-                                setVideoBufferProgress(null);
-                              });
-                            }}
-                            className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
-                          >
-                            <Play className="w-4 h-4 fill-current" /> Stream Video from Database
-                          </button>
+                          <div className="flex items-center justify-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsVideoLoading(true);
+                                const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                                getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4', (pct, cur, tot) => {
+                                  setVideoBufferProgress({ pct, cur, tot });
+                                }).then(src => {
+                                  const finalSrc = src || (keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null));
+                                  if (finalSrc) {
+                                    setModalVideoSrc(finalSrc);
+                                    setModalVideoBlobUrl(finalSrc);
+                                  }
+                                  setIsVideoLoading(false);
+                                  setVideoBufferProgress(null);
+                                }).catch(() => {
+                                  const fallbackSrc = keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null);
+                                  if (fallbackSrc) {
+                                    setModalVideoSrc(fallbackSrc);
+                                    setModalVideoBlobUrl(fallbackSrc);
+                                  }
+                                  setIsVideoLoading(false);
+                                  setVideoBufferProgress(null);
+                                });
+                              }}
+                              className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                              <Play className="w-4 h-4 fill-current" /> Stream Video from Database
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowCloudVideoInput(prev => !prev)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                              ☁️ Attach Google Drive Link
+                            </button>
+                          </div>
                         </div>
                       );
                     })()}
 
-                    {sub.videoDeliverable?.url && (
+                    {/* Google Drive / Cloud Link Quick Attach Row */}
+                    {showCloudVideoInput && (
+                      <div className="bg-slate-900 p-3 rounded-xl border border-emerald-800/80 space-y-2 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                            <span>☁️ Attach Google Drive Video Link</span>
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Set sharing to "Anyone with the link can view"
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="url"
+                            value={cloudVideoInput}
+                            onChange={(e) => setCloudVideoInput(e.target.value)}
+                            placeholder="https://drive.google.com/file/d/.../view or YouTube / Loom link"
+                            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500 font-mono"
+                          />
+                          <button
+                            type="button"
+                            disabled={isSavingCloudVideo || !cloudVideoInput.trim()}
+                            onClick={() => handleSaveCloudVideoUrl(reviewTaskModal.taskId || reviewTaskModal.id, cloudVideoInput)}
+                            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl shrink-0 transition-all cursor-pointer active:scale-95"
+                          >
+                            {isSavingCloudVideo ? 'Saving...' : 'Embed Video'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {sub.videoDeliverable?.url && !getEmbeddableVideoInfo(sub.videoDeliverable.url) && (
                       <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <ExternalLink className="w-3.5 h-3.5 text-rose-400 shrink-0" />
