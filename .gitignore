@@ -22,6 +22,8 @@ yarn-debug.log*
 .env
 *.env
 *.local
+*credentials.json
+*service_account.json
 
 # IDE & OS files
 .vscode/

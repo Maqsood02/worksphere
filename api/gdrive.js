@@ -4,15 +4,27 @@ import path from 'path';
 
 let cachedCredentials = null;
 
-// Load credentials from in-memory cache, env vars, MongoDB app_settings, or local JSON file
+// Load credentials from in-memory cache, env vars, MongoDB app_settings, or local JSON files
 export async function getCredentials(db = null) {
   if (cachedCredentials) {
     return cachedCredentials;
   }
 
-  // 1. Try environment variables
+  // 1. Try environment variables (OAuth or Service Account)
+  if (process.env.GDRIVE_REFRESH_TOKEN && process.env.GDRIVE_CLIENT_ID) {
+    cachedCredentials = {
+      type: 'authorized_user',
+      client_id: process.env.GDRIVE_CLIENT_ID,
+      client_secret: process.env.GDRIVE_CLIENT_SECRET,
+      refresh_token: process.env.GDRIVE_REFRESH_TOKEN,
+      folder_id: process.env.GDRIVE_FOLDER_ID || null
+    };
+    return cachedCredentials;
+  }
+
   if (process.env.GDRIVE_CLIENT_EMAIL && process.env.GDRIVE_PRIVATE_KEY) {
     cachedCredentials = {
+      type: 'service_account',
       client_email: process.env.GDRIVE_CLIENT_EMAIL,
       private_key: process.env.GDRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       folder_id: process.env.GDRIVE_FOLDER_ID || null
@@ -24,34 +36,72 @@ export async function getCredentials(db = null) {
   if (db) {
     try {
       const setting = await db.collection('app_settings').findOne({ key: 'gdrive_credentials' });
-      if (setting && setting.client_email && setting.private_key) {
-        cachedCredentials = {
-          client_email: setting.client_email,
-          private_key: setting.private_key.replace(/\\n/g, '\n'),
-          folder_id: setting.folder_id || null
-        };
-        return cachedCredentials;
+      if (setting) {
+        if (setting.refresh_token && setting.client_id) {
+          cachedCredentials = {
+            type: 'authorized_user',
+            client_id: setting.client_id,
+            client_secret: setting.client_secret,
+            refresh_token: setting.refresh_token,
+            folder_id: setting.folder_id || null
+          };
+          return cachedCredentials;
+        }
+        if (setting.client_email && setting.private_key) {
+          cachedCredentials = {
+            type: 'service_account',
+            client_email: setting.client_email,
+            private_key: setting.private_key.replace(/\\n/g, '\n'),
+            folder_id: setting.folder_id || null
+          };
+          return cachedCredentials;
+        }
       }
     } catch (dbErr) {
       console.warn('Could not read gdrive_credentials from MongoDB:', dbErr.message);
     }
   }
 
-  // 3. Try service_account.json in root, api, or current working directory
-  const possiblePaths = [
+  // 3. Try local oauth_credentials.json (User 15 GB account)
+  const oauthPaths = [
+    path.resolve(process.cwd(), 'oauth_credentials.json'),
+    path.resolve(process.cwd(), 'api/oauth_credentials.json')
+  ];
+  for (const p of oauthPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const raw = fs.readFileSync(p, 'utf8');
+        const json = JSON.parse(raw);
+        if (json.refresh_token && json.client_id) {
+          cachedCredentials = {
+            type: 'authorized_user',
+            client_id: json.client_id,
+            client_secret: json.client_secret,
+            refresh_token: json.refresh_token,
+            folder_id: json.folder_id || null
+          };
+          return cachedCredentials;
+        }
+      } catch (e) {
+        console.warn('Failed to parse oauth_credentials.json at:', p, e.message);
+      }
+    }
+  }
+
+  // 4. Try service_account.json
+  const serviceAccountPaths = [
     path.resolve(process.cwd(), 'service_account.json'),
     path.resolve(process.cwd(), 'credentials.json'),
-    path.resolve(process.cwd(), 'api/service_account.json'),
-    path.resolve(process.cwd(), 'backend/service_account.json')
+    path.resolve(process.cwd(), 'api/service_account.json')
   ];
-
-  for (const p of possiblePaths) {
+  for (const p of serviceAccountPaths) {
     if (fs.existsSync(p)) {
       try {
         const raw = fs.readFileSync(p, 'utf8');
         const json = JSON.parse(raw);
         if (json.client_email && json.private_key) {
           cachedCredentials = {
+            type: 'service_account',
             client_email: json.client_email,
             private_key: json.private_key,
             folder_id: process.env.GDRIVE_FOLDER_ID || json.folder_id || null
@@ -69,100 +119,48 @@ export async function getCredentials(db = null) {
 
 export async function isGoogleDriveConfigured(db = null) {
   const creds = await getCredentials(db);
-  return Boolean(creds && creds.client_email && creds.private_key);
+  if (!creds) return false;
+  return Boolean(
+    (creds.client_id && creds.refresh_token) || 
+    (creds.client_email && creds.private_key)
+  );
 }
 
 export async function getGoogleDriveAuth(db = null) {
   const creds = await getCredentials(db);
   if (!creds) return null;
 
-  return new google.auth.JWT({
-    email: creds.client_email,
-    key: creds.private_key,
-    scopes: ['https://www.googleapis.com/auth/drive']
-  });
-}
-
-// Verify that credentials can successfully obtain an access token and communicate with Google Drive
-export async function verifyGoogleDriveCredentials(creds) {
-  if (!creds || !creds.client_email || !creds.private_key) {
-    return { valid: false, error: 'Missing client_email or private_key in credentials.' };
+  // Option 1: OAuth 2.0 User (Consumes user's 15 GB quota without limit issues)
+  if (creds.client_id && creds.client_secret && creds.refresh_token) {
+    const oauth2Client = new google.auth.OAuth2(
+      creds.client_id,
+      creds.client_secret,
+      'http://127.0.0.1:54321'
+    );
+    oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
+    return oauth2Client;
   }
 
-  try {
-    const auth = new google.auth.JWT({
+  // Option 2: Service Account JWT
+  if (creds.client_email && creds.private_key) {
+    return new google.auth.JWT({
       email: creds.client_email,
-      key: creds.private_key.replace(/\\n/g, '\n'),
+      key: creds.private_key,
       scopes: ['https://www.googleapis.com/auth/drive']
     });
-
-    const tokenRes = await auth.authorize();
-    if (!tokenRes || !tokenRes.access_token) {
-      return { valid: false, error: 'Google did not grant an access token. Check private key format.' };
-    }
-
-    const drive = google.drive({ version: 'v3', auth });
-    const about = await drive.about.get({ fields: 'user, storageQuota' });
-
-    return {
-      valid: true,
-      client_email: creds.client_email,
-      user: about.data.user,
-      storageQuota: about.data.storageQuota
-    };
-  } catch (err) {
-    return { valid: false, error: err.message };
-  }
-}
-
-// Save credentials to MongoDB and locally, verifying first
-export async function saveGoogleDriveCredentials(newCreds, db = null) {
-  const verification = await verifyGoogleDriveCredentials(newCreds);
-  if (!verification.valid) {
-    throw new Error(`Google Drive verification failed: ${verification.error}`);
   }
 
-  const payload = {
-    key: 'gdrive_credentials',
-    client_email: newCreds.client_email,
-    private_key: newCreds.private_key.replace(/\\n/g, '\n'),
-    folder_id: newCreds.folder_id || null,
-    updatedAt: new Date()
-  };
-
-  if (db) {
-    await db.collection('app_settings').updateOne(
-      { key: 'gdrive_credentials' },
-      { $set: payload },
-      { upsert: true }
-    );
-  }
-
-  try {
-    const targetPath = path.resolve(process.cwd(), 'service_account.json');
-    fs.writeFileSync(targetPath, JSON.stringify(newCreds, null, 2), 'utf8');
-  } catch (fsErr) {
-    // Non-fatal if filesystem is read-only (e.g. Vercel serverless)
-  }
-
-  cachedCredentials = {
-    client_email: payload.client_email,
-    private_key: payload.private_key,
-    folder_id: payload.folder_id
-  };
-
-  return { success: true, client_email: payload.client_email };
+  return null;
 }
 
 // 1. Initiate a Resumable Upload directly from browser to Google Drive
 export async function createResumableUploadUrl({ fileName, mimeType, fileSize, customFolderId, origin, db = null }) {
   const creds = await getCredentials(db);
   if (!creds) {
-    throw new Error('Google Drive Service Account is not configured. Please supply service_account.json, env vars, or configure in Admin settings.');
+    throw new Error('Google Drive is not configured. Please connect Google Drive in Admin settings.');
   }
 
-  const auth = await getGoogleDriveAuth(db);
-  const authClient = await auth.getClient();
+  const authClient = await getGoogleDriveAuth(db);
   const folderId = customFolderId || creds.folder_id;
 
   const metadata = {
@@ -183,12 +181,15 @@ export async function createResumableUploadUrl({ fileName, mimeType, fileSize, c
 
   const response = await authClient.request({
     method: 'POST',
-    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
     headers: reqHeaders,
     data: metadata
   });
 
-  const uploadUrl = response.headers.location;
+  const uploadUrl = response.headers?.location || 
+                    response.headers?.['location'] || 
+                    (response.headers?.get ? response.headers.get('location') : null);
+
   if (!uploadUrl) {
     throw new Error('Google Drive did not return a resumable upload location header.');
   }
@@ -200,7 +201,7 @@ export async function createResumableUploadUrl({ fileName, mimeType, fileSize, c
 export async function finalizeDriveFile(fileId, db = null) {
   const auth = await getGoogleDriveAuth(db);
   if (!auth) {
-    throw new Error('Google Drive Service Account not configured');
+    throw new Error('Google Drive credentials not available');
   }
 
   const drive = google.drive({ version: 'v3', auth });
@@ -209,6 +210,7 @@ export async function finalizeDriveFile(fileId, db = null) {
   try {
     await drive.permissions.create({
       fileId,
+      supportsAllDrives: true,
       requestBody: {
         role: 'reader',
         type: 'anyone'
@@ -221,6 +223,7 @@ export async function finalizeDriveFile(fileId, db = null) {
   // Get web links
   const fileRes = await drive.files.get({
     fileId,
+    supportsAllDrives: true,
     fields: 'id, name, mimeType, size, webViewLink, webContentLink'
   });
 
