@@ -126,6 +126,71 @@ export async function isGoogleDriveConfigured(db = null) {
   );
 }
 
+// Verify that credentials can successfully obtain an access token and communicate with Google Drive
+export async function verifyGoogleDriveCredentials(creds) {
+  if (!creds) {
+    return { valid: false, error: 'No credentials provided.' };
+  }
+
+  try {
+    let auth = null;
+    if (creds.refresh_token && creds.client_id) {
+      const oauth2Client = new google.auth.OAuth2(
+        creds.client_id,
+        creds.client_secret,
+        'http://127.0.0.1:54321'
+      );
+      oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
+      auth = oauth2Client;
+    } else if (creds.client_email && creds.private_key) {
+      auth = new google.auth.JWT({
+        email: creds.client_email,
+        key: creds.private_key.replace(/\\n/g, '\n'),
+        scopes: ['https://www.googleapis.com/auth/drive']
+      });
+    } else {
+      return { valid: false, error: 'Invalid credentials payload: missing OAuth or Service Account keys.' };
+    }
+
+    const drive = google.drive({ version: 'v3', auth });
+    const about = await drive.about.get({ fields: 'user, storageQuota' });
+
+    return {
+      valid: true,
+      user: about.data.user,
+      storageQuota: about.data.storageQuota,
+      client_email: creds.client_email || about.data.user?.emailAddress
+    };
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
+}
+
+// Save credentials to MongoDB app_settings and in-memory cache
+export async function saveGoogleDriveCredentials(newCreds, db = null) {
+  const verification = await verifyGoogleDriveCredentials(newCreds);
+  if (!verification.valid) {
+    throw new Error(`Google Drive verification failed: ${verification.error}`);
+  }
+
+  const payload = {
+    key: 'gdrive_credentials',
+    ...newCreds,
+    updatedAt: new Date()
+  };
+
+  if (db) {
+    await db.collection('app_settings').updateOne(
+      { key: 'gdrive_credentials' },
+      { $set: payload },
+      { upsert: true }
+    );
+  }
+
+  cachedCredentials = null; // Invalidate cache so it reloads
+  return { success: true, client_email: verification.client_email || newCreds.client_email };
+}
+
 export async function getGoogleDriveAuth(db = null) {
   const creds = await getCredentials(db);
   if (!creds) return null;

@@ -95,7 +95,9 @@ export default function AdminDashboard() {
       const s = localStorage.getItem('worksphere_cached_intern_tasks');
       if (s) {
         const p = JSON.parse(s);
-        if (Array.isArray(p) && p.length > 0) return p;
+        if (Array.isArray(p) && p.length > 0) {
+          return p.filter(t => !['TSK-101', 'TSK-102', 'TSK-103', 'TSK-104'].includes((t.taskId || t.id || '').toUpperCase()));
+        }
       }
     } catch (e) {}
     return [];
@@ -333,6 +335,11 @@ export default function AdminDashboard() {
     // Ensure any legacy deleted tasks blacklist is purged so all active tasks from DB display
     try {
       localStorage.removeItem('worksphere_deleted_tasks');
+      const cached = localStorage.getItem('worksphere_cached_intern_tasks');
+      if (cached && (cached.includes('TSK-101') || cached.includes('TSK-102') || cached.includes('JWT Refresh Token Rotation'))) {
+        localStorage.removeItem('worksphere_cached_intern_tasks');
+        setAllInternTasks(prev => prev.filter(t => !['TSK-101', 'TSK-102', 'TSK-103', 'TSK-104'].includes((t.taskId || t.id || '').toUpperCase())));
+      }
     } catch (e) {}
 
     // Parallel fetch for lightning-fast concurrent data sync
@@ -678,7 +685,9 @@ export default function AdminDashboard() {
         } catch (e) {}
       }
 
-      const normalizedTasks = rawTasks.map(t => ({
+      const normalizedTasks = rawTasks
+        .filter(t => !['TSK-101', 'TSK-102', 'TSK-103', 'TSK-104'].includes((t.taskId || t.id || '').toUpperCase()))
+        .map(t => ({
         ...t,
         id: t.taskId || t.id || t._id,
         taskId: t.taskId || t.id || t._id,
