@@ -278,6 +278,25 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
 
   // If single chunk with data directly attached (small files)
   if (manifest.data && manifest.totalChunks === 1) {
+    if (typeof manifest.data === 'string' && manifest.data.startsWith('data:')) {
+      try {
+        const base64Index = manifest.data.indexOf(',');
+        const rawBase64 = base64Index >= 0 ? manifest.data.substring(base64Index + 1) : manifest.data;
+        const binaryString = atob(rawBase64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let j = 0; j < len; j++) {
+          bytes[j] = binaryString.charCodeAt(j);
+        }
+        const mime = assetType === 'folder' ? 'application/zip' : 'video/mp4';
+        const blob = new Blob([bytes], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        saveDeliverableAsset(cleanId, assetType, blob).catch(() => {});
+        return blobUrl;
+      } catch (e) {
+        return manifest.data;
+      }
+    }
     return manifest.data;
   }
 
@@ -340,7 +359,8 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
       byteArrays.push(bytes);
     }
 
-    const combinedBlob = new Blob(byteArrays, { type: 'video/mp4' });
+    const mime = assetType === 'folder' ? 'application/zip' : 'video/mp4';
+    const combinedBlob = new Blob(byteArrays, { type: mime });
     const blobUrl = URL.createObjectURL(combinedBlob);
 
     // Also store binary Blob into IndexedDB for instant 0ms retrieval next time
