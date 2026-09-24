@@ -10,7 +10,7 @@ import {
   Video, Image, Folder, CheckSquare, Square, Play, Upload
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { getDeliverableVideo, saveDeliverableVideo, downloadDeliverableVideo, getDeliverableFolder, saveDeliverableFolder, getEmbeddableVideoInfo } from '../utils/deliverableStorage';
+import { getDeliverableVideo, saveDeliverableVideo, downloadDeliverableVideo, getDeliverableFolder, saveDeliverableFolder, getEmbeddableVideoInfo, checkGoogleDriveConfigured } from '../utils/deliverableStorage';
 
 export function renderRichFormattedText(text) {
   if (!text) return null;
@@ -136,6 +136,25 @@ export default function AdminDashboard() {
   const [cloudVideoInput, setCloudVideoInput] = useState('');
   const [showCloudVideoInput, setShowCloudVideoInput] = useState(false);
   const [isSavingCloudVideo, setIsSavingCloudVideo] = useState(false);
+
+  // Google Drive Automated Cloud Storage State
+  const [gdriveConfig, setGdriveConfig] = useState({ configured: false, client_email: null, folder_id: null });
+  const [showGdriveModal, setShowGdriveModal] = useState(false);
+  const [gdriveJsonInput, setGdriveJsonInput] = useState('');
+  const [isSavingGdrive, setIsSavingGdrive] = useState(false);
+
+  const fetchGdriveStatus = async () => {
+    try {
+      const data = await checkGoogleDriveConfigured();
+      if (data) {
+        setGdriveConfig(data);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchGdriveStatus();
+  }, []);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
   useEffect(() => {
@@ -1263,7 +1282,14 @@ export default function AdminDashboard() {
     const reportFileName = folderDeliverable?.name || 'Project_Code_Folder.zip';
     const keyId = task?.taskId || task?.id;
 
-    // 1. If direct binary Data URL
+    // 1. Web URL (Google Drive / GitHub)
+    if (folderDeliverable?.url && !folderDeliverable.url.startsWith('data:')) {
+      window.open(folderDeliverable.url, '_blank');
+      addToast(`Opening project archive from cloud: ${reportFileName}`);
+      return;
+    }
+
+    // 2. If direct binary Data URL
     if (folderDeliverable?.data && folderDeliverable.data.startsWith('data:')) {
       const blob = dataUrlToBlob(folderDeliverable.data);
       if (blob) {
@@ -1280,7 +1306,7 @@ export default function AdminDashboard() {
       }
     }
 
-    // 2. Fetch from cloud storage / IndexedDB
+    // 3. Fetch from cloud storage / IndexedDB
     addToast(`Retrieving ${reportFileName} from storage...`);
     try {
       const folderSrc = await getDeliverableFolder(keyId, reportFileName);
@@ -1296,7 +1322,7 @@ export default function AdminDashboard() {
       }
     } catch (e) {}
 
-    // 3. Static fallback for verified demo archives
+    // 4. Static fallback for verified demo archives
     if (keyId === 'TSK-003' || reportFileName.includes('Project_Code_Folder')) {
       const a = document.createElement('a');
       a.href = '/Project_Code_Folder.zip';
@@ -1305,12 +1331,6 @@ export default function AdminDashboard() {
       a.click();
       document.body.removeChild(a);
       addToast(`Downloading deliverable project archive: ${reportFileName}`);
-      return;
-    }
-
-    // 4. Web URL (GitHub / Drive)
-    if (folderDeliverable?.url) {
-      window.open(folderDeliverable.url, '_blank');
       return;
     }
 
@@ -1323,6 +1343,63 @@ export default function AdminDashboard() {
       return;
     }
     handleDownloadFolderZip(folderDeliverable, task);
+  };
+
+  const handleSaveGdriveConfig = async (e) => {
+    e?.preventDefault();
+    if (!gdriveJsonInput.trim()) {
+      addToast("Please paste service account JSON content or upload the JSON file.");
+      return;
+    }
+
+    try {
+      let parsed = JSON.parse(gdriveJsonInput.trim());
+      if (!parsed.client_email || !parsed.private_key) {
+        addToast("Invalid JSON: 'client_email' and 'private_key' are required fields.");
+        return;
+      }
+
+      setIsSavingGdrive(true);
+      addToast("Verifying credentials with Google Drive API...");
+
+      const res = await fetch('/api/drive-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'configure',
+          credentials: {
+            client_email: parsed.client_email,
+            private_key: parsed.private_key,
+            folder_id: parsed.folder_id || null
+          }
+        })
+      });
+
+      const result = await res.json();
+      if (res.ok && result.success) {
+        addToast(`✓ ${result.message || 'Google Drive connected successfully!'}`);
+        setShowGdriveModal(false);
+        setGdriveJsonInput('');
+        fetchGdriveStatus();
+      } else {
+        addToast(`Connection error: ${result.message || 'Verification failed'}`);
+      }
+    } catch (parseErr) {
+      addToast("Failed to parse JSON. Please ensure valid JSON formatting.");
+    } finally {
+      setIsSavingGdrive(false);
+    }
+  };
+
+  const handleUploadGdriveJsonFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setGdriveJsonInput(event.target.result);
+      addToast(`Loaded credentials from ${file.name}`);
+    };
+    reader.readAsText(file);
   };
 
   const handleSaveCloudVideoUrl = async (taskId, url) => {
@@ -2674,6 +2751,20 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap shrink-0">
+                  <button
+                    onClick={() => setShowGdriveModal(true)}
+                    className={`font-bold text-xs px-3.5 py-2.5 rounded-xl border flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
+                      gdriveConfig.configured 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                        : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                    }`}
+                    title="Google Drive Automated Cloud Storage (15 GB free direct streaming)"
+                  >
+                    <span className="text-sm leading-none">☁️</span>
+                    <span>{gdriveConfig.configured ? 'Google Drive Active' : 'Connect Google Drive'}</span>
+                    <span className={`w-2 h-2 rounded-full ${gdriveConfig.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  </button>
+
                   <button
                     onClick={handleScanDeadlineReminders}
                     disabled={isScanningDeadlines}
@@ -5723,6 +5814,120 @@ export default function AdminDashboard() {
           </div>
         );
       })()}
+
+      {/* Google Drive Automated Cloud Storage Setup Modal */}
+      {showGdriveModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
+                  <span className="text-xl">☁️</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">
+                      Free 15 GB Cloud Storage
+                    </span>
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                      gdriveConfig.configured ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200'
+                    }`}>
+                      {gdriveConfig.configured ? 'Active' : 'Not Connected'}
+                    </span>
+                  </div>
+                  <h3 className="font-poppins font-extrabold text-lg text-slate-900 mt-0.5">
+                    Google Drive Automated Cloud Storage
+                  </h3>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowGdriveModal(false)} 
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status & Overview Box */}
+            <div className={`rounded-2xl p-4 border space-y-2 ${
+              gdriveConfig.configured ? 'bg-emerald-50/60 border-emerald-200' : 'bg-amber-50/60 border-amber-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${gdriveConfig.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span className="text-xs font-extrabold text-slate-900">
+                  {gdriveConfig.configured 
+                    ? `Connected Account: ${gdriveConfig.client_email}`
+                    : 'Awaiting Service Account Connection'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                When active, all screen recording MP4 videos and project ZIP folders uploaded by interns on the Intern Portal are uploaded directly to Google Drive, and streamed natively inside your review dashboard with zero server quota usage.
+              </p>
+            </div>
+
+            {/* Quick 3-Step Setup Guide */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2.5">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">
+                Quick 3-Step Setup Guide:
+              </span>
+              <ol className="text-xs text-slate-600 space-y-1.5 list-decimal pl-4 leading-normal">
+                <li>Go to <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold hover:underline">Google Cloud Console ↗</a> and click <strong>Enable Google Drive API</strong>.</li>
+                <li>Go to <strong>IAM & Admin ➔ Service Accounts</strong> ➔ Click <strong>Create Service Account</strong> ➔ Click <strong>Keys ➔ Add Key (JSON)</strong>.</li>
+                <li>Upload or paste the downloaded JSON key file below, then click <strong>Verify & Connect</strong>.</li>
+              </ol>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveGdriveConfig} className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-slate-800">
+                    Service Account JSON Credentials
+                  </label>
+                  <label className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload service_account.json</span>
+                    <input 
+                      type="file" 
+                      accept=".json,application/json" 
+                      onChange={handleUploadGdriveJsonFile} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+                <textarea
+                  value={gdriveJsonInput}
+                  onChange={(e) => setGdriveJsonInput(e.target.value)}
+                  placeholder={`{\n  "type": "service_account",\n  "client_email": "your-service-account@project.iam.gserviceaccount.com",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\n..."\n}`}
+                  rows={6}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-[11px] text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowGdriveModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingGdrive || !gdriveJsonInput.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSavingGdrive ? 'animate-spin' : ''}`} />
+                  <span>{isSavingGdrive ? 'Verifying & Saving...' : 'Verify & Connect Google Drive'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Celebration Success Modal with Right Mark & Audio Chime */}
       {successModalData && (

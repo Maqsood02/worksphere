@@ -901,14 +901,20 @@ function getAttendanceTimelineAndRate(logs) {
       const uKey = (user?.username || 'intern').toLowerCase();
       const keyId = selectedTask.id || selectedTask.taskId;
 
-      // 1. If video is present, slice and upload chunks to MongoDB database
+      let resolvedVideoUrl = (videoUrl || '').trim();
+      let resolvedFolderUrl = (folderUrl || '').trim();
+
+      // 1. If video is present, upload directly to Google Drive (with zero server quota footprint)
       if (videoRawFile || videoFileData) {
         try {
           if (videoRawFile) {
-            setVideoUploadProgress({ pct: 0, cur: 0, tot: 1 });
-            await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
-              setVideoUploadProgress({ pct, cur, tot });
+            setVideoUploadProgress({ pct: 0, cur: 0, tot: videoRawFile.size, provider: 'Google Drive' });
+            const vRes = await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot, provider) => {
+              setVideoUploadProgress({ pct, cur, tot, provider: provider || 'Google Drive' });
             });
+            if (vRes?.isDrive && vRes.file?.webViewLink) {
+              resolvedVideoUrl = vRes.file.webViewLink;
+            }
             setVideoUploadProgress(null);
           } else if (videoFileData && !videoFileData.startsWith('blob:')) {
             await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
@@ -919,11 +925,14 @@ function getAttendanceTimelineAndRate(logs) {
         }
       }
 
-      // 1B. If folder is present, save chunks safely to database
+      // 1B. If folder is present, upload directly to Google Drive (or safe fallback)
       if (folderRawFile || folderFileData) {
         try {
           if (folderRawFile) {
-            await saveDeliverableFolder(keyId, folderRawFile, { name: folderFileName, size: folderFileSize });
+            const fRes = await saveDeliverableFolder(keyId, folderRawFile, { name: folderFileName, size: folderFileSize });
+            if (fRes?.isDrive && fRes.file?.webViewLink) {
+              resolvedFolderUrl = fRes.file.webViewLink;
+            }
           } else if (folderFileData && !folderFileData.startsWith('blob:')) {
             await saveDeliverableFolder(keyId, folderFileData, { name: folderFileName, size: folderFileSize });
           }
@@ -937,13 +946,13 @@ function getAttendanceTimelineAndRate(logs) {
       const safeFolderData = (folderFileData && folderFileData.length < 1000000) ? folderFileData : '';
 
       const submittedFiles = {
-        video: (videoFileName || videoUrl || videoFileData || videoRawFile) ? {
+        video: (videoFileName || resolvedVideoUrl || videoFileData || videoRawFile) ? {
           name: videoFileName || 'Demo Video',
           size: videoFileSize,
           type: videoFileType || 'video/mp4',
           data: safeVideoData,
-          url: videoUrl,
-          hasFullVideo: Boolean(videoFileData || videoRawFile)
+          url: resolvedVideoUrl,
+          hasFullVideo: true
         } : null,
         pdf: pdfFileName ? {
           name: pdfFileName,
@@ -951,12 +960,12 @@ function getAttendanceTimelineAndRate(logs) {
           type: pdfFileType || 'application/pdf',
           data: pdfFileData
         } : null,
-        folder: (folderFileName || folderUrl || submissionUrl) ? {
+        folder: (folderFileName || resolvedFolderUrl || submissionUrl) ? {
           name: folderFileName || 'Project_Folder.zip',
           size: folderFileSize,
           type: folderFileType || 'application/zip',
           data: safeFolderData,
-          url: folderUrl || submissionUrl
+          url: resolvedFolderUrl || submissionUrl
         } : null,
         images: imagesList || []
       };
@@ -971,7 +980,7 @@ function getAttendanceTimelineAndRate(logs) {
         ? { name: imagesList[0].name, size: imagesList[0].size, type: imagesList[0].type, data: imagesList[0].data }
         : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: uploadedFileData };
 
-      const finalSubmissionUrl = (folderUrl || videoUrl || submissionUrl || '').trim();
+      const finalSubmissionUrl = (resolvedFolderUrl || resolvedVideoUrl || submissionUrl || '').trim();
 
       // Save file data to localStorage for instant admin inspection & download
       try {
@@ -1001,7 +1010,7 @@ function getAttendanceTimelineAndRate(logs) {
               fileType: primaryFile.type,
               fileData: primaryFile.data,
               submittedFiles,
-              videoUrl: videoUrl || ''
+              videoUrl: resolvedVideoUrl || ''
             };
           }
           return t;
@@ -1029,7 +1038,7 @@ function getAttendanceTimelineAndRate(logs) {
         fileType: primaryFile.type,
         fileData: primaryFile.data,
         submittedFiles,
-        videoUrl: videoUrl || ''
+        videoUrl: resolvedVideoUrl || ''
       };
 
       try {
@@ -1063,7 +1072,7 @@ function getAttendanceTimelineAndRate(logs) {
         fileType: primaryFile.type,
         fileData: primaryFile.data,
         submittedFiles,
-        videoUrl: videoUrl || ''
+        videoUrl: resolvedVideoUrl || ''
       });
 
       // Play pleasant audio chime and trigger success right mark modal
@@ -2674,21 +2683,25 @@ function getAttendanceTimelineAndRate(logs) {
                       )}
                     </div>
 
-                    {/* Upload to Database Progress Banner */}
+                    {/* Upload to Cloud Drive Progress Banner */}
                     {videoUploadProgress && (
-                      <div className="bg-rose-950 text-white p-3.5 rounded-xl space-y-2 shadow-lg border border-rose-800 animate-pulse">
+                      <div className="bg-slate-950 text-white p-3.5 rounded-xl space-y-2 shadow-lg border border-slate-800 animate-pulse">
                         <div className="flex justify-between items-center text-xs font-bold">
                           <span className="flex items-center gap-1.5">
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
-                            Saving Video Deliverable to Database...
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                            {videoUploadProgress.provider === 'Google Drive'
+                              ? '☁️ Storing Video directly in Google Drive Cloud...'
+                              : 'Saving Video Deliverable...'}
                           </span>
-                          <span className="font-mono text-rose-300">{videoUploadProgress.pct}%</span>
+                          <span className="font-mono text-emerald-300">{videoUploadProgress.pct}%</span>
                         </div>
-                        <div className="w-full bg-rose-900/50 rounded-full h-2 overflow-hidden">
-                          <div className="bg-rose-500 h-2 transition-all duration-200 rounded-full" style={{ width: `${videoUploadProgress.pct}%` }} />
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                          <div className="bg-emerald-500 h-2 transition-all duration-200 rounded-full" style={{ width: `${videoUploadProgress.pct}%` }} />
                         </div>
-                        <p className="text-[10px] text-rose-300/80 font-mono text-left">
-                          Storing chunk {videoUploadProgress.cur} of {videoUploadProgress.tot} in MongoDB. Please do not close this window.
+                        <p className="text-[10px] text-slate-300 font-mono text-left">
+                          {videoUploadProgress.provider === 'Google Drive'
+                            ? `Uploading directly to Google Drive. Admin will stream directly from Drive player.`
+                            : `Storing chunk ${videoUploadProgress.cur} of ${videoUploadProgress.tot}. Please do not close this window.`}
                         </p>
                       </div>
                     )}
@@ -2700,15 +2713,26 @@ function getAttendanceTimelineAndRate(logs) {
                       </div>
                     )}
 
-                    {/* Or Video URL input */}
+                    {/* Automated Google Drive Cloud Storage Notification */}
+                    <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-xl p-3 text-[11px] text-emerald-900 flex items-start gap-2.5">
+                      <span className="text-base shrink-0 leading-none">☁️</span>
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          Direct Google Drive Cloud Storage Active
+                          <span className="bg-emerald-200/70 text-emerald-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase">Auto-Sync</span>
+                        </p>
+                        <p className="text-emerald-800 leading-normal">
+                          When you attach your MP4/WebM video or ZIP folder above and click Submit, WorkSphere automatically stores it in Google Drive and streams it live inside your Admin's review dashboard.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Optional existing link */}
                     <div className="space-y-2 pt-1">
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                          <span>Or Paste Cloud Video Link (Google Drive / YouTube / Loom):</span>
+                          <span>Optional: Or paste existing link (Google Drive / YouTube / Loom):</span>
                         </label>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                          15 GB Cloud Storage
-                        </span>
                       </div>
 
                       <input
@@ -2718,17 +2742,6 @@ function getAttendanceTimelineAndRate(logs) {
                         placeholder="https://drive.google.com/file/d/.../view or YouTube / Loom"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-rose-500 text-xs font-normal"
                       />
-
-                      {/* Google Drive Tip Alert */}
-                      <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-2.5 text-[11px] text-emerald-900 flex items-start gap-2">
-                        <span className="text-base shrink-0 leading-none">☁️</span>
-                        <div>
-                          <p className="font-bold text-emerald-950">Recommended for videos &gt;25 MB:</p>
-                          <p className="text-emerald-800 leading-tight">
-                            Upload your screen recording to your Google Drive, set sharing to <strong>"Anyone with the link can view"</strong>, and paste the link above. WorkSphere embeds and plays the video natively for your admin!
-                          </p>
-                        </div>
-                      </div>
 
                       {/* Live Embed Preview for Intern */}
                       {(() => {

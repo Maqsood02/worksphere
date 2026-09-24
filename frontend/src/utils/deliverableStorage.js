@@ -373,19 +373,161 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
   }
 }
 
+// ==========================================
+// DIRECT GOOGLE DRIVE RESUMABLE UPLOADER (0MB Server Footprint, Free 15GB Cloud)
+// ==========================================
+export async function checkGoogleDriveConfigured() {
+  try {
+    const endpoints = ['/api/drive-upload', 'https://worksphere-two.vercel.app/api/drive-upload'];
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          return json;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {}
+  return { configured: false };
+}
+
+export async function uploadToGoogleDriveDirect(fileOrBlob, taskId, assetType = 'video', metadata = {}, onProgress = null) {
+  if (!fileOrBlob) return null;
+  const fileName = metadata.name || fileOrBlob.name || (assetType === 'video' ? 'walkthrough.mp4' : 'project_archive.zip');
+  const mimeType = fileOrBlob.type || (assetType === 'video' ? 'video/mp4' : 'application/zip');
+  const fileSize = fileOrBlob.size || 0;
+
+  const endpoints = ['/api/drive-upload', 'https://worksphere-two.vercel.app/api/drive-upload'];
+
+  // 1. INITIATE RESUMABLE UPLOAD SESSION WITH GOOGLE DRIVE
+  let initiateData = null;
+  let activeApiBase = '/api/drive-upload';
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'initiate',
+          fileName,
+          mimeType,
+          fileSize,
+          taskId,
+          assetType
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.configured === false || json.fallbackToChunked) {
+          return null; // Gracefully fall back if Drive is not configured
+        }
+        if (json.success && json.uploadUrl) {
+          initiateData = json;
+          activeApiBase = url;
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!initiateData || !initiateData.uploadUrl) {
+    return null;
+  }
+
+  // 2. STREAM DIRECT TO GOOGLE DRIVE VIA XHR (for accurate byte-by-byte progress)
+  const fileId = await new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', initiateData.uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', mimeType);
+
+    if (xhr.upload && typeof onProgress === 'function') {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          onProgress({ pct, loaded: e.loaded, total: e.total, provider: 'Google Drive' });
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        try {
+          const resObj = JSON.parse(xhr.responseText);
+          resolve(resObj.id);
+        } catch (e) {
+          resolve(null);
+        }
+      } else {
+        console.warn('Google Drive direct upload responded with HTTP:', xhr.status, xhr.responseText);
+        resolve(null);
+      }
+    };
+
+    xhr.onerror = () => {
+      console.warn('Google Drive XHR network error');
+      resolve(null);
+    };
+
+    xhr.send(fileOrBlob);
+  });
+
+  if (!fileId) {
+    return null;
+  }
+
+  // 3. FINALIZE (Set public permission and save URL to task in MongoDB)
+  try {
+    const completeRes = await fetch(activeApiBase, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'complete',
+        fileId,
+        taskId,
+        assetType,
+        fileName,
+        fileSize
+      })
+    });
+    if (completeRes.ok) {
+      const resJson = await completeRes.json();
+      return resJson.file || { fileId, webViewLink: `https://drive.google.com/file/d/${fileId}/view` };
+    }
+  } catch (compErr) {
+    console.warn('Failed to finalize drive file:', compErr);
+  }
+
+  return { fileId, webViewLink: `https://drive.google.com/file/d/${fileId}/view` };
+}
+
 export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, onProgress = null) {
   if (!videoSource) return false;
   const cleanId = String(taskId || 'latest').trim();
   const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
 
-// A. If videoSource is a File or Blob (Memory-safe for 100MB - 500MB)
+  // A. If videoSource is a File or Blob (Memory-safe for 100MB - 500MB)
   if (typeof Blob !== 'undefined' && videoSource instanceof Blob) {
     // Save raw Blob directly to IndexedDB locally without converting to base64 RAM
     for (const k of aliasKeys) {
       saveDeliverableAsset(k, 'video', videoSource).catch(() => {});
     }
 
-    // Upload chunks safely using File.slice
+    // 1. Attempt Automated Direct-to-Google Drive Upload first!
+    try {
+      const driveFile = await uploadToGoogleDriveDirect(videoSource, cleanId, 'video', metadata, (prog) => {
+        if (typeof onProgress === 'function') {
+          onProgress(prog.pct, prog.loaded, prog.total, 'Google Drive');
+        }
+      });
+      if (driveFile && (driveFile.webViewLink || driveFile.fileId)) {
+        return { success: true, isDrive: true, file: driveFile };
+      }
+    } catch (gErr) {
+      console.warn('Google Drive direct upload notice:', gErr);
+    }
+
+    // 2. Fallback to MongoDB Atlas chunked upload if Drive is not configured
     try {
       await uploadFileChunks(videoSource, cleanId, 'video', metadata, onProgress);
     } catch (err) {
@@ -403,7 +545,10 @@ export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, o
     // Convert data URL to Blob for slice chunking
     const res = await fetch(videoSource);
     const blob = await res.blob();
-    await uploadFileChunks(blob, cleanId, 'video', metadata, onProgress);
+    const driveFile = await uploadToGoogleDriveDirect(blob, cleanId, 'video', metadata, onProgress);
+    if (!driveFile) {
+      await uploadFileChunks(blob, cleanId, 'video', metadata, onProgress);
+    }
   } catch (err) {
     console.warn('Cloud video sync error:', err);
   }
@@ -472,6 +617,20 @@ export async function saveDeliverableFolder(taskId, folderSource, metadata = {},
     for (const k of aliasKeys) {
       saveDeliverableAsset(k, 'folder', folderSource).catch(() => {});
     }
+    // 1. Attempt Automated Direct-to-Google Drive Upload first!
+    try {
+      const driveFile = await uploadToGoogleDriveDirect(folderSource, cleanId, 'folder', metadata, (prog) => {
+        if (typeof onProgress === 'function') {
+          onProgress(prog.pct, prog.loaded, prog.total, 'Google Drive');
+        }
+      });
+      if (driveFile && (driveFile.webViewLink || driveFile.fileId)) {
+        return { success: true, isDrive: true, file: driveFile };
+      }
+    } catch (gErr) {
+      console.warn('Google Drive direct folder upload notice:', gErr);
+    }
+
     try {
       await uploadFileChunks(folderSource, cleanId, 'folder', metadata, onProgress);
     } catch (err) {
@@ -487,7 +646,10 @@ export async function saveDeliverableFolder(taskId, folderSource, metadata = {},
   try {
     const res = await fetch(folderSource);
     const blob = await res.blob();
-    await uploadFileChunks(blob, cleanId, 'folder', metadata, onProgress);
+    const driveFile = await uploadToGoogleDriveDirect(blob, cleanId, 'folder', metadata, onProgress);
+    if (!driveFile) {
+      await uploadFileChunks(blob, cleanId, 'folder', metadata, onProgress);
+    }
   } catch (err) {
     console.warn('Cloud folder sync error:', err);
   }

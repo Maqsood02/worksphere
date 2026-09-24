@@ -1,4 +1,5 @@
 import { connectToDatabase } from './db.js';
+import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials } from './gdrive.js';
 import nodemailer from 'nodemailer';
 
 // Nodemailer SMTP Transporter
@@ -1615,6 +1616,128 @@ export default async function handler(req, res) {
           } catch (mErr) {}
         }
         return res.status(200).json({ success: true, message: `Task deleted from database!` });
+      }
+    }
+
+    // ==========================================
+    // 8A-2A. GOOGLE DRIVE AUTOMATED CLOUD STORAGE: /api/drive-upload
+    // ==========================================
+    if (cleanPath.includes('drive-upload')) {
+      const configured = await isGoogleDriveConfigured(db);
+      const creds = configured ? await getCredentials(db) : null;
+
+      if (req.method === 'GET') {
+        return res.status(200).json({
+          configured,
+          client_email: creds?.client_email || null,
+          folder_id: creds?.folder_id || null,
+          message: configured
+            ? `Google Drive automated cloud storage is active (${creds?.client_email}).`
+            : 'Google Drive Service Account not configured. Supply credentials to activate automated cloud storage.'
+        });
+      }
+
+      if (req.method === 'POST') {
+        const { action = 'initiate', fileName, mimeType, fileSize, taskId, assetType = 'video', fileId, credentials } = body;
+
+        // 0. CONFIGURE / TEST GOOGLE DRIVE SERVICE ACCOUNT CREDENTIALS
+        if (action === 'configure') {
+          if (!credentials || !credentials.client_email || !credentials.private_key) {
+            return res.status(400).json({ success: false, message: 'Invalid credentials payload: client_email and private_key are required.' });
+          }
+          try {
+            const saveRes = await saveGoogleDriveCredentials(credentials, db);
+            return res.status(200).json({
+              success: true,
+              client_email: saveRes.client_email,
+              message: `Google Drive verified and connected successfully for ${saveRes.client_email}!`
+            });
+          } catch (configErr) {
+            console.error('Google Drive configure error:', configErr);
+            return res.status(400).json({ success: false, message: configErr.message });
+          }
+        }
+
+        if (!configured) {
+          return res.status(200).json({
+            configured: false,
+            fallbackToChunked: true,
+            message: 'Google Drive Service Account not configured. Falling back to chunked media storage.'
+          });
+        }
+
+        // 1. INITIATE RESUMABLE UPLOAD SESSION DIRECT TO GOOGLE DRIVE
+        if (action === 'initiate') {
+          if (!fileName || !fileSize) {
+            return res.status(400).json({ success: false, message: 'fileName and fileSize required' });
+          }
+          try {
+            const origin = req.headers.origin || req.headers.referer || '*';
+            const { uploadUrl, folderId } = await createResumableUploadUrl({ fileName, mimeType, fileSize, origin, db });
+            return res.status(200).json({
+              success: true,
+              uploadUrl,
+              folderId,
+              message: 'Google Drive direct upload session created.'
+            });
+          } catch (initErr) {
+            console.error('Google Drive initiate upload error:', initErr);
+            return res.status(500).json({ success: false, message: initErr.message });
+          }
+        }
+
+        // 2. FINALIZE PUBLIC PERMISSIONS AND LINK TO TASK
+        if (action === 'complete') {
+          if (!fileId) {
+            return res.status(400).json({ success: false, message: 'fileId required to complete upload' });
+          }
+          try {
+            const fileInfo = await finalizeDriveFile(fileId, db);
+
+            if (taskId) {
+              const cleanId = String(taskId).trim();
+              const updateQuery = {
+                $or: [
+                  { taskId: cleanId },
+                  { id: cleanId },
+                  { taskId: new RegExp(`^${cleanId}$`, 'i') },
+                  { id: new RegExp(`^${cleanId}$`, 'i') }
+                ]
+              };
+
+              const updateFields = {
+                updatedAt: new Date()
+              };
+
+              if (assetType === 'video') {
+                updateFields.videoUrl = fileInfo.webViewLink;
+                updateFields['submittedFiles.video.name'] = fileName || fileInfo.name;
+                updateFields['submittedFiles.video.url'] = fileInfo.webViewLink;
+                updateFields['submittedFiles.video.fileId'] = fileId;
+                updateFields['submittedFiles.video.size'] = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
+                updateFields['submittedFiles.video.type'] = fileInfo.mimeType || 'video/mp4';
+                updateFields['submittedFiles.video.hasFullVideo'] = true;
+              } else if (assetType === 'folder') {
+                updateFields['submittedFiles.folder.name'] = fileName || fileInfo.name;
+                updateFields['submittedFiles.folder.url'] = fileInfo.webViewLink;
+                updateFields['submittedFiles.folder.fileId'] = fileId;
+                updateFields['submittedFiles.folder.size'] = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
+                updateFields['submittedFiles.folder.type'] = fileInfo.mimeType || 'application/zip';
+              }
+
+              await db.collection('intern_tasks').updateOne(updateQuery, { $set: updateFields });
+            }
+
+            return res.status(200).json({
+              success: true,
+              file: fileInfo,
+              message: 'Google Drive file finalized and linked to task.'
+            });
+          } catch (finalizeErr) {
+            console.error('Google Drive finalize upload error:', finalizeErr);
+            return res.status(500).json({ success: false, message: finalizeErr.message });
+          }
+        }
       }
     }
 
