@@ -1390,7 +1390,7 @@ export default async function handler(req, res) {
     // ==========================================
     // 8. INTERN: TASKS (/api/intern-tasks or /api/admin/interns/tasks)
     // ==========================================
-    if (cleanPath.includes('intern-tasks') || cleanPath.includes('/interns/tasks')) {
+    if (cleanPath.includes('intern-tasks') || cleanPath.includes('/interns/tasks') || cleanPath.includes('/intern/tasks')) {
       const col = db.collection('intern_tasks');
       const usersCol = db.collection('users');
 
@@ -1430,9 +1430,11 @@ export default async function handler(req, res) {
         const submitIdx = parts.indexOf('submit');
         const taskId = (submitIdx > 0 ? parts[submitIdx - 1] : (body.taskId || query.taskId || '')).trim();
         if (taskId) {
+          const updateData = { ...body, status: 'SUBMITTED', updatedAt: new Date() };
+          delete updateData._id;
           await col.updateOne(
             { $or: [{ taskId: taskId }, { id: taskId }] },
-            { $set: { ...body, status: 'SUBMITTED', updatedAt: new Date() } }
+            { $set: updateData }
           );
           return res.status(200).json({ success: true, message: `Task ${taskId} submitted for evaluation!` });
         }

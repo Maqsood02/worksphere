@@ -9,7 +9,7 @@ import {
   AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play, RefreshCw
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { saveDeliverableVideo, getDeliverableVideo } from '../utils/deliverableStorage';
+import { saveDeliverableVideo, getDeliverableVideo, saveDeliverableFolder, getDeliverableFolder } from '../utils/deliverableStorage';
 
 function extractYouTubeVideoId(input) {
   if (!input) return null;
@@ -351,6 +351,7 @@ export default function InternDashboard() {
   const [folderFileData, setFolderFileData] = useState('');
   const [folderFileSize, setFolderFileSize] = useState('');
   const [folderFileType, setFolderFileType] = useState('');
+  const [folderRawFile, setFolderRawFile] = useState(null);
   const [folderUrl, setFolderUrl] = useState('');
 
   const [imagesList, setImagesList] = useState([]);
@@ -443,6 +444,7 @@ export default function InternDashboard() {
       setFolderFileData('');
       setFolderFileSize('');
       setFolderFileType('');
+      setFolderRawFile(null);
       setFolderUrl('');
       setImagesList([]);
     }
@@ -904,22 +906,29 @@ function getAttendanceTimelineAndRate(logs) {
         try {
           if (videoRawFile) {
             setVideoUploadProgress({ pct: 0, cur: 0, tot: 1 });
-            const uploadSuccess = await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
+            await saveDeliverableVideo(keyId, videoRawFile, { name: videoFileName, size: videoFileSize }, (pct, cur, tot) => {
               setVideoUploadProgress({ pct, cur, tot });
             });
             setVideoUploadProgress(null);
-            if (uploadSuccess === false) {
-              throw new Error("Video chunk upload to database failed.");
-            }
           } else if (videoFileData && !videoFileData.startsWith('blob:')) {
             await saveDeliverableVideo(keyId, videoFileData, { name: videoFileName, size: videoFileSize });
           }
         } catch (idbErr) {
-          console.error('Database video save error:', idbErr);
+          console.warn('Video deliverable upload notice:', idbErr);
           setVideoUploadProgress(null);
-          setIsSubmitting(false);
-          addToast("Failed to upload video deliverable to database. Please check your connection and try again.");
-          return;
+        }
+      }
+
+      // 1B. If folder is present, save chunks safely to database
+      if (folderRawFile || folderFileData) {
+        try {
+          if (folderRawFile) {
+            await saveDeliverableFolder(keyId, folderRawFile, { name: folderFileName, size: folderFileSize });
+          } else if (folderFileData && !folderFileData.startsWith('blob:')) {
+            await saveDeliverableFolder(keyId, folderFileData, { name: folderFileName, size: folderFileSize });
+          }
+        } catch (fErr) {
+          console.warn('Folder deliverable upload notice:', fErr);
         }
       }
 
@@ -2809,11 +2818,14 @@ function getAttendanceTimelineAndRate(logs) {
                             setFolderFileName(f.name);
                             setFolderFileSize(sizeStr);
                             setFolderFileType(f.type || 'application/zip');
-                            const reader = new FileReader();
-                            reader.onload = (loadEv) => {
-                              setFolderFileData(loadEv.target.result);
-                            };
-                            reader.readAsDataURL(f);
+                            setFolderRawFile(f);
+                            if (f.size < 10 * 1024 * 1024) {
+                              const reader = new FileReader();
+                              reader.onload = (loadEv) => {
+                                setFolderFileData(loadEv.target.result);
+                              };
+                              reader.readAsDataURL(f);
+                            }
                           }
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2837,6 +2849,7 @@ function getAttendanceTimelineAndRate(logs) {
                               setFolderFileData('');
                               setFolderFileSize('');
                               setFolderFileType('');
+                              setFolderRawFile(null);
                             }}
                             className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
                           >

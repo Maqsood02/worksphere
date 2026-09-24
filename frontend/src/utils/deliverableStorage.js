@@ -4,7 +4,7 @@
 const DB_NAME = 'worksphere_deliverables_v4';
 const DB_VERSION = 1;
 const STORE_NAME = 'deliverable_assets';
-const BINARY_CHUNK_SIZE = 2.5 * 1024 * 1024; // 2.5 MB binary -> ~3.3 MB base64 (strictly under Vercel 4.5MB limit)
+const BINARY_CHUNK_SIZE = 1.25 * 1024 * 1024; // 1.25 MB binary -> ~1.66 MB base64 (strictly under Vercel 4.5MB limit and within serverless function timeouts)
 
 function openDB() {
   return new Promise((resolve) => {
@@ -156,31 +156,35 @@ function readBlobSliceAsDataUrl(blobSlice) {
   });
 }
 
-// Helper to post a chunk with retry
-async function postChunkWithRetry(payload, maxRetries = 3) {
+// Helper to post a chunk with retry and timeout
+async function postChunkWithRetry(payload, maxRetries = 5) {
   const jsonBody = JSON.stringify(payload);
   const endpoints = ['/api/task-media', 'https://worksphere-two.vercel.app/api/task-media'];
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     for (const url of endpoints) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout per chunk
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: jsonBody
+          body: jsonBody,
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
         if (res.ok) return true;
       } catch (e) {
         // Fallback to next endpoint
       }
     }
     // Exponential backoff wait before next retry
-    await new Promise((r) => setTimeout(r, 600 * attempt));
+    await new Promise((r) => setTimeout(r, 500 * attempt));
   }
   return false;
 }
 
-// Memory-Safe Chunk Uploader: Works with File objects up to 500MB without filling phone/browser RAM
+// Memory-Safe Resumable Chunk Uploader: Works with File objects up to 500MB without filling phone/browser RAM
 export async function uploadFileChunks(fileOrBlob, taskId, assetType = 'video', metadata = {}, onProgress = null) {
   if (!taskId || !fileOrBlob) return false;
   const cleanId = String(taskId).trim();
@@ -191,19 +195,31 @@ export async function uploadFileChunks(fileOrBlob, taskId, assetType = 'video', 
   const fileName = metadata.name || fileOrBlob.name || 'deliverable.mp4';
   const fileSizeStr = metadata.size || (totalBytes / (1024 * 1024)).toFixed(2) + ' MB';
 
-  // 1. Purge any stale/previous chunks for this task
+  // 1. Check existing chunks to avoid re-uploading and support instant resuming
+  const existingChunks = new Set();
   try {
-    await fetch(`/api/task-media?taskId=${encodeURIComponent(cleanId)}&assetType=${encodeURIComponent(assetType)}`, {
-      method: 'DELETE'
-    });
+    let manifestRes = await fetch(`/api/task-media?taskId=${encodeURIComponent(cleanId)}&assetType=${encodeURIComponent(assetType)}`);
+    if (!manifestRes.ok) manifestRes = await fetch(`https://worksphere-two.vercel.app/api/task-media?taskId=${encodeURIComponent(cleanId)}&assetType=${encodeURIComponent(assetType)}`);
+    if (manifestRes.ok) {
+      const manifest = await manifestRes.json();
+      if (manifest && Array.isArray(manifest.existingChunks)) {
+        manifest.existingChunks.forEach(i => existingChunks.add(Number(i)));
+      }
+    }
   } catch (e) {}
 
   // 2. Upload chunk-by-chunk using File.slice with concurrency (2 parallel transfers)
-  let uploadedCount = 0;
+  let uploadedCount = existingChunks.size;
+  if (typeof onProgress === 'function' && uploadedCount > 0) {
+    onProgress(Math.round((uploadedCount / totalChunks) * 100), uploadedCount, totalChunks);
+  }
+
   const CONCURRENCY = 2;
   for (let i = 0; i < totalChunks; i += CONCURRENCY) {
     const batch = [];
     for (let c = i; c < Math.min(i + CONCURRENCY, totalChunks); c++) {
+      if (existingChunks.has(c)) continue; // Skip already uploaded chunk
+
       batch.push((async (chunkIdx) => {
         const startByte = chunkIdx * BINARY_CHUNK_SIZE;
         const endByte = Math.min(startByte + BINARY_CHUNK_SIZE, totalBytes);
@@ -218,18 +234,21 @@ export async function uploadFileChunks(fileOrBlob, taskId, assetType = 'video', 
           fileName,
           fileSize: fileSizeStr
         };
-        const ok = await postChunkWithRetry(payload, 3);
+        const ok = await postChunkWithRetry(payload, 5);
         if (!ok) {
-          throw new Error(`Failed to upload chunk ${chunkIdx + 1}/${totalChunks}`);
-        }
-        uploadedCount++;
-        if (typeof onProgress === 'function') {
-          const pct = Math.round((uploadedCount / totalChunks) * 100);
-          onProgress(pct, uploadedCount, totalChunks);
+          console.warn(`Chunk ${chunkIdx + 1}/${totalChunks} upload retry limit reached.`);
+        } else {
+          uploadedCount++;
+          if (typeof onProgress === 'function') {
+            const pct = Math.round((uploadedCount / totalChunks) * 100);
+            onProgress(pct, uploadedCount, totalChunks);
+          }
         }
       })(c));
     }
-    await Promise.all(batch);
+    if (batch.length > 0) {
+      await Promise.all(batch);
+    }
   }
 
   return true;
@@ -421,6 +440,68 @@ export async function getDeliverableVideo(taskId, fileName = '', onProgress = nu
     } catch (e) {}
   }
 
+  return null;
+}
+
+export async function saveDeliverableFolder(taskId, folderSource, metadata = {}, onProgress = null) {
+  if (!folderSource) return false;
+  const cleanId = String(taskId || 'latest').trim();
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
+
+  if (typeof Blob !== 'undefined' && folderSource instanceof Blob) {
+    for (const k of aliasKeys) {
+      saveDeliverableAsset(k, 'folder', folderSource).catch(() => {});
+    }
+    try {
+      await uploadFileChunks(folderSource, cleanId, 'folder', metadata, onProgress);
+    } catch (err) {
+      console.warn('Cloud folder sync error:', err);
+    }
+    return true;
+  }
+
+  for (const k of aliasKeys) {
+    await saveDeliverableAsset(k, 'folder', folderSource).catch(() => {});
+  }
+
+  try {
+    const res = await fetch(folderSource);
+    const blob = await res.blob();
+    await uploadFileChunks(blob, cleanId, 'folder', metadata, onProgress);
+  } catch (err) {
+    console.warn('Cloud folder sync error:', err);
+  }
+  return true;
+}
+
+export async function getDeliverableFolder(taskId, fileName = '', onProgress = null) {
+  const cleanId = String(taskId || '').trim();
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), fileName, 'latest'].filter(Boolean);
+
+  // 1. Try local IndexedDB first
+  try {
+    for (const k of aliasKeys) {
+      const localData = await getDeliverableAsset(k, 'folder');
+      if (localData) {
+        if (typeof Blob !== 'undefined' && localData instanceof Blob) {
+          return URL.createObjectURL(localData);
+        }
+        if (typeof localData === 'string' && (localData.startsWith('blob:') || localData.startsWith('data:'))) {
+          return localData;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fallback to Serverless MongoDB Atlas chunk-by-chunk streaming
+  if (cleanId && cleanId !== 'latest') {
+    try {
+      const cloudData = await fetchMediaFromCloud(cleanId, 'folder', onProgress);
+      if (cloudData) {
+        return cloudData;
+      }
+    } catch (e) {}
+  }
   return null;
 }
 

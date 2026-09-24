@@ -2872,8 +2872,17 @@ export default function AdminDashboard() {
                           );
                         })()}
 
-                        {/* Submitted Deliverables Details (if submitted or in review) */}
-                        {(task.submissionUrl || task.submissionNotes || task.status === 'SUBMITTED') && (() => {
+                        {/* Submitted Deliverables Details (if submitted, revision with assets, or completed) */}
+                        {Boolean(
+                          task.submissionUrl || 
+                          task.submissionNotes || 
+                          task.status === 'SUBMITTED' || 
+                          task.status === 'COMPLETED' || 
+                          task.fileName || 
+                          task.fileData || 
+                          (task.submittedFiles && (task.submittedFiles.video || task.submittedFiles.folder || task.submittedFiles.pdf || (task.submittedFiles.images && task.submittedFiles.images.length > 0))) || 
+                          task.videoUrl
+                        ) && (() => {
                           const sub = parseSubmissionDetails(task);
                           return (
                             <div className="bg-gradient-to-r from-amber-50/70 via-white to-amber-50/40 p-3.5 rounded-2xl border border-amber-200/90 shadow-2xs space-y-2.5">
@@ -2881,8 +2890,14 @@ export default function AdminDashboard() {
                                 <span className="flex items-center gap-1.5 text-[11px] font-extrabold text-amber-900 uppercase tracking-wider">
                                   <ClipboardList className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Submitted Deliverable
                                 </span>
-                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
-                                  {task.status === 'COMPLETED' ? 'Reviewed' : 'Awaiting Review'}
+                                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                                  task.status === 'COMPLETED' 
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                                    : task.status === 'REVISION_REQUESTED'
+                                    ? 'bg-rose-100 text-rose-800 border-rose-200'
+                                    : 'bg-amber-100 text-amber-800 border-amber-200'
+                                }`}>
+                                  {task.status === 'COMPLETED' ? 'Reviewed & Approved' : task.status === 'REVISION_REQUESTED' ? 'Revised Deliverable' : 'Awaiting Review'}
                                 </span>
                               </div>
 
@@ -2910,8 +2925,71 @@ export default function AdminDashboard() {
                                 )}
                               </div>
 
-                              <div className="space-y-2 text-xs">
-                                {sub.hasAttachment ? (
+                              <div className="space-y-1.5 text-xs">
+                                {sub.hasVideo && sub.videoDeliverable && (
+                                  <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-rose-100 shadow-2xs">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0 font-black text-[9px]">
+                                        VID
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span className="font-bold text-slate-800 text-xs block truncate">
+                                          {sub.videoDeliverable.name || 'Demo Video'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          {sub.videoDeliverable.size ? `${sub.videoDeliverable.size} • ` : ''}Video Walkthrough
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="shrink-0 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                                      Video
+                                    </span>
+                                  </div>
+                                )}
+
+                                {sub.hasFolder && sub.folderDeliverable && (
+                                  <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-amber-100 shadow-2xs">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0 font-black text-[9px]">
+                                        ZIP
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span className="font-bold text-slate-800 text-xs block truncate">
+                                          {sub.folderDeliverable.name || 'Project_Folder.zip'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          {sub.folderDeliverable.size ? `${sub.folderDeliverable.size} • ` : ''}Project Code Archive
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="shrink-0 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                      Folder
+                                    </span>
+                                  </div>
+                                )}
+
+                                {sub.hasPdf && sub.pdfDeliverable && (
+                                  <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-indigo-100 shadow-2xs">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center shrink-0 font-black text-[9px]">
+                                        PDF
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span className="font-bold text-slate-800 text-xs block truncate">
+                                          {sub.pdfDeliverable.name || 'Report.pdf'}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          {sub.pdfDeliverable.size ? `${sub.pdfDeliverable.size} • ` : ''}Documentation Report
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="shrink-0 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                                      PDF
+                                    </span>
+                                  </div>
+                                )}
+
+                                {!sub.hasVideo && !sub.hasFolder && !sub.hasPdf && sub.hasAttachment && (
                                   <div className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                       <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 font-black text-[10px] ${
@@ -2923,7 +3001,7 @@ export default function AdminDashboard() {
                                       </div>
                                       <div className="min-w-0">
                                         <span className="font-extrabold text-slate-800 text-xs block truncate">
-                                          {sub.fileName || sub.pdfDeliverable?.name || sub.folderDeliverable?.name || 'Deliverable Assets Attached'}
+                                          {sub.fileName || 'Deliverable Assets Attached'}
                                         </span>
                                         <span className="text-[10px] text-slate-400 font-mono block">
                                           {sub.fileSize ? `${sub.fileSize} • ` : ''}{sub.isZip ? 'Folder Archive' : 'Deliverable File'}
@@ -2934,7 +3012,9 @@ export default function AdminDashboard() {
                                       Attached
                                     </span>
                                   </div>
-                                ) : sub.hasLiveUrl ? (
+                                )}
+
+                                {sub.hasLiveUrl && (
                                   <div className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-2xs">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <ExternalLink className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -2951,7 +3031,9 @@ export default function AdminDashboard() {
                                       Open ↗
                                     </a>
                                   </div>
-                                ) : (
+                                )}
+
+                                {!sub.hasAttachment && !sub.hasLiveUrl && (
                                   <div className="bg-white p-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-mono truncate">
                                     {sub.rawUrl || 'Deliverable files submitted.'}
                                   </div>
