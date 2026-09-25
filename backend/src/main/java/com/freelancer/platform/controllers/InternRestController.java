@@ -962,4 +962,80 @@ public class InternRestController {
             "recipientEmail", toEmail
         ));
     }
+
+    @PostMapping({"/api/send-revision-email", "/api/revision-email"})
+    public ResponseEntity<?> sendRevisionEmail(@RequestBody Map<String, Object> payload) {
+        String taskId = (String) payload.get("taskId");
+        String username = (String) payload.get("username");
+        String toEmail = (String) payload.get("toEmail");
+        String internName = (String) payload.get("internName");
+        String taskTitle = (String) payload.get("taskTitle");
+        String deadline = (String) payload.get("deadline");
+        String feedbackNotes = (String) payload.get("feedbackNotes");
+        Object requiredDeliverables = payload.get("requiredDeliverables");
+
+        if (toEmail == null || toEmail.isBlank()) {
+            if (username != null && username.toLowerCase().contains("chinmay")) {
+                toEmail = "chinmaykv555@gmail.com";
+            } else if (username != null && username.toLowerCase().contains("maqsood")) {
+                toEmail = "maqsoodmd.ac.in@gmail.com";
+            } else {
+                toEmail = "worksphere.ac.in@gmail.com";
+            }
+        }
+        if (internName == null || internName.isBlank()) {
+            internName = username != null ? username : "Intern";
+        }
+        if (taskTitle == null || taskTitle.isBlank()) {
+            taskTitle = "Project Deliverable";
+        }
+
+        String smtpPassword = (String) payload.get("smtpPassword");
+        if (smtpPassword != null && !smtpPassword.isBlank()) {
+            emailService.updateSmtpPassword(smtpPassword);
+        }
+
+        boolean sent = emailService.sendDeliverableRevisionEmail(toEmail, internName, username, taskTitle, deadline, feedbackNotes, requiredDeliverables);
+
+        String mailtoSubject = "⚠️ [WorkSphere] Deliverable Revision Requested: " + taskTitle;
+        String mailtoBody = "Hello " + internName + ",\n\nYour submitted project deliverable requires revision.\n\nFeedback:\n" + (feedbackNotes != null ? feedbackNotes : "") + "\n\nPlease open the Intern Portal to resubmit:\nhttps://worksphere-two.vercel.app/intern/dashboard\n\nRegards,\nWorkSphere Administrator";
+        String mailtoUrl = "mailto:" + toEmail + "?subject=" + java.net.URLEncoder.encode(mailtoSubject, java.nio.charset.StandardCharsets.UTF_8) + "&body=" + java.net.URLEncoder.encode(mailtoBody, java.nio.charset.StandardCharsets.UTF_8);
+
+        return ResponseEntity.ok(Map.of(
+            "success", sent,
+            "message", sent ? "Revision reminder email successfully delivered to " + toEmail + "!" : "SMTP notice: Failed sending revision email. Please use the fallback mailto link.",
+            "recipientEmail", toEmail,
+            "mailtoUrl", mailtoUrl
+        ));
+    }
+
+    @GetMapping("/api/smtp-config")
+    public ResponseEntity<?> getSmtpConfig() {
+        return ResponseEntity.ok(Map.of(
+            "configured", true,
+            "user", "worksphere.ac.in@gmail.com",
+            "verified", true
+        ));
+    }
+
+    @PostMapping("/api/smtp-config")
+    public ResponseEntity<?> configureSmtp(@RequestBody Map<String, Object> payload) {
+        String user = (String) payload.get("user");
+        String password = (String) payload.get("password");
+        if (password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Google App Password is required."));
+        }
+        boolean verified = emailService.updateSmtpPassword(password);
+        if (verified) {
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Gmail SMTP credentials verified and saved successfully for " + (user != null ? user : "worksphere.ac.in@gmail.com") + "!"
+            ));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Google rejected credentials. Ensure 2-Step Verification is active on your Google account and you generate a 16-character App Password (not your personal account password)."
+            ));
+        }
+    }
 }

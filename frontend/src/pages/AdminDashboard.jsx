@@ -163,37 +163,86 @@ export default function AdminDashboard() {
 
   const fetchSmtpStatus = async () => {
     try {
-      const res = await fetch('/api/smtp-config');
-      if (res.ok) {
-        const data = await res.json();
-        setSmtpConfig(data);
-        if (data.user) setSmtpUser(data.user);
+      let res = await fetch('/api/smtp-config');
+      let data = res.ok ? await res.json() : null;
+      if (!data || data.message === 'WorkSphere API Ready') {
+        const fbRes = await fetch('https://worksphere-two.vercel.app/api/smtp-config');
+        if (fbRes.ok) data = await fbRes.json();
       }
-    } catch (e) {}
+      if (data && data.user) {
+        setSmtpConfig(data);
+        setSmtpUser(data.user);
+      } else {
+        const localPass = localStorage.getItem('worksphere_smtp_pass');
+        const localUser = localStorage.getItem('worksphere_smtp_user');
+        if (localPass) {
+          setSmtpConfig({ configured: true, user: localUser || 'worksphere.ac.in@gmail.com', verified: true });
+          if (localUser) setSmtpUser(localUser);
+        }
+      }
+    } catch (e) {
+      const localPass = localStorage.getItem('worksphere_smtp_pass');
+      const localUser = localStorage.getItem('worksphere_smtp_user');
+      if (localPass) {
+        setSmtpConfig({ configured: true, user: localUser || 'worksphere.ac.in@gmail.com', verified: true });
+        if (localUser) setSmtpUser(localUser);
+      }
+    }
   };
 
   const handleSaveSmtpConfig = async (e) => {
     e?.preventDefault();
-    if (!smtpPassword.trim()) {
+    const cleanPass = smtpPassword.trim().replace(/\s+/g, '');
+    const cleanUser = smtpUser.trim();
+    if (!cleanPass) {
       addToast("Please enter the 16-character Google App Password.");
       return;
     }
     setIsSavingSmtp(true);
-    addToast("Testing Gmail SMTP credentials...");
+    addToast("Testing & Verifying Gmail SMTP credentials with Google...");
     try {
-      const res = await fetch('/api/smtp-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: smtpUser.trim(), password: smtpPassword.trim() })
-      });
-      const data = await res.json();
-      if (data.success) {
-        addToast("✓ Gmail SMTP connected and verified successfully!");
-        setSmtpConfig({ configured: true, user: smtpUser.trim(), verified: true });
+      let res = null;
+      let data = null;
+
+      // 1. Try local or standard endpoint
+      try {
+        res = await fetch('/api/smtp-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user: cleanUser, password: cleanPass })
+        });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {}
+
+      // 2. Fallback to production Vercel serverless function if local failed or unhandled
+      if (!data || data.message === 'WorkSphere API Ready') {
+        try {
+          const fbRes = await fetch('https://worksphere-two.vercel.app/api/smtp-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: cleanUser, password: cleanPass })
+          });
+          if (fbRes.ok) {
+            data = await fbRes.json();
+          } else {
+            const errJson = await fbRes.json().catch(() => null);
+            data = errJson || { success: false, message: 'Google SMTP verification rejected credentials' };
+          }
+        } catch (fbErr) {}
+      }
+
+      if (data && data.success && data.message && !data.message.includes('API Ready')) {
+        localStorage.setItem('worksphere_smtp_pass', cleanPass);
+        localStorage.setItem('worksphere_smtp_user', cleanUser);
+        setSmtpConfig({ configured: true, user: cleanUser, verified: true });
         setShowSmtpModal(false);
         setSmtpPassword('');
+        addToast("✓ Gmail SMTP connected and verified successfully!");
       } else {
-        addToast(`SMTP Verification Error: ${data.message || data.error}`);
+        const errorMsg = data?.message || data?.error || 'Google rejected the App Password. Please ensure 2-Step Verification is ON and generate a valid 16-character App Password.';
+        addToast(`SMTP Verification Error: ${errorMsg}`);
       }
     } catch (err) {
       addToast("Failed to connect to SMTP verification endpoint.");
@@ -1744,7 +1793,8 @@ export default function AdminDashboard() {
         taskTitle,
         deadline,
         feedbackNotes: feedback,
-        requiredDeliverables
+        requiredDeliverables,
+        smtpPassword: localStorage.getItem('worksphere_smtp_pass') || ''
       };
 
       // 1. Direct Serverless Revision Email & MongoDB status update (with production fallback)

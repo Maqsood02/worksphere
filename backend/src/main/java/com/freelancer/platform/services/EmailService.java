@@ -1171,4 +1171,120 @@ public class EmailService {
             return false;
         }
     }
+
+    public synchronized boolean updateSmtpPassword(String newPassword) {
+        if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl impl) {
+            String oldPass = impl.getPassword();
+            try {
+                impl.setPassword(newPassword.trim().replace(" ", ""));
+                impl.testConnection();
+                System.out.println("[SMTP CONFIG] JavaMailSender password successfully tested and updated!");
+                return true;
+            } catch (Exception e) {
+                System.err.println("[SMTP CONFIG ERROR] JavaMailSender test connection failed: " + e.getMessage());
+                impl.setPassword(oldPass);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public boolean sendDeliverableRevisionEmail(String toEmail, String internName, String username, String taskTitle, String deadline, String feedbackNotes, Object requiredDeliverables) {
+        if (toEmail == null || !toEmail.contains("@")) return false;
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(senderEmail, "WorkSphere Deliverable Evaluation");
+            helper.setTo(toEmail);
+            helper.setSubject("⚠️ [WorkSphere] Deliverable Revision Requested: " + (taskTitle != null ? taskTitle : "Project Deliverable"));
+
+            String feedbackText = (feedbackNotes != null && !feedbackNotes.isBlank())
+                ? feedbackNotes.trim()
+                : "Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.";
+
+            String htmlContent = """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8">
+                  <title>Deliverable Revision Requested</title>
+                  <style>
+                    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+                    .wrapper { width: 100%%; background-color: #f1f5f9; padding: 40px 12px; }
+                    .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+                    .top-gradient { height: 6px; background: linear-gradient(90deg, #f59e0b 0%%, #d97706 50%%, #dc2626 100%%); }
+                    .header { padding: 32px 32px 20px 32px; text-align: center; }
+                    .logo-text { font-size: 26px; font-weight: 800; color: #1e1b4b; letter-spacing: -0.5px; }
+                    .logo-text span { color: #d97706; }
+                    .sub-tag { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+                    .alert-pill-box { padding: 0 32px 16px 32px; }
+                    .alert-pill { background: linear-gradient(135deg, #fffbeb 0%%, #fef3c7 100%%); border: 1px solid #fde68a; border-radius: 16px; padding: 14px 18px; text-align: center; }
+                    .alert-pill-title { font-size: 13px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+                    .alert-pill-sub { font-size: 12px; font-weight: 600; color: #78350f; }
+                    .content { padding: 8px 32px 28px 32px; font-size: 14px; line-height: 1.65; color: #334155; }
+                    .greeting { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+                    .highlight-notice { background: #fffbeb; border-left: 4px solid #d97706; border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-size: 13.5px; color: #1e293b; }
+                    .highlight-title { font-weight: 800; color: #b45309; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+                    .task-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px; margin: 20px 0; }
+                    .task-title { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 10px; }
+                    .btn-box { text-align: center; margin: 30px 0 10px 0; }
+                    .btn-action { display: inline-block; background: linear-gradient(135deg, #d97706 0%%, #b45309 100%%); color: #ffffff !important; font-weight: 800; font-size: 14.5px; text-decoration: none; padding: 14px 34px; border-radius: 14px; box-shadow: 0 4px 14px 0 rgba(217, 119, 6, 0.35); }
+                    .footer { text-align: center; padding: 24px 32px 32px 32px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #94a3b8; background: #fafafa; }
+                  </style>
+                </head>
+                <body>
+                  <div class="wrapper">
+                    <div class="card">
+                      <div class="top-gradient"></div>
+                      <div class="header">
+                        <div class="logo-text">Work<span>Sphere</span></div>
+                        <div class="sub-tag">DELIVERABLE EVALUATION & REVISION NOTICE</div>
+                      </div>
+                      <div class="alert-pill-box">
+                        <div class="alert-pill">
+                          <span class="alert-pill-title">⚠️ Deliverable Revision Required</span>
+                          <span class="alert-pill-sub">Your supervisor has reviewed your submission and requested updates</span>
+                        </div>
+                      </div>
+                      <div class="content">
+                        <div class="greeting">Hello %s,</div>
+                        <div>Your submitted project deliverable has been evaluated by your program administrator. Additional revisions or file updates are required before final approval.</div>
+                        <div class="highlight-notice">
+                          <div class="highlight-title">📝 Supervisor Evaluation Feedback:</div>
+                          <div style="color: #78350f; font-weight: 500; line-height: 1.6;">%s</div>
+                        </div>
+                        <div class="task-card">
+                          <div class="task-title">📌 %s</div>
+                          <div>Assigned Intern: <strong>@%s</strong></div>
+                          <div>Deadline: <strong>%s</strong></div>
+                        </div>
+                        <div class="btn-box">
+                          <a href="https://worksphere-two.vercel.app/intern/dashboard" class="btn-action">Open Intern Portal & Resubmit Deliverable ↗</a>
+                        </div>
+                      </div>
+                      <div class="footer">
+                        &copy; 2026 WorkSphere Platform. Automated evaluation notification.<br/>
+                        Dispatched from worksphere.ac.in@gmail.com
+                      </div>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(
+                    internName != null ? internName : username,
+                    feedbackText,
+                    taskTitle != null ? taskTitle : "Project Deliverable",
+                    username != null ? username : "intern",
+                    deadline != null ? deadline : "Tomorrow"
+                );
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            System.out.println("[EMAIL SUCCESS] Deliverable revision email delivered to: " + toEmail);
+            return true;
+        } catch (Exception e) {
+            System.err.println("[EMAIL ERROR] Failed to send deliverable revision email to " + toEmail + ": " + e.getMessage());
+            return false;
+        }
+    }
 }

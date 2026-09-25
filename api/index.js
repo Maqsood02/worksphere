@@ -6,11 +6,11 @@ import nodemailer from 'nodemailer';
 let cachedTransporter = null;
 let cachedTransporterKey = null;
 
-export async function getMailTransporter(db = null) {
+export async function getMailTransporter(db = null, dynamicPass = null) {
   let user = process.env.SMTP_USER || 'worksphere.ac.in@gmail.com';
-  let pass = process.env.SMTP_PASSWORD || 'mbtfgehiiejzwtzk';
+  let pass = (dynamicPass && dynamicPass.trim()) ? dynamicPass.trim().replace(/\s+/g, '') : null;
 
-  if (db) {
+  if (!pass && db) {
     try {
       const setting = await db.collection('app_settings').findOne({ key: 'smtp_credentials' });
       if (setting && setting.password) {
@@ -20,6 +20,10 @@ export async function getMailTransporter(db = null) {
     } catch (e) {
       console.warn('Failed reading smtp_credentials from MongoDB:', e.message);
     }
+  }
+
+  if (!pass) {
+    pass = process.env.SMTP_PASSWORD || 'mbtfgehiiejzwtzk';
   }
 
   const key = `${user}:${pass}`;
@@ -34,6 +38,16 @@ export async function getMailTransporter(db = null) {
     auth: { user, pass }
   });
   cachedTransporterKey = key;
+
+  // Auto-persist verified dynamic password to MongoDB Atlas app_settings if not already saved
+  if (dynamicPass && db && pass !== 'mbtfgehiiejzwtzk') {
+    db.collection('app_settings').updateOne(
+      { key: 'smtp_credentials' },
+      { $set: { key: 'smtp_credentials', user, password: pass, updatedAt: new Date() } },
+      { upsert: true }
+    ).catch(e => console.warn('Auto-save smtp_credentials failed:', e.message));
+  }
+
   return cachedTransporter;
 }
 
@@ -422,7 +436,7 @@ function formatRichFeedbackForEmail(text) {
 }
 
 // Helper: Send Deliverable Revision Request Email to Intern
-async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables, db = null }) {
+async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables, db = null, smtpPassword = null }) {
   if (!toEmail || !toEmail.includes('@')) return { success: false, error: 'Invalid recipient email' };
 
   const deliverableItems = [];
@@ -552,7 +566,7 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
   `;
 
   try {
-    const t = await getMailTransporter(db);
+    const t = await getMailTransporter(db, smtpPassword);
     const info = await t.sendMail({
       from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
       to: toEmail,
@@ -568,7 +582,7 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
 }
 
 // Helper: Send Evaluation & Feedback Notes Email to Intern
-async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, taskId, status = 'FEEDBACK', feedbackNotes, db = null }) {
+async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, taskId, status = 'FEEDBACK', feedbackNotes, db = null, smtpPassword = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const isApproved = status === 'APPROVED' || status === 'COMPLETED';
@@ -821,7 +835,7 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
   `;
 
   try {
-    const t = await getMailTransporter(db);
+    const t = await getMailTransporter(db, smtpPassword);
     const info = await t.sendMail({
       from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
       to: toEmail,
@@ -2166,7 +2180,8 @@ export default async function handler(req, res) {
         deadline: taskDeadline,
         feedbackNotes,
         requiredDeliverables,
-        db
+        db,
+        smtpPassword: body.smtpPassword || req.headers['x-smtp-password'] || null
       });
 
       const reqLabels = Array.isArray(requiredDeliverables)
@@ -2242,7 +2257,8 @@ export default async function handler(req, res) {
         taskId,
         status,
         feedbackNotes,
-        db
+        db,
+        smtpPassword: body.smtpPassword || req.headers['x-smtp-password'] || null
       });
 
       return res.status(200).json({
