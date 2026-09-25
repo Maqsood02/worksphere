@@ -353,6 +353,7 @@ export default function InternDashboard() {
   const [folderFileType, setFolderFileType] = useState('');
   const [folderRawFile, setFolderRawFile] = useState(null);
   const [folderUrl, setFolderUrl] = useState('');
+  const [folderUploadProgress, setFolderUploadProgress] = useState(null);
 
   const [imagesList, setImagesList] = useState([]);
   const [previewImageModal, setPreviewImageModal] = useState(null);
@@ -929,15 +930,20 @@ function getAttendanceTimelineAndRate(logs) {
       if (folderRawFile || folderFileData) {
         try {
           if (folderRawFile) {
-            const fRes = await saveDeliverableFolder(keyId, folderRawFile, { name: folderFileName, size: folderFileSize });
+            setFolderUploadProgress({ pct: 0, cur: 0, tot: folderRawFile.size, provider: 'Google Drive' });
+            const fRes = await saveDeliverableFolder(keyId, folderRawFile, { name: folderFileName, size: folderFileSize }, (pct, cur, tot, provider) => {
+              setFolderUploadProgress({ pct, cur, tot, provider: provider || 'Google Drive' });
+            });
             if (fRes?.isDrive && fRes.file?.webViewLink) {
               resolvedFolderUrl = fRes.file.webViewLink;
             }
+            setFolderUploadProgress(null);
           } else if (folderFileData && !folderFileData.startsWith('blob:')) {
             await saveDeliverableFolder(keyId, folderFileData, { name: folderFileName, size: folderFileSize });
           }
         } catch (fErr) {
           console.warn('Folder deliverable upload notice:', fErr);
+          setFolderUploadProgress(null);
         }
       }
 
@@ -2917,6 +2923,44 @@ function getAttendanceTimelineAndRate(logs) {
                           <p className="text-[10px] text-slate-400">Zip archive containing project codebase and files</p>
                         </div>
                       )}
+                    </div>
+
+                    {/* Active Folder Archive Upload Progress Bar */}
+                    {folderUploadProgress && (
+                      <div className="bg-slate-900 text-white rounded-xl p-3 space-y-1.5 shadow-md border border-amber-500/40">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-1.5 text-amber-400">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Uploading project archive to {folderUploadProgress.provider}...</span>
+                          </span>
+                          <span className="font-mono text-amber-300">{folderUploadProgress.pct}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-amber-500 to-emerald-500 h-1.5 rounded-full transition-all duration-150"
+                            style={{ width: `${folderUploadProgress.pct}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-300 font-mono text-left">
+                          {folderUploadProgress.provider === 'Google Drive'
+                            ? `Streaming directly to Google Drive. Stored permanently in WorkSphere Deliverables.`
+                            : `Storing chunk ${folderUploadProgress.cur} of ${folderUploadProgress.tot}. Please do not close this window.`}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Automated Google Drive Cloud Storage Notification for Folder */}
+                    <div className="bg-amber-50/80 border border-amber-200/90 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
+                      <span className="text-sm shrink-0 leading-none">☁️</span>
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-amber-950 flex items-center gap-1.5">
+                          Direct Google Drive Cloud Storage Active
+                          <span className="bg-amber-200/70 text-amber-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase">Auto-Sync</span>
+                        </p>
+                        <p className="text-amber-800 leading-normal text-[10px]">
+                          When you attach your ZIP folder and click Submit, WorkSphere automatically stores it directly in your connected Google Drive folder ("WorkSphere Deliverables").
+                        </p>
+                      </div>
                     </div>
 
                     {/* GitHub or Drive Folder Link */}

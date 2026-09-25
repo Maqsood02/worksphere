@@ -145,6 +145,13 @@ export default function AdminDashboard() {
   const [gdriveJsonInput, setGdriveJsonInput] = useState('');
   const [isSavingGdrive, setIsSavingGdrive] = useState(false);
 
+  // Gmail SMTP Mail Dispatcher State
+  const [smtpConfig, setSmtpConfig] = useState({ configured: false, user: 'worksphere.ac.in@gmail.com', verified: false });
+  const [showSmtpModal, setShowSmtpModal] = useState(false);
+  const [smtpUser, setSmtpUser] = useState('worksphere.ac.in@gmail.com');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
+
   const fetchGdriveStatus = async () => {
     try {
       const data = await checkGoogleDriveConfigured();
@@ -154,8 +161,50 @@ export default function AdminDashboard() {
     } catch (e) {}
   };
 
+  const fetchSmtpStatus = async () => {
+    try {
+      const res = await fetch('/api/smtp-config');
+      if (res.ok) {
+        const data = await res.json();
+        setSmtpConfig(data);
+        if (data.user) setSmtpUser(data.user);
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveSmtpConfig = async (e) => {
+    e?.preventDefault();
+    if (!smtpPassword.trim()) {
+      addToast("Please enter the 16-character Google App Password.");
+      return;
+    }
+    setIsSavingSmtp(true);
+    addToast("Testing Gmail SMTP credentials...");
+    try {
+      const res = await fetch('/api/smtp-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: smtpUser.trim(), password: smtpPassword.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        addToast("✓ Gmail SMTP connected and verified successfully!");
+        setSmtpConfig({ configured: true, user: smtpUser.trim(), verified: true });
+        setShowSmtpModal(false);
+        setSmtpPassword('');
+      } else {
+        addToast(`SMTP Verification Error: ${data.message || data.error}`);
+      }
+    } catch (err) {
+      addToast("Failed to connect to SMTP verification endpoint.");
+    } finally {
+      setIsSavingSmtp(false);
+    }
+  };
+
   useEffect(() => {
     fetchGdriveStatus();
+    fetchSmtpStatus();
   }, []);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
@@ -179,12 +228,12 @@ export default function AdminDashboard() {
       }
 
       // 1. If an external or cloud video URL is available (not self-hosted or data URI)
-      if (sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
+      if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
         setModalVideoSrc(sub.videoDeliverable.url);
         setModalVideoBlobUrl(sub.videoDeliverable.url);
         setVideoError(false);
         setIsVideoLoading(false);
-      } else {
+      } else if (sub.hasVideo) {
         setIsVideoLoading(true);
         setModalVideoSrc('');
         setModalVideoBlobUrl('');
@@ -196,7 +245,7 @@ export default function AdminDashboard() {
           }),
           safetyTimeout
         ]).then(src => {
-          const finalSrc = src || (keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null));
+          const finalSrc = src;
           if (finalSrc) {
             setModalVideoSrc(finalSrc);
             setModalVideoBlobUrl(finalSrc);
@@ -208,18 +257,18 @@ export default function AdminDashboard() {
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         }).catch(() => {
-          const fallbackSrc = keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null);
-          if (fallbackSrc) {
-            setModalVideoSrc(fallbackSrc);
-            setModalVideoBlobUrl(fallbackSrc);
-            setVideoError(false);
-          } else {
-            setModalVideoSrc('');
-            setModalVideoBlobUrl(null);
-          }
+          setModalVideoSrc('');
+          setModalVideoBlobUrl(null);
           setIsVideoLoading(false);
           setVideoBufferProgress(null);
         });
+      } else {
+        // No video submitted for this deliverable
+        setModalVideoSrc('');
+        setModalVideoBlobUrl(null);
+        setIsVideoLoading(false);
+        setVideoError(false);
+        setVideoBufferProgress(null);
       }
 
       const taskReqs = reviewTaskModal.requiredDeliverables;
@@ -1168,23 +1217,29 @@ export default function AdminDashboard() {
     const isCurrentModal = reviewTaskModal && (task?.id === reviewTaskModal.id || task?.taskId === reviewTaskModal.taskId);
     const resolvedVideoData = (isCurrentModal && modalVideoSrc && !modalVideoSrc.startsWith('data:application/octet_stream')) ? modalVideoSrc : '';
 
-    const safeVideoFile = allFiles.video ? {
-      ...allFiles.video,
-      data: resolvedVideoData || (allFiles.video.data && !allFiles.video.data.startsWith('data:application/octet_stream') ? allFiles.video.data : ''),
-      url: allFiles.video.url || task?.videoUrl || ''
-    } : null;
+    const candidateVidUrl = (allFiles.video?.url || task?.videoUrl || '').trim();
+    const isVidUrlZip = candidateVidUrl && (candidateVidUrl.toLowerCase().includes('.zip') || candidateVidUrl.toLowerCase().includes('.rar') || candidateVidUrl.toLowerCase().includes('.tar'));
+    const isVidUrlFolder = candidateVidUrl && (urlLink === candidateVidUrl || (allFiles.folder && allFiles.folder.url === candidateVidUrl));
 
-    const videoDeliverable = safeVideoFile 
-      ? safeVideoFile 
-      : (task?.videoUrl || resolvedVideoData 
-          ? { url: task?.videoUrl || '', data: resolvedVideoData, name: 'Video Walkthrough' } 
-          : null);
+    const validVideoUrl = (!isVidUrlZip && !isVidUrlFolder) ? candidateVidUrl : '';
+    const validVideoData = (resolvedVideoData && !resolvedVideoData.startsWith('data:application/octet_stream'))
+      ? resolvedVideoData
+      : (allFiles.video?.data && !allFiles.video.data.startsWith('data:application/octet_stream') ? allFiles.video.data : '');
+
+    const hasVideo = Boolean(validVideoUrl || validVideoData);
+
+    const videoDeliverable = hasVideo ? {
+      ...(allFiles.video || {}),
+      name: allFiles.video?.name || 'Walkthrough Demonstration',
+      data: validVideoData,
+      url: validVideoUrl,
+      size: allFiles.video?.size || ''
+    } : null;
 
     const pdfDeliverable = allFiles.pdf || (isPdf ? { name: fileName, size: fileSize, type: fileType, data: fileData } : null);
     const folderDeliverable = allFiles.folder || (isZip ? { name: fileName, size: fileSize, type: fileType, data: fileData, url: urlLink } : (urlLink ? { url: urlLink } : null));
     const imagesDeliverables = Array.isArray(allFiles.images) ? allFiles.images : (isImage ? [{ name: fileName, size: fileSize, type: fileType, data: fileData }] : []);
 
-    const hasVideo = Boolean(videoDeliverable?.data || videoDeliverable?.url || videoDeliverable?.name || resolvedVideoData || task?.videoUrl);
     const hasPdf = Boolean(pdfDeliverable?.data || pdfDeliverable?.name);
     const hasFolder = Boolean(folderDeliverable?.data || folderDeliverable?.name || folderDeliverable?.url);
     const hasImages = Boolean(imagesDeliverables && imagesDeliverables.length > 0);
@@ -1330,18 +1385,6 @@ export default function AdminDashboard() {
         return;
       }
     } catch (e) {}
-
-    // 4. Static fallback for verified demo archives
-    if (keyId === 'TSK-003' || reportFileName.includes('Project_Code_Folder')) {
-      const a = document.createElement('a');
-      a.href = '/Project_Code_Folder.zip';
-      a.download = reportFileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      addToast(`Downloading deliverable project archive: ${reportFileName}`);
-      return;
-    }
 
     addToast("No project folder archive attached to this submission.");
   };
@@ -1705,27 +1748,42 @@ export default function AdminDashboard() {
       };
 
       // 1. Direct Serverless Revision Email & MongoDB status update (with production fallback)
+      let emailDispatched = false;
+      let emailErrorMsg = null;
+      let emailMailto = null;
+
       try {
         let emailRes = await fetch('/api/send-revision-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (!emailRes.ok) {
-          await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
+        if (emailRes.ok) {
+          const eJson = await emailRes.json();
+          if (eJson.success) {
+            emailDispatched = true;
+          } else {
+            emailErrorMsg = eJson.error || eJson.message;
+            emailMailto = eJson.mailtoUrl;
+          }
+        } else {
+          let fb = await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+          if (fb.ok) {
+            const fbJson = await fb.json();
+            if (fbJson.success) {
+              emailDispatched = true;
+            } else {
+              emailErrorMsg = fbJson.error || fbJson.message;
+              emailMailto = fbJson.mailtoUrl;
+            }
+          }
         }
       } catch (e) {
-        try {
-          await fetch('https://worksphere-two.vercel.app/api/send-revision-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } catch (err) {}
+        emailErrorMsg = e.message;
       }
 
       // 2. Direct Serverless PATCH to MongoDB Atlas (with production fallback)
@@ -1773,13 +1831,22 @@ export default function AdminDashboard() {
         }
       } catch (e) {}
 
-      addToast(`⚠️ Revision request & feedback email dispatched to @${targetUser}!`);
+      if (emailDispatched) {
+        addToast(`🎉 Deliverable revision request & email delivered to @${targetUser}!`);
+      } else {
+        const fallbackMailto = emailMailto || `mailto:${targetEmail}?subject=${encodeURIComponent(`⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`)}&body=${encodeURIComponent(`Hello @${targetUser},\n\nSupervisor Evaluation Feedback for "${taskTitle}":\n\n${feedback}\n\nPlease open the Intern Portal to resubmit your deliverables:\nhttps://worksphere-two.vercel.app/intern/dashboard\n\nRegards,\nWorkSphere Administrator`)}`;
+        addToast(`⚠️ Task marked as Revision Requested. SMTP notice: ${emailErrorMsg || 'Configure Gmail App Password'}. Opening prefilled Gmail draft...`);
+        try {
+          window.open(fallbackMailto, '_blank');
+        } catch (e) {}
+      }
+
       setReviewTaskModal(null);
       setReviewFeedback('');
       fetchInternsData();
     } catch (err) {
       console.error(err);
-      addToast("Revision request dispatched.");
+      addToast("Revision request status updated.");
       setReviewTaskModal(null);
       fetchInternsData();
     } finally {
@@ -2772,6 +2839,20 @@ export default function AdminDashboard() {
                     <span className="text-sm leading-none">☁️</span>
                     <span>{gdriveConfig.configured ? 'Google Drive Active' : 'Connect Google Drive'}</span>
                     <span className={`w-2 h-2 rounded-full ${gdriveConfig.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  </button>
+
+                  <button
+                    onClick={() => setShowSmtpModal(true)}
+                    className={`font-bold text-xs px-3.5 py-2.5 rounded-xl border flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
+                      smtpConfig.verified 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                        : 'bg-indigo-50 text-indigo-800 border-indigo-300 hover:bg-indigo-100'
+                    }`}
+                    title="Configure Gmail SMTP App Password for automated email dispatch"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{smtpConfig.verified ? 'Gmail SMTP Active' : 'Configure Gmail SMTP'}</span>
+                    <span className={`w-2 h-2 rounded-full ${smtpConfig.verified ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                   </button>
 
                   <button
@@ -4949,10 +5030,10 @@ export default function AdminDashboard() {
                             setVideoError(false);
                             setIsVideoLoading(true);
                             const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-                            getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Task 2 Video.mp4', (pct, cur, tot) => {
+                            getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'walkthrough.mp4', (pct, cur, tot) => {
                               setVideoBufferProgress({ pct, cur, tot });
                             }).then(src => {
-                              const finalSrc = src || (keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null));
+                              const finalSrc = src;
                               if (finalSrc) {
                                 setModalVideoSrc(finalSrc);
                                 setModalVideoBlobUrl(finalSrc);
@@ -4960,11 +5041,8 @@ export default function AdminDashboard() {
                               setIsVideoLoading(false);
                               setVideoBufferProgress(null);
                             }).catch(() => {
-                              const fallbackSrc = keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null);
-                              if (fallbackSrc) {
-                                setModalVideoSrc(fallbackSrc);
-                                setModalVideoBlobUrl(fallbackSrc);
-                              }
+                              setModalVideoSrc('');
+                              setModalVideoBlobUrl(null);
                               setIsVideoLoading(false);
                               setVideoBufferProgress(null);
                             });
@@ -4976,8 +5054,12 @@ export default function AdminDashboard() {
                       </div>
                     )}
 
+                    {/* Video Deliverable Stream / Player */}
                     {(() => {
-                      const embedInfo = getEmbeddableVideoInfo(sub.videoDeliverable?.url || sub.rawUrl || reviewTaskModal.videoUrl);
+                      const candidateVideoUrl = (sub.videoDeliverable?.url || reviewTaskModal.videoUrl || '').trim();
+                      const isZipOrArchive = candidateVideoUrl && (candidateVideoUrl.toLowerCase().includes('.zip') || candidateVideoUrl.toLowerCase().includes('.rar') || candidateVideoUrl.toLowerCase().includes('.tar'));
+                      const embedInfo = (!isZipOrArchive && candidateVideoUrl) ? getEmbeddableVideoInfo(candidateVideoUrl) : null;
+
                       if (embedInfo) {
                         return (
                           <div className="space-y-2.5">
@@ -5032,18 +5114,7 @@ export default function AdminDashboard() {
                                 className="w-full max-h-72 object-contain bg-black"
                                 onError={(e) => {
                                   console.warn('Video playback error:', e);
-                                  const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-                                  if (keyId === 'TSK-003' && activeVideoSrc !== '/tsk003_demo.mp4') {
-                                    setModalVideoBlobUrl('/tsk003_demo.mp4');
-                                    setModalVideoSrc('/tsk003_demo.mp4');
-                                    setVideoError(false);
-                                  } else if (keyId === 'TSK-002' && activeVideoSrc !== '/sample_demo.mp4') {
-                                    setModalVideoBlobUrl('/sample_demo.mp4');
-                                    setModalVideoSrc('/sample_demo.mp4');
-                                    setVideoError(false);
-                                  } else {
-                                    setVideoError(true);
-                                  }
+                                  setVideoError(true);
                                 }}
                                 onLoadedData={() => {
                                   setVideoError(false);
@@ -5052,7 +5123,7 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
                               <span className="text-[11px] text-slate-400 font-mono">
-                                {sub.videoDeliverable?.name || 'Task 2 Video.mp4'} • {sub.videoDeliverable?.size || '0.50 MB'}
+                                {sub.videoDeliverable?.name || 'Walkthrough Demonstration'} • {sub.videoDeliverable?.size || ''}
                               </span>
                               <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
                                 <button
@@ -5068,7 +5139,7 @@ export default function AdminDashboard() {
                                 </label>
                                 <button
                                   type="button"
-                                  onClick={() => handleDownloadVideoFile(activeVideoSrc, sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4')}
+                                  onClick={() => handleDownloadVideoFile(activeVideoSrc, sub.videoDeliverable?.name || 'walkthrough_demo.mp4')}
                                   className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
                                 >
                                   <Download className="w-3.5 h-3.5" /> Download Video File
@@ -5078,6 +5149,7 @@ export default function AdminDashboard() {
                           </div>
                         );
                       }
+
                       if (isVideoLoading) {
                         return (
                           <div className="bg-slate-900/90 rounded-2xl p-6 text-center border border-slate-800 space-y-3">
@@ -5085,7 +5157,7 @@ export default function AdminDashboard() {
                             <p className="text-xs font-bold text-slate-200">
                               {videoBufferProgress?.tot > 1 
                                 ? `Buffering Video Deliverable from Database (${videoBufferProgress.pct}%)...` 
-                                : `Loading Video Demonstration (${sub.videoDeliverable?.name || 'Screen Recording Walkthrough.mp4'})...`}
+                                : `Loading Video Demonstration...`}
                             </p>
                             {videoBufferProgress?.tot > 1 && (
                               <div className="max-w-xs mx-auto space-y-1">
@@ -5093,55 +5165,89 @@ export default function AdminDashboard() {
                                   <div className="bg-rose-500 h-1.5 transition-all duration-200 rounded-full" style={{ width: `${videoBufferProgress.pct}%` }} />
                                 </div>
                                 <p className="text-[10px] text-slate-400 font-mono">
-                                  Downloaded chunk {videoBufferProgress.cur} of {videoBufferProgress.tot} from MongoDB Atlas
+                                  Downloaded chunk {videoBufferProgress.cur} of {videoBufferProgress.tot}
                                 </p>
                               </div>
                             )}
-                            <p className="text-[10px] text-slate-400 font-mono">Retrieving video stream directly from database</p>
                           </div>
                         );
                       }
+
+                      // If a genuine video file is registered but not yet loaded
+                      if (sub.videoDeliverable?.name && (sub.videoDeliverable?.hasFullVideo || sub.videoDeliverable?.size)) {
+                        return (
+                          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center space-y-3">
+                            <p className="text-xs font-bold text-slate-200">
+                              Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable.name}</strong> is registered ({sub.videoDeliverable.size || 'Attached'}).
+                            </p>
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsVideoLoading(true);
+                                  const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
+                                  getDeliverableVideo(keyId, sub.videoDeliverable.name, (pct, cur, tot) => {
+                                    setVideoBufferProgress({ pct, cur, tot });
+                                  }).then(src => {
+                                    if (src) {
+                                      setModalVideoSrc(src);
+                                      setModalVideoBlobUrl(src);
+                                    }
+                                    setIsVideoLoading(false);
+                                    setVideoBufferProgress(null);
+                                  }).catch(() => {
+                                    setIsVideoLoading(false);
+                                    setVideoBufferProgress(null);
+                                  });
+                                }}
+                                className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                              >
+                                <Play className="w-4 h-4 fill-current" /> Stream Video from Database
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowCloudVideoInput(prev => !prev)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                              >
+                                ☁️ Attach Google Drive Link
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Clean state when NO video demonstration was attached (e.g. only Project Archive was submitted)
                       return (
-                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center space-y-3">
-                          <p className="text-xs font-bold text-slate-200">
-                            Video file <strong className="text-rose-400 font-mono">{sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4'}</strong> is registered ({sub.videoDeliverable?.size || '0.50 MB'}).
+                        <div className="bg-slate-900/60 p-5 rounded-2xl border border-dashed border-slate-800 text-center space-y-2">
+                          <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                            <Video className="w-4 h-4" />
+                          </div>
+                          <p className="text-xs font-bold text-slate-200">No Demo Video Walkthrough Attached</p>
+                          <p className="text-[11px] text-slate-400 max-w-md mx-auto leading-relaxed">
+                            The intern submitted their project codebase / ZIP archive below. If you require a video screen recording walkthrough, you can request it via revision.
                           </p>
-                          <div className="flex items-center justify-center gap-2 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsVideoLoading(true);
-                                const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-                                getDeliverableVideo(keyId, sub.videoDeliverable?.name || 'Screen Recording 2026-09-24 200619.mp4', (pct, cur, tot) => {
-                                  setVideoBufferProgress({ pct, cur, tot });
-                                }).then(src => {
-                                  const finalSrc = src || (keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null));
-                                  if (finalSrc) {
-                                    setModalVideoSrc(finalSrc);
-                                    setModalVideoBlobUrl(finalSrc);
-                                  }
-                                  setIsVideoLoading(false);
-                                  setVideoBufferProgress(null);
-                                }).catch(() => {
-                                  const fallbackSrc = keyId === 'TSK-003' ? '/tsk003_demo.mp4' : (keyId === 'TSK-002' ? '/sample_demo.mp4' : null);
-                                  if (fallbackSrc) {
-                                    setModalVideoSrc(fallbackSrc);
-                                    setModalVideoBlobUrl(fallbackSrc);
-                                  }
-                                  setIsVideoLoading(false);
-                                  setVideoBufferProgress(null);
-                                });
-                              }}
-                              className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
-                            >
-                              <Play className="w-4 h-4 fill-current" /> Stream Video from Database
-                            </button>
+                          <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
                             <button
                               type="button"
                               onClick={() => setShowCloudVideoInput(prev => !prev)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                              className="text-xs font-bold text-emerald-300 hover:text-emerald-200 bg-emerald-950/70 border border-emerald-800 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                             >
                               ☁️ Attach Google Drive Link
+                            </button>
+                            <label className="text-xs font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-950/70 border border-indigo-800 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95">
+                              <Upload className="w-3.5 h-3.5" /> Load Local MP4
+                              <input type="file" accept="video/mp4,video/*" className="hidden" onChange={handleChooseLocalVideo} />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRevisionDeliverables({ video: true, pdf: false, folder: false, images: false });
+                                handleRequestRevisionFromModal(reviewTaskModal.id, ['video'], `Please record and attach a video screen recording demonstration for ${reviewTaskModal.title || 'this task'}. Your codebase archive has been received.`);
+                              }}
+                              className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                            >
+                              <Video className="w-3.5 h-3.5 text-rose-500" />
+                              <span>Request Video Revision</span>
                             </button>
                           </div>
                         </div>
@@ -5787,7 +5893,7 @@ export default function AdminDashboard() {
                     type="button"
                     onClick={() => {
                       setRevisionDeliverables({ video: true, pdf: false, folder: false, images: false });
-                      const videoFeedback = reviewFeedback.trim() || 'Please submit your genuine video walkthrough demonstration for Task 2. Your PDF report is already verified and accepted.';
+                      const videoFeedback = reviewFeedback.trim() || `Please record and submit your genuine video walkthrough demonstration for ${reviewTaskModal.title || 'this task'}. Your PDF report and project codebase archive are recorded.`;
                       handleRequestRevisionFromModal(reviewTaskModal.id, ['video'], videoFeedback);
                     }}
                     disabled={isProcessingReview}
@@ -5805,6 +5911,26 @@ export default function AdminDashboard() {
                     className="flex-1 sm:flex-initial bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                   >
                     <span>↩ Request Revision</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const taskObj = reviewTaskModal;
+                      const targetUser = (taskObj.assignedTo || 'intern').replace(/^@+/, '').trim();
+                      const targetEmail = resolveInternEmail(targetUser);
+                      const taskTitle = taskObj.title || 'Project Deliverable';
+                      const feedback = reviewFeedback.trim() || 'Please review your implementation, attach all required files/documentation, and resubmit your deliverables for evaluation.';
+                      const mailtoSubject = encodeURIComponent(`⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`);
+                      const mailtoBody = encodeURIComponent(`Hello @${targetUser},\n\nYour submitted project deliverable has been evaluated by your supervisor and requires revision before final approval.\n\nEvaluation Feedback:\n${feedback}\n\nTask: ${taskTitle}\nDeadline: ${taskObj.deadline || '2026-08-31'}\n\nPlease open the Intern Portal to resubmit your deliverables:\nhttps://worksphere-two.vercel.app/intern/dashboard\n\nRegards,\nWorkSphere Administrator`);
+                      window.open(`mailto:${targetEmail}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank');
+                      addToast(`Opened pre-filled Gmail draft for ${targetEmail}!`);
+                    }}
+                    className="flex-1 sm:flex-initial bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    title="Open prefilled revision notice directly in Gmail"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Send via Gmail</span>
                   </button>
 
                   <button
@@ -5931,6 +6057,132 @@ export default function AdminDashboard() {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSavingGdrive ? 'animate-spin' : ''}`} />
                   <span>{isSavingGdrive ? 'Verifying & Saving...' : 'Verify & Connect Google Drive'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Gmail SMTP Email Dispatcher Setup Modal */}
+      {showSmtpModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-md">
+                      Automated Email Dispatcher
+                    </span>
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                      smtpConfig.verified ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200'
+                    }`}>
+                      {smtpConfig.verified ? 'Verified & Active' : 'Action Required'}
+                    </span>
+                  </div>
+                  <h3 className="font-poppins font-extrabold text-lg text-slate-900 mt-0.5">
+                    Gmail SMTP Credentials Configuration
+                  </h3>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowSmtpModal(false)} 
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status & Overview Box */}
+            <div className={`rounded-2xl p-4 border space-y-2 ${
+              smtpConfig.verified ? 'bg-emerald-50/60 border-emerald-200' : 'bg-amber-50/60 border-amber-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${smtpConfig.verified ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span className="text-xs font-extrabold text-slate-900">
+                  {smtpConfig.verified 
+                    ? `Connected & Dispatched From: ${smtpConfig.user}`
+                    : `Current Sender: ${smtpConfig.user} (App Password Required)`}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                When active, all deliverable revision notifications, evaluation commendations, task assignments, and 24h deadline reminders are dispatched automatically in HTML to intern inboxes.
+              </p>
+              {!smtpConfig.verified && smtpConfig.verifyError && (
+                <p className="text-[11px] font-mono text-rose-700 bg-rose-50 border border-rose-200 p-2 rounded-lg">
+                  Notice: {smtpConfig.verifyError}
+                </p>
+              )}
+            </div>
+
+            {/* 3-Step App Password Guide */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">
+                How to Generate a Google App Password (2 Minutes):
+              </span>
+              <ol className="text-xs text-slate-600 space-y-1.5 list-decimal pl-4 leading-normal">
+                <li>Log in to <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold hover:underline">Google Account Security ↗</a> for <strong>{smtpUser}</strong>.</li>
+                <li>Ensure <strong>2-Step Verification</strong> is switched ON.</li>
+                <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold hover:underline">App Passwords ↗</a>, enter app name <strong>"WorkSphere"</strong>, click <strong>Create</strong>, and copy the 16-character code below.</li>
+              </ol>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveSmtpConfig} className="space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1">
+                    Sender Gmail Address:
+                  </label>
+                  <input
+                    type="email"
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1">
+                    16-Character Google App Password:
+                  </label>
+                  <input
+                    type="password"
+                    value={smtpPassword}
+                    onChange={(e) => setSmtpPassword(e.target.value)}
+                    placeholder="e.g. abcd efgh ijkl mnop"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-colors"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Never use your personal account password. Google requires a 16-character App Password.
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowSmtpModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSmtp || !smtpPassword.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-indigo-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSavingSmtp ? 'animate-spin' : ''}`} />
+                  <span>{isSavingSmtp ? 'Verifying with Google...' : 'Verify & Save Credentials'}</span>
                 </button>
               </div>
             </form>

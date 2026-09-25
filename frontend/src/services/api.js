@@ -1706,7 +1706,7 @@ export const api = {
       });
       if (serverlessRes.ok) {
         const data = await serverlessRes.json();
-        if (data && data.success) return data;
+        return data;
       }
     } catch (e) {}
 
@@ -1719,11 +1719,11 @@ export const api = {
       });
       if (fbRes.ok) {
         const data = await fbRes.json();
-        if (data && data.success) return data;
+        return data;
       }
     } catch (e) {}
 
-    return { success: true, message: 'Revision reminder email dispatched to intern!' };
+    return { success: false, message: 'Could not connect to email dispatch service.' };
   },
   checkAndSendDeadlineReminders: async (forceAll = false) => {
     try {

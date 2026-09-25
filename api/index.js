@@ -2,19 +2,48 @@ import { connectToDatabase } from './db.js';
 import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials } from './gdrive.js';
 import nodemailer from 'nodemailer';
 
-// Nodemailer SMTP Transporter
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: 'worksphere.ac.in@gmail.com',
-    pass: 'mbtfgehiiejzwtzk'
+// Dynamic Nodemailer SMTP Transporter (reads from MongoDB app_settings, env vars, or default)
+let cachedTransporter = null;
+let cachedTransporterKey = null;
+
+export async function getMailTransporter(db = null) {
+  let user = process.env.SMTP_USER || 'worksphere.ac.in@gmail.com';
+  let pass = process.env.SMTP_PASSWORD || 'mbtfgehiiejzwtzk';
+
+  if (db) {
+    try {
+      const setting = await db.collection('app_settings').findOne({ key: 'smtp_credentials' });
+      if (setting && setting.password) {
+        user = setting.user || user;
+        pass = setting.password;
+      }
+    } catch (e) {
+      console.warn('Failed reading smtp_credentials from MongoDB:', e.message);
+    }
   }
-});
+
+  const key = `${user}:${pass}`;
+  if (cachedTransporter && cachedTransporterKey === key) {
+    return cachedTransporter;
+  }
+
+  cachedTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass }
+  });
+  cachedTransporterKey = key;
+  return cachedTransporter;
+}
+
+export function invalidateMailTransporter() {
+  cachedTransporter = null;
+  cachedTransporterKey = null;
+}
 
 // Helper: Send Learning Module Email
-async function sendLearningModuleNotification({ toEmail, internName, username, moduleTitle, category, track, description, videoUrl, resourceUrl }) {
+async function sendLearningModuleNotification({ toEmail, internName, username, moduleTitle, category, track, description, videoUrl, resourceUrl, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
   
   const targetLabel = (username && username.toUpperCase() !== 'ALL') ? `@${username.replace(/^@+/, '')}` : 'All Interns';
@@ -89,7 +118,8 @@ async function sendLearningModuleNotification({ toEmail, internName, username, m
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Learning Curriculum" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: `🎓 [WorkSphere] New Learning Module: ${moduleTitle}`,
@@ -104,7 +134,7 @@ async function sendLearningModuleNotification({ toEmail, internName, username, m
 }
 
 // Helper: Send Task Assignment Email
-async function sendTaskNotification({ toEmail, internName, username, taskTitle, description, deadline, priority }) {
+async function sendTaskNotification({ toEmail, internName, username, taskTitle, description, deadline, priority, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const htmlContent = `
@@ -161,7 +191,8 @@ async function sendTaskNotification({ toEmail, internName, username, taskTitle, 
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Sprint Backlog" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: `📌 [WorkSphere] New Task Assigned: ${taskTitle}`,
@@ -176,7 +207,7 @@ async function sendTaskNotification({ toEmail, internName, username, taskTitle, 
 }
 
 // Helper: Send Account Credentials Email
-async function sendCredentialsNotification({ toEmail, name, username, password, role }) {
+async function sendCredentialsNotification({ toEmail, name, username, password, role, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const roleClean = role ? role.replace('ROLE_', '') : 'CLIENT';
@@ -230,7 +261,8 @@ async function sendCredentialsNotification({ toEmail, name, username, password, 
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Platform" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: `🔑 [WorkSphere] Your Account Login Credentials`,
@@ -245,7 +277,7 @@ async function sendCredentialsNotification({ toEmail, name, username, password, 
 }
 
 // Helper: Send 1-Day-Before Project Submission Deadline Reminder Email
-async function sendDeadlineReminderNotification({ toEmail, internName, username, taskTitle, description, deadline, priority, daysLeft = 1 }) {
+async function sendDeadlineReminderNotification({ toEmail, internName, username, taskTitle, description, deadline, priority, daysLeft = 1, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const htmlContent = `
@@ -361,7 +393,8 @@ async function sendDeadlineReminderNotification({ toEmail, internName, username,
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Submission Reminders" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: `[IMPORTANT] Submit Task Files & Folders Without Fail - Project Deadline Tomorrow: ${taskTitle}`,
@@ -389,8 +422,8 @@ function formatRichFeedbackForEmail(text) {
 }
 
 // Helper: Send Deliverable Revision Request Email to Intern
-async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables }) {
-  if (!toEmail || !toEmail.includes('@')) return false;
+async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables, db = null }) {
+  if (!toEmail || !toEmail.includes('@')) return { success: false, error: 'Invalid recipient email' };
 
   const deliverableItems = [];
   const reqList = Array.isArray(requiredDeliverables) 
@@ -519,22 +552,23 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: `⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`,
       html: htmlContent
     });
     console.log(`[EMAIL DISPATCH SUCCESS] Revision mail sent to ${toEmail}, id: ${info.messageId}`);
-    return true;
+    return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error(`[EMAIL DISPATCH ERROR] Failed to send revision mail to ${toEmail}:`, err);
-    return false;
+    return { success: false, error: err.message };
   }
 }
 
 // Helper: Send Evaluation & Feedback Notes Email to Intern
-async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, taskId, status = 'FEEDBACK', feedbackNotes }) {
+async function sendTaskFeedbackNotification({ toEmail, internName, username, taskTitle, taskId, status = 'FEEDBACK', feedbackNotes, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
 
   const isApproved = status === 'APPROVED' || status === 'COMPLETED';
@@ -787,7 +821,8 @@ async function sendTaskFeedbackNotification({ toEmail, internName, username, tas
   `;
 
   try {
-    const info = await transporter.sendMail({
+    const t = await getMailTransporter(db);
+    const info = await t.sendMail({
       from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
       to: toEmail,
       subject: subject,
@@ -1711,6 +1746,7 @@ export default async function handler(req, res) {
 
               if (assetType === 'video') {
                 updateFields.videoUrl = fileInfo.webViewLink;
+                updateFields.submissionUrl = fileInfo.webViewLink;
                 updateFields['submittedFiles.video.name'] = fileName || fileInfo.name;
                 updateFields['submittedFiles.video.url'] = fileInfo.webViewLink;
                 updateFields['submittedFiles.video.fileId'] = fileId;
@@ -1723,6 +1759,10 @@ export default async function handler(req, res) {
                 updateFields['submittedFiles.folder.fileId'] = fileId;
                 updateFields['submittedFiles.folder.size'] = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
                 updateFields['submittedFiles.folder.type'] = fileInfo.mimeType || 'application/zip';
+                updateFields.submissionUrl = fileInfo.webViewLink;
+                updateFields.fileName = fileName || fileInfo.name;
+                updateFields.fileSize = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
+                updateFields.fileType = fileInfo.mimeType || 'application/zip';
               }
 
               await db.collection('intern_tasks').updateOne(updateQuery, { $set: updateFields });
@@ -1738,6 +1778,69 @@ export default async function handler(req, res) {
             return res.status(500).json({ success: false, message: finalizeErr.message });
           }
         }
+      }
+    }
+
+    // ==========================================
+    // 8A-1b. GMAIL SMTP CONFIGURATION: /api/smtp-config
+    // ==========================================
+    if (cleanPath.includes('smtp-config')) {
+      const settingsCol = db.collection('app_settings');
+      if (req.method === 'GET') {
+        const setting = await settingsCol.findOne({ key: 'smtp_credentials' });
+        const user = setting?.user || process.env.SMTP_USER || 'worksphere.ac.in@gmail.com';
+        const hasPass = Boolean(setting?.password || process.env.SMTP_PASSWORD);
+        let verified = false;
+        let verifyError = null;
+        try {
+          const t = await getMailTransporter(db);
+          await t.verify();
+          verified = true;
+        } catch (e) {
+          verifyError = e.message;
+        }
+        return res.status(200).json({
+          configured: hasPass,
+          verified,
+          user,
+          verifyError
+        });
+      }
+
+      if (req.method === 'POST') {
+        const { user, password } = body || {};
+        if (!password || !password.trim()) {
+          return res.status(400).json({ success: false, message: 'Google App Password is required.' });
+        }
+        const cleanUser = (user || 'worksphere.ac.in@gmail.com').trim();
+        const cleanPass = password.trim().replace(/\s+/g, '');
+        
+        try {
+          const testTransporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: cleanUser, pass: cleanPass }
+          });
+          await testTransporter.verify();
+        } catch (authErr) {
+          return res.status(400).json({
+            success: false,
+            message: `Google rejected credentials: ${authErr.message}. Ensure 2-Step Verification is active on your Google account and you generate a 16-character App Password (not your personal account password).`
+          });
+        }
+
+        await settingsCol.updateOne(
+          { key: 'smtp_credentials' },
+          { $set: { key: 'smtp_credentials', user: cleanUser, password: cleanPass, updatedAt: new Date() } },
+          { upsert: true }
+        );
+        invalidateMailTransporter();
+
+        return res.status(200).json({
+          success: true,
+          message: `Gmail SMTP credentials verified and saved successfully for ${cleanUser}!`
+        });
       }
     }
 
@@ -1907,7 +2010,8 @@ export default async function handler(req, res) {
           description: taskDesc,
           deadline: taskDeadline,
           priority: taskPriority,
-          daysLeft: 1
+          daysLeft: 1,
+          db
         });
 
         if (task) {
@@ -1966,7 +2070,8 @@ export default async function handler(req, res) {
             description: t.description,
             deadline: t.deadline,
             priority: t.priority,
-            daysLeft: 1
+            daysLeft: 1,
+            db
           });
 
           if (sent) {
@@ -2052,7 +2157,7 @@ export default async function handler(req, res) {
         recipientEmails = ['maqsoodmdhrl@gmail.com'];
       }
 
-      const sent = await sendRevisionNotification({
+      const emailResult = await sendRevisionNotification({
         toEmail: recipientEmails.length === 1 ? recipientEmails[0] : recipientEmails,
         internName: recipientName,
         username: taskAssigned,
@@ -2060,15 +2165,28 @@ export default async function handler(req, res) {
         description: body.description || taskDoc?.description || '',
         deadline: taskDeadline,
         feedbackNotes,
-        requiredDeliverables
+        requiredDeliverables,
+        db
       });
 
+      const reqLabels = Array.isArray(requiredDeliverables)
+        ? requiredDeliverables.join(', ')
+        : (typeof requiredDeliverables === 'object' && requiredDeliverables !== null
+            ? Object.keys(requiredDeliverables).filter(k => requiredDeliverables[k]).join(', ')
+            : 'video, pdf, folder');
+
+      const mailtoSubject = encodeURIComponent(`⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`);
+      const mailtoBody = encodeURIComponent(`Hello ${recipientName || taskAssigned},\n\nYour submitted project deliverable has been evaluated by your supervisor and requires revision before final approval.\n\nEvaluation Feedback:\n${feedbackNotes}\n\nRequired Deliverables: ${reqLabels}\nTask: ${taskTitle}\nDeadline: ${taskDeadline}\n\nPlease open the Intern Portal to resubmit your deliverables:\nhttps://worksphere-two.vercel.app/intern/dashboard\n\nRegards,\nWorkSphere Administrator`);
+      const mailtoUrl = `mailto:${recipientEmails.join(',')}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
       return res.status(200).json({
-        success: sent,
-        message: sent
+        success: emailResult.success,
+        message: emailResult.success
           ? `Revision reminder email successfully delivered to ${recipientEmails.join(', ')}!`
-          : `Failed sending revision email to ${recipientEmails.join(', ')}.`,
-        recipientEmail: recipientEmails.join(', ')
+          : `SMTP dispatch notice: ${emailResult.error || 'Failed sending revision email'}. You can send directly using the mailto link.`,
+        recipientEmail: recipientEmails.join(', '),
+        mailtoUrl,
+        error: emailResult.error || null
       });
     }
 
@@ -2123,7 +2241,8 @@ export default async function handler(req, res) {
         taskTitle,
         taskId,
         status,
-        feedbackNotes
+        feedbackNotes,
+        db
       });
 
       return res.status(200).json({
