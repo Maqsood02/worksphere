@@ -4,10 +4,9 @@ const isLocalhost = typeof window !== 'undefined' && (window.location.hostname =
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocalhost ? 'http://localhost:8088' : '');
 
 // Auto-purge stale demo mock cache and reset attendance on first load
-// Auto-purge stale demo mock cache and reset attendance on first load
 if (typeof window !== 'undefined') {
-  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v24');
-  if (currentCacheVer !== 'v24') {
+  const currentCacheVer = localStorage.getItem('worksphere_clean_cache_v25');
+  if (currentCacheVer !== 'v25') {
     localStorage.removeItem('worksphere_learning_modules');
     localStorage.removeItem('worksphere_users_list');
     localStorage.removeItem('worksphere_tasks_maqsood');
@@ -21,7 +20,8 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('worksphere_invoices');
     localStorage.removeItem('worksphere_projects');
     localStorage.removeItem('worksphere_client_projects');
-    localStorage.setItem('worksphere_clean_cache_v24', 'v24');
+    localStorage.removeItem('worksphere_file_TSK-003');
+    localStorage.setItem('worksphere_clean_cache_v25', 'v25');
   }
 }
 
