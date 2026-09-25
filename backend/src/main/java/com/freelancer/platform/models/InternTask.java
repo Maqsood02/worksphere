@@ -23,6 +23,10 @@ public class InternTask {
     private String adminFeedback;
     private List<String> requiredDeliverables;
     private Object submittedFiles;
+    private String videoUrl;
+    private String fileName;
+    private String fileSize;
+    private String fileType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -164,5 +168,37 @@ public class InternTask {
 
     public void setSubmittedFiles(Object submittedFiles) {
         this.submittedFiles = submittedFiles;
+    }
+
+    public String getVideoUrl() {
+        return videoUrl;
+    }
+
+    public void setVideoUrl(String videoUrl) {
+        this.videoUrl = videoUrl;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public String getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(String fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
     }
 }

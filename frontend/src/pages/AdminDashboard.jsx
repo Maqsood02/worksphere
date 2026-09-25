@@ -770,17 +770,20 @@ export default function AdminDashboard() {
         interns = res;
       }
       
-      let rawTasks = (res && Array.isArray(res.allTasks) && res.allTasks.length > 0) ? res.allTasks : [];
-      if (rawTasks.length === 0) {
-        try {
-          const sRes = await fetch('/api/intern-tasks?username=all');
-          if (sRes.ok) {
-            const sData = await sRes.json();
-            if (sData && Array.isArray(sData.tasks)) {
-              rawTasks = sData.tasks;
-            }
+      let rawTasks = [];
+      try {
+        let sRes = await fetch('/api/intern-tasks?username=all');
+        if (!sRes.ok) sRes = await fetch('https://worksphere-two.vercel.app/api/intern-tasks?username=all');
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          if (sData && Array.isArray(sData.tasks) && sData.tasks.length > 0) {
+            rawTasks = sData.tasks;
           }
-        } catch (e) {}
+        }
+      } catch (e) {}
+
+      if (rawTasks.length === 0 && res && Array.isArray(res.allTasks) && res.allTasks.length > 0) {
+        rawTasks = res.allTasks;
       }
 
       const normalizedTasks = rawTasks
@@ -800,7 +803,10 @@ export default function AdminDashboard() {
         fileName: t.fileName || '',
         fileSize: t.fileSize || '',
         fileType: t.fileType || '',
-        fileData: t.fileData || ''
+        fileData: t.fileData || '',
+        videoUrl: t.videoUrl || (t.submittedFiles?.video?.url) || (t.submittedFiles && typeof t.submittedFiles === 'object' && t.submittedFiles.video && t.submittedFiles.video.url) || '',
+        submittedFiles: t.submittedFiles || null,
+        requiredDeliverables: t.requiredDeliverables || ['video', 'pdf', 'folder']
       }));
 
       // Server MongoDB Atlas is the single source of truth for active tasks
@@ -1266,7 +1272,7 @@ export default function AdminDashboard() {
     const isCurrentModal = reviewTaskModal && (task?.id === reviewTaskModal.id || task?.taskId === reviewTaskModal.taskId);
     const resolvedVideoData = (isCurrentModal && modalVideoSrc && !modalVideoSrc.startsWith('data:application/octet_stream')) ? modalVideoSrc : '';
 
-    const candidateVidUrl = (allFiles.video?.url || task?.videoUrl || '').trim();
+    const candidateVidUrl = (allFiles.video?.url || task?.videoUrl || (task?.submittedFiles?.video?.url) || '').trim();
     const isVidUrlZip = candidateVidUrl && (candidateVidUrl.toLowerCase().includes('.zip') || candidateVidUrl.toLowerCase().includes('.rar') || candidateVidUrl.toLowerCase().includes('.tar'));
     const isVidUrlFolder = candidateVidUrl && (urlLink === candidateVidUrl || (allFiles.folder && allFiles.folder.url === candidateVidUrl));
 
@@ -1279,10 +1285,10 @@ export default function AdminDashboard() {
 
     const videoDeliverable = hasVideo ? {
       ...(allFiles.video || {}),
-      name: allFiles.video?.name || 'Walkthrough Demonstration',
+      name: allFiles.video?.name || (task?.submittedFiles?.video?.name) || 'Walkthrough Demonstration',
       data: validVideoData,
       url: validVideoUrl,
-      size: allFiles.video?.size || ''
+      size: allFiles.video?.size || (task?.submittedFiles?.video?.size) || ''
     } : null;
 
     const pdfDeliverable = allFiles.pdf || (isPdf ? { name: fileName, size: fileSize, type: fileType, data: fileData } : null);
@@ -2859,71 +2865,86 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Header Console Banner */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-slate-100 pb-6">
-                <div className="space-y-1.5">
+              <div className="border-b border-slate-100 pb-6 space-y-4">
+                {/* Top Bar: Engine Status & Cloud Integration Badges */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                       Automated 1-Day Submission Reminder Engine Active
                     </span>
                     <span className="text-xs text-slate-500 font-semibold">• {allInternTasks.length} Total Deliverables</span>
                   </div>
-                  <h3 className="font-poppins font-extrabold text-2xl text-slate-900 flex items-center gap-2.5">
-                    <ClipboardList className="w-6 h-6 text-indigo-600" /> Assigned Deliverables & Task Reviews
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium max-w-2xl leading-relaxed">
-                    Assign sprint backlog deliverables, review submitted GitHub repositories & project folders, trigger 1-day submission deadline reminders, and approve completed work.
-                  </p>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowGdriveModal(true)}
+                      className={`font-bold text-xs px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                        gdriveConfig.configured 
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                          : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                      }`}
+                      title="Google Drive Automated Cloud Storage (15 GB free direct streaming)"
+                    >
+                      <span className="text-sm leading-none">☁️</span>
+                      <span className="whitespace-nowrap">{gdriveConfig.configured ? 'Google Drive Active' : 'Connect Google Drive'}</span>
+                      <span className={`w-2 h-2 rounded-full ${gdriveConfig.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    </button>
+
+                    <button
+                      onClick={() => setShowSmtpModal(true)}
+                      className={`font-bold text-xs px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                        smtpConfig.verified 
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                          : 'bg-indigo-50 text-indigo-800 border-indigo-300 hover:bg-indigo-100'
+                      }`}
+                      title="Configure Gmail SMTP App Password for automated email dispatch"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                      <span className="whitespace-nowrap">{smtpConfig.verified ? 'Gmail SMTP Active' : 'Configure Gmail SMTP'}</span>
+                      <span className={`w-2 h-2 rounded-full ${smtpConfig.verified ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-wrap shrink-0">
-                  <button
-                    onClick={() => setShowGdriveModal(true)}
-                    className={`font-bold text-xs px-3.5 py-2.5 rounded-xl border flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
-                      gdriveConfig.configured 
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                        : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-                    }`}
-                    title="Google Drive Automated Cloud Storage (15 GB free direct streaming)"
-                  >
-                    <span className="text-sm leading-none">☁️</span>
-                    <span>{gdriveConfig.configured ? 'Google Drive Active' : 'Connect Google Drive'}</span>
-                    <span className={`w-2 h-2 rounded-full ${gdriveConfig.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  </button>
+                {/* Main Heading & Primary Action Buttons */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
+                  <div className="space-y-1.5 max-w-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+                        <ClipboardList className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-poppins font-extrabold text-xl sm:text-2xl text-slate-900 leading-tight">
+                        Assigned Deliverables &amp; Task Reviews
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed sm:pl-13">
+                      Assign sprint backlog deliverables, review submitted GitHub repositories &amp; project folders, trigger 1-day submission deadline reminders, and approve completed work.
+                    </p>
+                  </div>
 
-                  <button
-                    onClick={() => setShowSmtpModal(true)}
-                    className={`font-bold text-xs px-3.5 py-2.5 rounded-xl border flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
-                      smtpConfig.verified 
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                        : 'bg-indigo-50 text-indigo-800 border-indigo-300 hover:bg-indigo-100'
-                    }`}
-                    title="Configure Gmail SMTP App Password for automated email dispatch"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>{smtpConfig.verified ? 'Gmail SMTP Active' : 'Configure Gmail SMTP'}</span>
-                    <span className={`w-2 h-2 rounded-full ${smtpConfig.verified ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  </button>
+                  <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                    <button
+                      onClick={handleScanDeadlineReminders}
+                      disabled={isScanningDeadlines}
+                      className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      title="Scan all active deliverables and auto-dispatch 1-day deadline reminder emails to interns"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isScanningDeadlines ? 'animate-spin' : ''}`} />
+                      <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send Reminders'}</span>
+                    </button>
 
-                  <button
-                    onClick={handleScanDeadlineReminders}
-                    disabled={isScanningDeadlines}
-                    className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                    title="Scan all active deliverables and auto-dispatch 1-day deadline reminder emails to interns"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isScanningDeadlines ? 'animate-spin' : ''}`} />
-                    <span>{isScanningDeadlines ? 'Scanning...' : 'Scan & Send Reminders'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setTargetInternUsername('');
-                      setShowAssignTaskModal(true);
-                    }}
-                    className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer"
-                  >
-                    <PlusCircle className="w-4 h-4" /> Assign Task to Intern
-                  </button>
+                    <button
+                      onClick={() => {
+                        setTargetInternUsername('');
+                        setShowAssignTaskModal(true);
+                      }}
+                      className="bg-primary hover:bg-indigo-700 text-white font-bold text-xs px-4 sm:px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer whitespace-nowrap"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      <span>Assign Task to Intern</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -5041,29 +5062,34 @@ export default function AdminDashboard() {
                   <FileText className="w-4 h-4 text-indigo-600" /> Attached Deliverable Assets & Project Folders
                 </span>
 
-                {/* 1. Video Deliverable (if submitted) */}
-                {sub.hasVideo && (
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-md">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Video className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="font-extrabold text-white text-xs block">
-                            {sub.videoDeliverable?.name || 'Project Video Demonstration'}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono block">
-                            {sub.videoDeliverable?.size ? `${sub.videoDeliverable.size} • ` : ''}Screen Recording / Video Walkthrough
-                          </span>
-                        </div>
+                {/* 1. Video Deliverable */}
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Video className="w-4 h-4" />
                       </div>
-                      <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <span className="text-[10px] font-extrabold bg-rose-950/80 text-rose-300 border border-rose-800 px-2.5 py-1 rounded-lg shrink-0">
-                          📹 Video Walkthrough
+                      <div>
+                        <span className="font-extrabold text-white text-xs block">
+                          {sub.videoDeliverable?.name || 'Project Video Demonstration'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono block">
+                          {sub.hasVideo 
+                            ? `${sub.videoDeliverable?.size ? `${sub.videoDeliverable.size} • ` : ''}Screen Recording / Video Walkthrough` 
+                            : 'Screen Recording Demonstration Walkthrough'}
                         </span>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg shrink-0 border ${
+                        sub.hasVideo 
+                          ? 'bg-rose-950/80 text-rose-300 border-rose-800' 
+                          : 'bg-amber-950/80 text-amber-300 border-amber-800'
+                      }`}>
+                        📹 Video Walkthrough
+                      </span>
+                    </div>
+                  </div>
 
                     {videoError && (
                       <div className="bg-amber-950/50 border border-amber-800/80 rounded-xl p-3 flex items-center justify-between gap-2.5">
@@ -5352,7 +5378,6 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
-                )}
 
                 {/* 2. Folder / Code ZIP Archive (Displayed immediately under video) */}
                 {sub.hasFolder && (
