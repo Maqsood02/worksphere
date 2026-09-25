@@ -437,7 +437,8 @@ function formatRichFeedbackForEmail(text) {
 
 // Helper: Send Deliverable Revision Request Email to Intern
 async function sendRevisionNotification({ toEmail, internName, username, taskTitle, description, deadline, feedbackNotes, requiredDeliverables, db = null, smtpPassword = null }) {
-  if (!toEmail || !toEmail.includes('@')) return { success: false, error: 'Invalid recipient email' };
+  const recipients = Array.isArray(toEmail) ? toEmail.filter(e => e && e.includes('@')).join(',') : (toEmail || '');
+  if (!recipients || !recipients.includes('@')) return { success: false, error: 'Invalid recipient email' };
 
   const deliverableItems = [];
   const reqList = Array.isArray(requiredDeliverables) 
@@ -569,14 +570,14 @@ async function sendRevisionNotification({ toEmail, internName, username, taskTit
     const t = await getMailTransporter(db, smtpPassword);
     const info = await t.sendMail({
       from: '"WorkSphere Deliverable Evaluation" <worksphere.ac.in@gmail.com>',
-      to: toEmail,
+      to: recipients,
       subject: `⚠️ [WorkSphere] Deliverable Revision Requested: ${taskTitle}`,
       html: htmlContent
     });
-    console.log(`[EMAIL DISPATCH SUCCESS] Revision mail sent to ${toEmail}, id: ${info.messageId}`);
+    console.log(`[EMAIL DISPATCH SUCCESS] Revision mail sent to ${recipients}, id: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (err) {
-    console.error(`[EMAIL DISPATCH ERROR] Failed to send revision mail to ${toEmail}:`, err);
+    console.error(`[EMAIL DISPATCH ERROR] Failed to send revision mail to ${recipients}:`, err);
     return { success: false, error: err.message };
   }
 }
