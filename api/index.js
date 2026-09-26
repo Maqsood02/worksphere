@@ -23,7 +23,20 @@ export async function getMailTransporter(db = null, dynamicPass = null) {
   }
 
   if (!pass) {
-    pass = process.env.SMTP_PASSWORD || 'mbtfgehiiejzwtzk';
+    try {
+      const { db: connectedDb } = await connectToDatabase();
+      if (connectedDb) {
+        const setting = await connectedDb.collection('app_settings').findOne({ key: 'smtp_credentials' });
+        if (setting && setting.password) {
+          user = setting.user || user;
+          pass = setting.password;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!pass) {
+    pass = process.env.SMTP_PASSWORD || 'ebkuthdantiiwqzf';
   }
 
   const key = `${user}:${pass}`;
@@ -32,15 +45,13 @@ export async function getMailTransporter(db = null, dynamicPass = null) {
   }
 
   cachedTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    service: 'gmail',
     auth: { user, pass }
   });
   cachedTransporterKey = key;
 
   // Auto-persist verified dynamic password to MongoDB Atlas app_settings if not already saved
-  if (dynamicPass && db && pass !== 'mbtfgehiiejzwtzk') {
+  if (dynamicPass && db && pass !== 'ebkuthdantiiwqzf') {
     db.collection('app_settings').updateOne(
       { key: 'smtp_credentials' },
       { $set: { key: 'smtp_credentials', user, password: pass, updatedAt: new Date() } },
