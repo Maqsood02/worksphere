@@ -1265,10 +1265,15 @@ export default async function handler(req, res) {
       if (toEmail && toEmail.includes('@')) {
         recipients.push({ email: toEmail, name: internName || username, username });
       } else if (username.toUpperCase() === 'ALL') {
-        const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
+        const interns = await usersCol.find({ role: { $regex: /intern/i } }).toArray();
         if (interns.length > 0) {
           interns.forEach(i => {
-            if (i.email) recipients.push({ email: i.email, name: i.name || i.username, username: i.username });
+            let email = i.email;
+            if (!email || !email.includes('@') || email.endsWith('@worksphere.ac.in')) {
+              if (i.username?.toLowerCase().includes('chinmay')) email = 'chinmaykv555@gmail.com';
+              else email = 'maqsoodmd.ac.in@gmail.com';
+            }
+            recipients.push({ email, name: i.name || i.username, username: i.username });
           });
         } else {
           recipients.push({ email: 'maqsoodmd.ac.in@gmail.com', name: 'Maqsood MD', username: 'maqsood' });
@@ -1277,13 +1282,12 @@ export default async function handler(req, res) {
       } else {
         const targetClean = username.replace(/^@+/, '').trim().toLowerCase();
         const user = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
-        if (user && user.email) {
-          recipients.push({ email: user.email, name: user.name || user.username, username: user.username });
-        } else if (targetClean.includes('chinmay')) {
-          recipients.push({ email: 'chinmaykv555@gmail.com', name: 'Chinmay K V', username: 'chinmaykv' });
-        } else {
-          recipients.push({ email: 'maqsoodmd.ac.in@gmail.com', name: 'Maqsood MD', username: 'maqsood' });
+        let email = user?.email;
+        if (!email || !email.includes('@') || email.endsWith('@worksphere.ac.in')) {
+          if (targetClean.includes('chinmay')) email = 'chinmaykv555@gmail.com';
+          else email = 'maqsoodmd.ac.in@gmail.com';
         }
+        recipients.push({ email, name: user?.name || user?.username || targetClean, username: targetClean });
       }
 
       const sentSet = new Set();
@@ -1297,7 +1301,8 @@ export default async function handler(req, res) {
             taskTitle,
             description,
             deadline,
-            priority
+            priority,
+            db
           });
         }
       }
@@ -1403,6 +1408,36 @@ export default async function handler(req, res) {
           createdAt: new Date(), updatedAt: new Date()
         };
         await tasksCol.insertOne(newTaskDoc);
+
+        // Auto-dispatch email notification to intern's registered email
+        try {
+          const targetClean = cleanAssigned.toLowerCase();
+          if (targetClean === 'all') {
+            const interns = await usersCol.find({ role: { $regex: /intern/i } }).toArray();
+            const sent = new Set();
+            for (const i of interns) {
+              let email = i.email;
+              if (!email || !email.includes('@') || email.endsWith('@worksphere.ac.in')) {
+                if (i.username?.toLowerCase().includes('chinmay')) email = 'chinmaykv555@gmail.com';
+                else email = 'maqsoodmd.ac.in@gmail.com';
+              }
+              if (email && !sent.has(email.toLowerCase())) {
+                sent.add(email.toLowerCase());
+                await sendTaskNotification({ toEmail: email, internName: i.name || i.username, username: i.username, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority, db });
+              }
+            }
+          } else {
+            const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
+            let targetEmail = found?.email;
+            if (!targetEmail || !targetEmail.includes('@') || targetEmail.endsWith('@worksphere.ac.in')) {
+              targetEmail = targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com';
+            }
+            await sendTaskNotification({ toEmail: targetEmail, internName: found?.name || targetClean, username: targetClean, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority, db });
+          }
+        } catch (e) {
+          console.error('[TASK EMAIL DISPATCH ERROR]:', e);
+        }
+
         return res.status(200).json({ success: true, message: `Task assigned successfully!`, task: newTaskDoc });
       }
 
@@ -1598,18 +1633,27 @@ export default async function handler(req, res) {
         // Auto-dispatch email notification
         try {
           const targetClean = cleanAssigned.toLowerCase();
-          let targetEmail = '';
           if (targetClean === 'all') {
-            const interns = await usersCol.find({ role: 'ROLE_INTERN' }).toArray();
+            const interns = await usersCol.find({ role: { $regex: /intern/i } }).toArray();
+            const sent = new Set();
             for (const i of interns) {
-              if (i.email) {
-                await sendTaskNotification({ toEmail: i.email, internName: i.name, username: i.username, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
+              let email = i.email;
+              if (!email || !email.includes('@') || email.endsWith('@worksphere.ac.in')) {
+                if (i.username?.toLowerCase().includes('chinmay')) email = 'chinmaykv555@gmail.com';
+                else email = 'maqsoodmd.ac.in@gmail.com';
+              }
+              if (email && !sent.has(email.toLowerCase())) {
+                sent.add(email.toLowerCase());
+                await sendTaskNotification({ toEmail: email, internName: i.name || i.username, username: i.username, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority, db });
               }
             }
           } else {
             const found = await usersCol.findOne({ username: new RegExp(`^${targetClean}$`, 'i') });
-            targetEmail = found?.email || (targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com');
-            await sendTaskNotification({ toEmail: targetEmail, internName: found?.name || targetClean, username: targetClean, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority });
+            let targetEmail = found?.email;
+            if (!targetEmail || !targetEmail.includes('@') || targetEmail.endsWith('@worksphere.ac.in')) {
+              targetEmail = targetClean.includes('chinmay') ? 'chinmaykv555@gmail.com' : 'maqsoodmd.ac.in@gmail.com';
+            }
+            await sendTaskNotification({ toEmail: targetEmail, internName: found?.name || targetClean, username: targetClean, taskTitle: newTaskDoc.title, description: newTaskDoc.description, deadline: newTaskDoc.deadline, priority: newTaskDoc.priority, db });
           }
         } catch (e) {
           console.error('[TASK EMAIL DISPATCH ERROR]:', e);

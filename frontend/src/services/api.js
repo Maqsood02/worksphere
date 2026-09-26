@@ -1472,10 +1472,11 @@ export const api = {
     });
   },
   assignInternTask: async (username, payload) => {
-    const uKey = (username || 'intern').toLowerCase();
+    const cleanUser = (username || 'ALL').replace(/^@+/, '').trim();
+    const uKey = cleanUser.toLowerCase();
     const newTask = {
       id: 'TSK-' + Date.now(),
-      assignedTo: username,
+      assignedTo: cleanUser,
       title: payload.title || 'New Task',
       description: payload.description || '',
       deadline: payload.deadline || '2026-08-31',
@@ -1485,21 +1486,7 @@ export const api = {
       submissionNotes: ''
     };
 
-    // 1. Direct Vercel Serverless MongoDB Atlas persist
-    try {
-      await fetch('/api/intern-tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignedTo: username,
-          title: payload.title,
-          description: payload.description,
-          deadline: payload.deadline,
-          priority: payload.priority
-        })
-      });
-    } catch (e) {}
-
+    // Update local cache optimistically
     try {
       const saved = localStorage.getItem(`worksphere_tasks_${uKey}`);
       let list = saved ? JSON.parse(saved) : [];
@@ -1515,13 +1502,13 @@ export const api = {
       localStorage.setItem('worksphere_global_tasks', JSON.stringify(globalList));
     } catch(e) {}
 
-    // Dispatch email via Serverless Function / direct failover
+    // Dispatch email explicitly to ensure immediate delivery
     try {
       fetch('/api/send-task-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: username,
+          username: cleanUser,
           taskTitle: payload.title,
           description: payload.description,
           deadline: payload.deadline,
@@ -1530,9 +1517,50 @@ export const api = {
       }).catch(() => {});
     } catch (e) {}
 
-    return request(`/api/admin/interns/${username}/tasks`, {
+    // 1. Try Primary Spring Boot /tasks endpoint
+    try {
+      const res = await request(`/api/admin/interns/${encodeURIComponent(cleanUser)}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({
+          targetUsername: cleanUser,
+          assignedTo: cleanUser,
+          ...payload
+        })
+      });
+      if (res && res.success) return res;
+    } catch (e) {
+      console.warn('Spring Boot /tasks endpoint note:', e?.message || e);
+    }
+
+    // 2. Try Vercel Serverless / MongoDB Atlas fallback
+    try {
+      const serverlessRes = await fetch('/api/intern-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedTo: cleanUser,
+          title: payload.title,
+          description: payload.description,
+          deadline: payload.deadline,
+          priority: payload.priority
+        })
+      });
+      if (serverlessRes.ok) {
+        const sData = await serverlessRes.json();
+        if (sData && sData.success) {
+          return sData;
+        }
+      }
+    } catch (e) {}
+
+    // 3. Fallback to /assign-task endpoint
+    return request('/api/admin/interns/assign-task', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        targetUsername: cleanUser,
+        assignedTo: cleanUser,
+        ...payload
+      })
     });
   },
   generateInternCertificate: (username, payload) => 
@@ -1568,35 +1596,7 @@ export const api = {
       body: JSON.stringify({ status })
     });
   },
-  assignInternTask: async (targetUsername, payload) => {
-    try {
-      const serverlessRes = await fetch('/api/intern-tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignedTo: targetUsername,
-          title: payload.title,
-          description: payload.description,
-          deadline: payload.deadline,
-          priority: payload.priority
-        })
-      });
-      if (serverlessRes.ok) {
-        const sData = await serverlessRes.json();
-        if (sData && sData.success) {
-          return sData;
-        }
-      }
-    } catch (e) {}
 
-    return request('/api/admin/interns/assign-task', {
-      method: 'POST',
-      body: JSON.stringify({
-        targetUsername,
-        ...payload
-      })
-    });
-  },
   createInternTask: (targetUsername, payload) => {
     return api.assignInternTask(targetUsername, payload);
   },

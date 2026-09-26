@@ -519,8 +519,8 @@ public class InternRestController {
         ));
     }
 
-    @PostMapping("/api/admin/interns/{username}/tasks")
-    public synchronized ResponseEntity<?> assignTaskToIntern(@PathVariable String username, @RequestBody Map<String, String> payload) {
+    @PostMapping({"/api/admin/interns/{username}/tasks", "/api/admin/interns/tasks"})
+    public synchronized ResponseEntity<?> assignTaskToIntern(@PathVariable(required = false) String username, @RequestBody Map<String, String> payload) {
         String title = payload.get("title");
         String description = payload.get("description");
         String deadline = payload.get("deadline");
@@ -530,15 +530,21 @@ public class InternRestController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Task title is required."));
         }
 
+        String targetUser = username;
+        if (targetUser == null || targetUser.isBlank()) {
+            targetUser = payload.getOrDefault("targetUsername", payload.getOrDefault("assignedTo", payload.getOrDefault("username", "ALL")));
+        }
+
         String cleanTitle = title.trim();
-        String cleanUser = (username != null ? username.trim() : "ALL");
+        String cleanUser = (targetUser != null ? targetUser.trim().replaceAll("^@+", "") : "ALL");
 
         // Prevent duplicate task creation
         boolean isDuplicate = tasksList.stream().anyMatch(t -> {
             String tTitle = (String) t.get("title");
             String tUser = (String) t.get("assignedTo");
+            String cleanTUser = tUser != null ? tUser.trim().replaceAll("^@+", "") : "ALL";
             return tTitle != null && tTitle.trim().equalsIgnoreCase(cleanTitle)
-                && (tUser == null || tUser.trim().equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(tUser));
+                && (cleanTUser.equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(cleanUser) || "ALL".equalsIgnoreCase(cleanTUser));
         });
 
         if (isDuplicate) {
@@ -551,7 +557,7 @@ public class InternRestController {
         String taskId = "TSK-" + (tasksList.size() + 105);
         Map<String, Object> newTask = new HashMap<>();
         newTask.put("id", taskId);
-        newTask.put("assignedTo", username);
+        newTask.put("assignedTo", cleanUser);
         newTask.put("title", title);
         newTask.put("description", description != null ? description : "");
         newTask.put("deadline", deadline != null && !deadline.isBlank() ? deadline : LocalDate.now().plusDays(7).toString());
@@ -563,7 +569,7 @@ public class InternRestController {
         tasksList.add(newTask);
 
         try {
-            InternTask dbTask = new InternTask(taskId, username, title, (String) newTask.get("description"), (String) newTask.get("deadline"), (String) newTask.get("priority"), "IN_PROGRESS");
+            InternTask dbTask = new InternTask(taskId, cleanUser, title, (String) newTask.get("description"), (String) newTask.get("deadline"), (String) newTask.get("priority"), "IN_PROGRESS");
             internTaskRepository.save(dbTask);
         } catch (Exception e) {
             System.err.println("[DB ERROR] InternTask save failed: " + e.getMessage());
@@ -573,7 +579,7 @@ public class InternRestController {
         boolean emailSent = false;
         String noticeMsg = "";
 
-        if ("ALL".equalsIgnoreCase(username)) {
+        if ("ALL".equalsIgnoreCase(cleanUser)) {
             List<User> allUsers = userService.findAllUsers();
             int sentCount = 0;
             for (User u : allUsers) {
@@ -581,7 +587,7 @@ public class InternRestController {
                     String internName = u.getName() != null ? u.getName() : u.getUsername();
                     String email = u.getEmail();
                     if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
-                        String lower = u.getUsername().toLowerCase();
+                        String lower = u.getUsername() != null ? u.getUsername().toLowerCase() : "";
                         if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
                         else email = "maqsoodmd.ac.in@gmail.com";
                     }
@@ -607,27 +613,32 @@ public class InternRestController {
             emailSent = sentCount > 0;
             noticeMsg = "New task assigned to ALL Interns & email notifications dispatched to " + sentCount + " registered intern email(s)!";
         } else {
-            Optional<User> userOpt = userService.findByUsername(username);
-            Map<String, Object> profile = getOrCreateProfile(username);
+            Optional<User> userOpt = userService.findByUsername(cleanUser);
+            if (userOpt.isEmpty()) {
+                userOpt = userService.findAllUsers().stream()
+                    .filter(u -> u.getUsername() != null && u.getUsername().equalsIgnoreCase(cleanUser))
+                    .findFirst();
+            }
+            Map<String, Object> profile = getOrCreateProfile(cleanUser);
 
-            String internName = userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", username));
+            String internName = userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", cleanUser));
             String email = userOpt.map(User::getEmail).filter(e -> e != null && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
 
             if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
-                String lower = username.toLowerCase();
+                String lower = cleanUser.toLowerCase();
                 if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
                 else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
                 else email = "maqsoodmd.ac.in@gmail.com";
             }
 
             try {
-                System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + username);
-                emailService.sendTaskAssignedEmailSync(email, internName, username, title, description, deadline, priority);
+                System.out.println("[SMTP DISPATCH] Task assigned email notification to: " + email + " for @" + cleanUser);
+                emailService.sendTaskAssignedEmailSync(email, internName, cleanUser, title, description, deadline, priority);
                 emailSent = true;
-                noticeMsg = "New task assigned to @" + username + " & notification email dispatched to registered email " + email + "!";
+                noticeMsg = "New task assigned to @" + cleanUser + " & notification email dispatched to registered email " + email + "!";
             } catch (Exception e) {
                 System.err.println("[SMTP ERROR] Task email trigger failed: " + e.getMessage());
-                noticeMsg = "New task assigned to @" + username + "! (SMTP Note: " + e.getMessage() + ")";
+                noticeMsg = "New task assigned to @" + cleanUser + "! (SMTP Note: " + e.getMessage() + ")";
             }
         }
 
@@ -636,6 +647,98 @@ public class InternRestController {
             "emailSent", emailSent,
             "message", noticeMsg,
             "task", newTask
+        ));
+    }
+
+    @PostMapping("/api/admin/interns/assign-task")
+    public synchronized ResponseEntity<?> assignTaskDirect(@RequestBody Map<String, String> payload) {
+        String targetUsername = payload.getOrDefault("targetUsername", payload.getOrDefault("assignedTo", payload.getOrDefault("username", "ALL")));
+        return assignTaskToIntern(targetUsername, payload);
+    }
+
+    @PostMapping("/api/intern-tasks")
+    public synchronized ResponseEntity<?> createInternTaskDirect(@RequestBody Map<String, String> payload) {
+        String assignedTo = payload.getOrDefault("assignedTo", payload.getOrDefault("targetUsername", payload.getOrDefault("username", "ALL")));
+        return assignTaskToIntern(assignedTo, payload);
+    }
+
+    @PostMapping("/api/send-task-email")
+    public synchronized ResponseEntity<?> sendTaskEmailDirect(@RequestBody Map<String, String> payload) {
+        String username = payload.getOrDefault("username", payload.getOrDefault("targetUsername", "ALL"));
+        String cleanUser = (username != null ? username.trim().replaceAll("^@+", "") : "ALL");
+        String title = payload.getOrDefault("taskTitle", payload.getOrDefault("title", "Sprint Deliverable Task"));
+        String description = payload.getOrDefault("description", "");
+        String deadline = payload.getOrDefault("deadline", LocalDate.now().plusDays(7).toString());
+        String priority = payload.getOrDefault("priority", "HIGH");
+        String explicitEmail = payload.get("toEmail");
+        String explicitName = payload.get("internName");
+
+        boolean sent = false;
+        String message = "";
+
+        if ("ALL".equalsIgnoreCase(cleanUser)) {
+            List<User> allUsers = userService.findAllUsers();
+            int count = 0;
+            for (User u : allUsers) {
+                if (u.getRole() != null && u.getRole().toUpperCase().contains("INTERN")) {
+                    String internName = u.getName() != null ? u.getName() : u.getUsername();
+                    String email = u.getEmail();
+                    if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+                        String lower = u.getUsername() != null ? u.getUsername().toLowerCase() : "";
+                        if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+                        else email = "maqsoodmd.ac.in@gmail.com";
+                    }
+                    try {
+                        emailService.sendTaskAssignedEmailSync(email, internName, u.getUsername(), title, description, deadline, priority);
+                        count++;
+                    } catch (Exception e) {
+                        System.err.println("[SMTP ERROR] Task email failed for @" + u.getUsername() + ": " + e.getMessage());
+                    }
+                }
+            }
+            if (count == 0) {
+                try {
+                    emailService.sendTaskAssignedEmailSync("maqsoodmd.ac.in@gmail.com", "Maqsood MD", "maqsood", title, description, deadline, priority);
+                    emailService.sendTaskAssignedEmailSync("chinmaykv555@gmail.com", "Chinmay K V", "Chinmaykv", title, description, deadline, priority);
+                    count = 2;
+                } catch (Exception ignored) {}
+            }
+            sent = count > 0;
+            message = "Task assigned email sent to " + count + " registered intern(s)!";
+        } else {
+            Optional<User> userOpt = userService.findByUsername(cleanUser);
+            if (userOpt.isEmpty()) {
+                userOpt = userService.findAllUsers().stream()
+                    .filter(u -> u.getUsername() != null && u.getUsername().equalsIgnoreCase(cleanUser))
+                    .findFirst();
+            }
+            Map<String, Object> profile = getOrCreateProfile(cleanUser);
+            String internName = explicitName != null && !explicitName.isBlank() ? explicitName : userOpt.map(User::getName).orElse((String) profile.getOrDefault("name", cleanUser));
+            String email = explicitEmail;
+            if (email == null || !email.contains("@")) {
+                email = userOpt.map(User::getEmail).filter(e -> e != null && e.contains("@") && !e.endsWith("@worksphere.ac.in")).orElse((String) profile.get("email"));
+            }
+            if (email == null || !email.contains("@") || email.endsWith("@worksphere.ac.in")) {
+                String lower = cleanUser.toLowerCase();
+                if (lower.contains("chinmay")) email = "chinmaykv555@gmail.com";
+                else if (lower.contains("worksphere") || lower.contains("admin")) email = "worksphere.ac.in@gmail.com";
+                else email = "maqsoodmd.ac.in@gmail.com";
+            }
+            try {
+                System.out.println("[SMTP DISPATCH] Direct send-task-email to: " + email + " for @" + cleanUser);
+                emailService.sendTaskAssignedEmailSync(email, internName, cleanUser, title, description, deadline, priority);
+                sent = true;
+                message = "Task assigned notification email successfully dispatched to registered email " + email + "!";
+            } catch (Exception e) {
+                System.err.println("[SMTP ERROR] Task email failed: " + e.getMessage());
+                message = "Task assigned email trigger failed: " + e.getMessage();
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "emailSent", sent,
+            "message", message
         ));
     }
 

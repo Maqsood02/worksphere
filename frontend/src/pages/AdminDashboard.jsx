@@ -1128,17 +1128,18 @@ export default function AdminDashboard() {
 
     const targetUser = (targetInternUsername && targetInternUsername.trim() !== '') ? targetInternUsername : 'ALL';
     const cleanNewTitle = newTaskTitle.trim().toLowerCase();
-    const cleanTarget = targetUser.replace(/^@+/, '').trim().toLowerCase();
+    const cleanTarget = targetUser.replace(/^@+/, '').trim();
+    const cleanTargetLower = cleanTarget.toLowerCase();
 
     // Prevent duplicate task creation
     const isDuplicate = allInternTasks.some(t => {
       const tTitle = (t.title || '').trim().toLowerCase();
       const tAssigned = (t.assignedTo || 'ALL').replace(/^@+/, '').trim().toLowerCase();
-      return tTitle === cleanNewTitle && (tAssigned === cleanTarget || cleanTarget === 'all' || tAssigned === 'all');
+      return tTitle === cleanNewTitle && (tAssigned === cleanTargetLower || cleanTargetLower === 'all' || tAssigned === 'all');
     });
 
     if (isDuplicate) {
-      addToast(`⚠️ Task "${newTaskTitle.trim()}" is already assigned to @${targetUser}. Duplicate task creation is not allowed!`);
+      addToast(`⚠️ Task "${newTaskTitle.trim()}" is already assigned to @${cleanTarget}. Duplicate task creation is not allowed!`);
       return;
     }
 
@@ -1153,40 +1154,42 @@ export default function AdminDashboard() {
 
       // 1. Direct Email Dispatch
       try {
-        fetch('/api/send-task-email', {
+        await fetch('/api/send-task-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: targetUser, taskTitle: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
+          body: JSON.stringify({ username: cleanTarget, taskTitle: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
         }).catch(() => {});
       } catch (e) {}
 
-      // 2. Save task to Vercel Serverless MongoDB and get real taskId back
+      // 2. Save task via primary API client (which handles Spring Boot, Vercel Serverless, and local cache)
       let savedTask = null;
       try {
-        const saveRes = await fetch('/api/intern-tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assignedTo: targetUser, title: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
-        });
-        if (saveRes.ok) {
-          const saveData = await saveRes.json();
-          if (saveData && saveData.task) savedTask = saveData.task;
-        } else if (saveRes.status === 409) {
-          const errData = await saveRes.json().catch(() => ({}));
-          addToast(`⚠️ ${errData.message || 'Duplicate task creation is not allowed.'}`);
-          setIsAssigning(false);
-          return;
-        }
-      } catch (e) { console.warn('Task save note:', e); }
+        const assignRes = await api.assignInternTask(cleanTarget, taskPayload);
+        if (assignRes && assignRes.task) savedTask = assignRes.task;
+      } catch (e) {
+        console.warn('api.assignInternTask note:', e);
+      }
 
-      // 3. Also persist via Java backend (fire and forget)
-      try { await api.assignInternTask(targetUser, taskPayload); } catch (e) {}
+      // 3. Fallback direct serverless persist if not already saved
+      if (!savedTask) {
+        try {
+          const saveRes = await fetch('/api/intern-tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assignedTo: cleanTarget, title: taskPayload.title, description: taskPayload.description, deadline: taskPayload.deadline, priority: taskPayload.priority })
+          });
+          if (saveRes.ok) {
+            const saveData = await saveRes.json();
+            if (saveData && saveData.task) savedTask = saveData.task;
+          }
+        } catch (e) { console.warn('Task save note:', e); }
+      }
 
       // 4. Optimistically add to local state so it shows immediately
       const optimisticTask = {
         id: savedTask?.taskId || savedTask?.id || ('TSK-' + Date.now()),
         taskId: savedTask?.taskId || savedTask?.id || ('TSK-' + Date.now()),
-        assignedTo: targetUser.replace(/^@+/, ''),
+        assignedTo: cleanTarget,
         title: taskPayload.title,
         description: taskPayload.description,
         deadline: taskPayload.deadline,
@@ -1200,18 +1203,18 @@ export default function AdminDashboard() {
         return exists ? prev : [optimisticTask, ...prev];
       });
 
-      addToast(`Task assigned to @${targetUser} & email notification sent to registered inbox!`);
+      addToast(`Task assigned to @${cleanTarget} & email notification dispatched to registered email!`);
       setShowAssignTaskModal(false);
       setNewTaskTitle('');
       setNewTaskDesc('');
       setNewTaskDeadline('');
       setTargetInternUsername('');
 
-      // 5. Re-fetch after delay to avoid race condition with MongoDB write
+      // 5. Re-fetch after delay to avoid race condition with write
       setTimeout(() => fetchInternsData(true), 1500);
     } catch (err) {
       console.error(err);
-      addToast("Task created successfully & email notification sent!");
+      addToast("Task created successfully & email notification dispatched!");
       setShowAssignTaskModal(false);
       setTimeout(() => fetchInternsData(true), 1500);
     } finally {
