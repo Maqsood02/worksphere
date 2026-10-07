@@ -732,7 +732,7 @@ export function getEmbeddableVideoInfo(url) {
   if (!url || typeof url !== 'string') return null;
   const cleanUrl = url.trim();
 
-  // 1. Google Drive File Preview Embed
+  // 1. Google Drive File Preview Embed & Instant Stream
   const gdriveMatch = cleanUrl.match(/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/i);
   if (gdriveMatch && gdriveMatch[1]) {
     const fileId = gdriveMatch[1];
@@ -742,6 +742,9 @@ export function getEmbeddableVideoInfo(url) {
       fileId,
       embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
       directUrl: `https://drive.google.com/file/d/${fileId}/view`,
+      streamUrl: `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`,
+      proxyStreamUrl: `/api/drive-stream?fileId=${fileId}`,
+      downloadUrl: `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`,
       badgeColor: 'emerald'
     };
   }

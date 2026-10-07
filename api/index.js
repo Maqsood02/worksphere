@@ -1,5 +1,6 @@
 import { connectToDatabase } from './db.js';
-import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials } from './gdrive.js';
+import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials, getGoogleDriveAuth } from './gdrive.js';
+import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
 
 // Dynamic Nodemailer SMTP Transporter (reads from MongoDB app_settings, env vars, or default)
@@ -1820,6 +1821,7 @@ export default async function handler(req, res) {
                 updateFields['submittedFiles.video.name'] = fileName || fileInfo.name;
                 updateFields['submittedFiles.video.url'] = fileInfo.webViewLink;
                 updateFields['submittedFiles.video.fileId'] = fileId;
+                updateFields['submittedFiles.video.streamUrl'] = fileInfo.streamUrl || `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
                 updateFields['submittedFiles.video.size'] = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
                 updateFields['submittedFiles.video.type'] = fileInfo.mimeType || 'video/mp4';
                 updateFields['submittedFiles.video.hasFullVideo'] = true;
@@ -1848,6 +1850,49 @@ export default async function handler(req, res) {
             return res.status(500).json({ success: false, message: finalizeErr.message });
           }
         }
+      }
+    }
+
+    // ==========================================
+    // 8A-2B. GOOGLE DRIVE DIRECT STREAM PROXY: /api/drive-stream
+    // ==========================================
+    if (cleanPath.includes('drive-stream')) {
+      const fileId = req.query?.fileId || (new URL(req.url, 'http://localhost')).searchParams.get('fileId');
+      if (!fileId) {
+        return res.status(400).send('fileId query parameter is required');
+      }
+
+      try {
+        const auth = await getGoogleDriveAuth(db);
+        if (!auth) {
+          return res.redirect(302, `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`);
+        }
+        const drive = google.drive({ version: 'v3', auth });
+        const range = req.headers.range || '';
+        const reqHeaders = range ? { Range: range } : {};
+
+        const driveRes = await drive.files.get(
+          { fileId, alt: 'media' },
+          { responseType: 'stream', headers: reqHeaders }
+        );
+
+        res.status(driveRes.status || 200);
+        res.setHeader('Content-Type', driveRes.headers['content-type'] || 'video/mp4');
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', 'Range, Accept, Content-Type');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+        if (driveRes.headers['content-range']) {
+          res.setHeader('Content-Range', driveRes.headers['content-range']);
+        }
+        if (driveRes.headers['content-length']) {
+          res.setHeader('Content-Length', driveRes.headers['content-length']);
+        }
+
+        return driveRes.data.pipe(res);
+      } catch (streamErr) {
+        console.warn('Google Drive direct proxy stream fallback to CDN:', streamErr.message);
+        return res.redirect(302, `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`);
       }
     }
 

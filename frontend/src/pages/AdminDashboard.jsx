@@ -138,6 +138,8 @@ export default function AdminDashboard() {
   const [cloudVideoInput, setCloudVideoInput] = useState('');
   const [showCloudVideoInput, setShowCloudVideoInput] = useState(false);
   const [isSavingCloudVideo, setIsSavingCloudVideo] = useState(false);
+  const [gdrivePlayerMode, setGdrivePlayerMode] = useState('stream'); // 'stream' (Direct HTML5) or 'iframe' (Google Drive)
+  const [directStreamError, setDirectStreamError] = useState(false);
 
   // Google Drive Automated Cloud Storage State
   const [gdriveConfig, setGdriveConfig] = useState({ configured: false, client_email: null, folder_id: null });
@@ -275,6 +277,10 @@ export default function AdminDashboard() {
           })
           .catch(() => {});
       }
+
+      // Reset video player modes
+      setGdrivePlayerMode('stream');
+      setDirectStreamError(false);
 
       // 1. If an external or cloud video URL is available (not self-hosted or data URI)
       if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
@@ -5140,23 +5146,115 @@ export default function AdminDashboard() {
                       const embedInfo = (!isZipOrArchive && candidateVideoUrl) ? getEmbeddableVideoInfo(candidateVideoUrl) : null;
 
                       if (embedInfo) {
+                        const isGdrive = embedInfo.type === 'gdrive';
+                        const showNativeStream = isGdrive && gdrivePlayerMode === 'stream' && !directStreamError;
+
                         return (
                           <div className="space-y-2.5">
-                            <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner h-80 w-full relative">
-                              <iframe
-                                src={embedInfo.embedUrl}
-                                title={`${embedInfo.provider} Video Player`}
-                                className="w-full h-full border-0"
-                                allow="autoplay; encrypted-media; fullscreen"
-                                allowFullScreen
-                              />
+                            {/* Mode switcher for Google Drive */}
+                            {isGdrive && (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900/90 p-2 px-3 rounded-xl border border-slate-800">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGdrivePlayerMode('stream');
+                                      setDirectStreamError(false);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                      gdrivePlayerMode === 'stream' && !directStreamError
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    <Play className="w-3.5 h-3.5" /> Instant Direct Stream
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setGdrivePlayerMode('iframe')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                      gdrivePlayerMode === 'iframe' || directStreamError
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    <Video className="w-3.5 h-3.5" /> Google Drive Web Player
+                                  </button>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {gdrivePlayerMode === 'stream' && !directStreamError
+                                    ? '⚡ Instant native playback (bypasses Google transcoding delay)'
+                                    : '☁️ Official Google Drive embedded preview'}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Banner if Google Drive iframe shows "still being processed" */}
+                            {isGdrive && (gdrivePlayerMode === 'iframe' || directStreamError) && (
+                              <div className="bg-amber-950/70 border border-amber-800/90 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                                  <p className="text-[11px] text-amber-200">
+                                    If Google Drive shows <strong className="text-amber-300">"This video is still being processed for playback"</strong>:
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGdrivePlayerMode('stream');
+                                    setDirectStreamError(false);
+                                  }}
+                                  className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shrink-0 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5" /> Watch with Instant Stream
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Player Window */}
+                            <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner h-80 w-full relative flex items-center justify-center">
+                              {showNativeStream ? (
+                                <video
+                                  key={embedInfo.streamUrl}
+                                  controls
+                                  playsInline
+                                  autoPlay
+                                  preload="metadata"
+                                  src={embedInfo.streamUrl}
+                                  className="w-full h-full object-contain bg-black"
+                                  onError={(e) => {
+                                    console.warn('Direct stream CDN error, falling back to Google Drive web player:', e);
+                                    setDirectStreamError(true);
+                                    setGdrivePlayerMode('iframe');
+                                  }}
+                                />
+                              ) : (
+                                <iframe
+                                  src={embedInfo.embedUrl}
+                                  title={`${embedInfo.provider} Video Player`}
+                                  className="w-full h-full border-0"
+                                  allow="autoplay; encrypted-media; fullscreen"
+                                  allowFullScreen
+                                />
+                              )}
                             </div>
+
+                            {/* Player Footer with controls */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5 px-1">
                               <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1.5 font-bold">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 ☁️ Streamed from {embedInfo.provider} (Cloud Storage)
                               </span>
                               <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                {embedInfo.downloadUrl && (
+                                  <a
+                                    href={embedInfo.downloadUrl}
+                                    download={sub.videoDeliverable?.name || 'walkthrough_video.mp4'}
+                                    className="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-950/70 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                                  >
+                                    <Download className="w-3.5 h-3.5" /> Download Video
+                                  </a>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => setShowCloudVideoInput(prev => !prev)}

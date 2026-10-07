@@ -10,7 +10,17 @@ export async function getCredentials(db = null) {
     return cachedCredentials;
   }
 
-  // 1. Try environment variables (OAuth or Service Account)
+  // 1. Try environment variables (Service Account preferred first)
+  if (process.env.GDRIVE_CLIENT_EMAIL && process.env.GDRIVE_PRIVATE_KEY) {
+    cachedCredentials = {
+      type: 'service_account',
+      client_email: process.env.GDRIVE_CLIENT_EMAIL,
+      private_key: process.env.GDRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      folder_id: process.env.GDRIVE_FOLDER_ID || null
+    };
+    return cachedCredentials;
+  }
+
   if (process.env.GDRIVE_REFRESH_TOKEN && process.env.GDRIVE_CLIENT_ID) {
     cachedCredentials = {
       type: 'authorized_user',
@@ -22,21 +32,20 @@ export async function getCredentials(db = null) {
     return cachedCredentials;
   }
 
-  if (process.env.GDRIVE_CLIENT_EMAIL && process.env.GDRIVE_PRIVATE_KEY) {
-    cachedCredentials = {
-      type: 'service_account',
-      client_email: process.env.GDRIVE_CLIENT_EMAIL,
-      private_key: process.env.GDRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      folder_id: process.env.GDRIVE_FOLDER_ID || null
-    };
-    return cachedCredentials;
-  }
-
-  // 2. Try MongoDB app_settings (key: 'gdrive_credentials')
+  // 2. Try MongoDB app_settings (key: 'gdrive_credentials') - Service Account first!
   if (db) {
     try {
       const setting = await db.collection('app_settings').findOne({ key: 'gdrive_credentials' });
       if (setting) {
+        if (setting.client_email && setting.private_key) {
+          cachedCredentials = {
+            type: 'service_account',
+            client_email: setting.client_email,
+            private_key: setting.private_key.replace(/\\n/g, '\n'),
+            folder_id: setting.folder_id || null
+          };
+          return cachedCredentials;
+        }
         if (setting.refresh_token && setting.client_id) {
           cachedCredentials = {
             type: 'authorized_user',
@@ -47,48 +56,13 @@ export async function getCredentials(db = null) {
           };
           return cachedCredentials;
         }
-        if (setting.client_email && setting.private_key) {
-          cachedCredentials = {
-            type: 'service_account',
-            client_email: setting.client_email,
-            private_key: setting.private_key.replace(/\\n/g, '\n'),
-            folder_id: setting.folder_id || null
-          };
-          return cachedCredentials;
-        }
       }
     } catch (dbErr) {
       console.warn('Could not read gdrive_credentials from MongoDB:', dbErr.message);
     }
   }
 
-  // 3. Try local oauth_credentials.json (User 15 GB account)
-  const oauthPaths = [
-    path.resolve(process.cwd(), 'oauth_credentials.json'),
-    path.resolve(process.cwd(), 'api/oauth_credentials.json')
-  ];
-  for (const p of oauthPaths) {
-    if (fs.existsSync(p)) {
-      try {
-        const raw = fs.readFileSync(p, 'utf8');
-        const json = JSON.parse(raw);
-        if (json.refresh_token && json.client_id) {
-          cachedCredentials = {
-            type: 'authorized_user',
-            client_id: json.client_id,
-            client_secret: json.client_secret,
-            refresh_token: json.refresh_token,
-            folder_id: json.folder_id || null
-          };
-          return cachedCredentials;
-        }
-      } catch (e) {
-        console.warn('Failed to parse oauth_credentials.json at:', p, e.message);
-      }
-    }
-  }
-
-  // 4. Try service_account.json
+  // 3. Try local service_account.json
   const serviceAccountPaths = [
     path.resolve(process.cwd(), 'service_account.json'),
     path.resolve(process.cwd(), 'credentials.json'),
@@ -110,6 +84,32 @@ export async function getCredentials(db = null) {
         }
       } catch (e) {
         console.warn('Failed to parse service account JSON at:', p, e.message);
+      }
+    }
+  }
+
+  // 4. Try local oauth_credentials.json (User 15 GB account)
+  const oauthPaths = [
+    path.resolve(process.cwd(), 'oauth_credentials.json'),
+    path.resolve(process.cwd(), 'api/oauth_credentials.json')
+  ];
+  for (const p of oauthPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const raw = fs.readFileSync(p, 'utf8');
+        const json = JSON.parse(raw);
+        if (json.refresh_token && json.client_id) {
+          cachedCredentials = {
+            type: 'authorized_user',
+            client_id: json.client_id,
+            client_secret: json.client_secret,
+            refresh_token: json.refresh_token,
+            folder_id: json.folder_id || null
+          };
+          return cachedCredentials;
+        }
+      } catch (e) {
+        console.warn('Failed to parse oauth_credentials.json at:', p, e.message);
       }
     }
   }
@@ -195,7 +195,16 @@ export async function getGoogleDriveAuth(db = null) {
   const creds = await getCredentials(db);
   if (!creds) return null;
 
-  // Option 1: OAuth 2.0 User (Consumes user's 15 GB quota without limit issues)
+  // Option 1: Service Account JWT (Unattended, permanent)
+  if (creds.client_email && creds.private_key) {
+    return new google.auth.JWT({
+      email: creds.client_email,
+      key: creds.private_key.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/drive']
+    });
+  }
+
+  // Option 2: OAuth 2.0 User
   if (creds.client_id && creds.client_secret && creds.refresh_token) {
     const oauth2Client = new google.auth.OAuth2(
       creds.client_id,
@@ -204,15 +213,6 @@ export async function getGoogleDriveAuth(db = null) {
     );
     oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
     return oauth2Client;
-  }
-
-  // Option 2: Service Account JWT
-  if (creds.client_email && creds.private_key) {
-    return new google.auth.JWT({
-      email: creds.client_email,
-      key: creds.private_key,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    });
   }
 
   return null;
@@ -300,6 +300,7 @@ export async function finalizeDriveFile(fileId, db = null) {
     size: file.size,
     webViewLink: file.webViewLink,
     webContentLink: file.webContentLink,
-    embedUrl: `https://drive.google.com/file/d/${file.id}/preview`
+    embedUrl: `https://drive.google.com/file/d/${file.id}/preview`,
+    streamUrl: `https://drive.usercontent.google.com/download?id=${file.id}&export=download&confirm=t`
   };
 }

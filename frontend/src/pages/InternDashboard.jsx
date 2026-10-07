@@ -2719,16 +2719,15 @@ function getAttendanceTimelineAndRate(logs) {
                       </div>
                     )}
 
-                    {/* Automated Google Drive Cloud Storage Notification */}
-                    <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-xl p-3 text-[11px] text-emerald-900 flex items-start gap-2.5">
-                      <span className="text-base shrink-0 leading-none">☁️</span>
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-emerald-950 flex items-center gap-1.5">
-                          Direct Google Drive Cloud Storage Active
-                          <span className="bg-emerald-200/70 text-emerald-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase">Auto-Sync</span>
+                    {/* Video Walkthrough Guidance */}
+                    <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-xl p-3 text-[11px] text-indigo-900 flex items-start gap-2.5">
+                      <span className="text-base shrink-0 leading-none">💡</span>
+                      <div className="space-y-1">
+                        <p className="font-bold text-indigo-950 flex items-center gap-1.5">
+                          Screen Recording Demonstration Walkthrough
                         </p>
-                        <p className="text-emerald-800 leading-normal">
-                          When you attach your MP4/WebM video or ZIP folder above and click Submit, WorkSphere automatically stores it in Google Drive and streams it live inside your Admin's review dashboard.
+                        <p className="text-indigo-800 leading-relaxed text-[11px]">
+                          Attach your MP4/WebM video file above, or upload to <strong>Google Drive / YouTube / Loom</strong> and paste the share link below. WorkSphere's instant streaming player streams authentic videos directly inside your Admin review portal with zero playback delays.
                         </p>
                       </div>
                     </div>
@@ -2737,7 +2736,7 @@ function getAttendanceTimelineAndRate(logs) {
                     <div className="space-y-2 pt-1">
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                          <span>Optional: Or paste existing link (Google Drive / YouTube / Loom):</span>
+                          <span>Google Drive, YouTube, or Loom Share Link:</span>
                         </label>
                       </div>
 
@@ -2745,7 +2744,7 @@ function getAttendanceTimelineAndRate(logs) {
                         type="url"
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
-                        placeholder="https://drive.google.com/file/d/.../view or YouTube / Loom"
+                        placeholder="https://drive.google.com/file/d/.../view or YouTube / Loom link"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-rose-500 text-xs font-normal"
                       />
 
@@ -2753,20 +2752,63 @@ function getAttendanceTimelineAndRate(logs) {
                       {(() => {
                         const embed = getEmbeddableVideoInfo(videoUrl);
                         if (!embed) return null;
+                        const isGdrive = embed.type === 'gdrive';
                         return (
-                          <div className="space-y-1.5 pt-1">
-                            <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
-                              ✓ Verified {embed.provider} Stream Preview:
-                            </span>
-                            <div className="rounded-xl overflow-hidden bg-black border border-slate-700 shadow-inner h-52 w-full">
-                              <iframe
-                                src={embed.embedUrl}
-                                title={`${embed.provider} Live Preview`}
-                                className="w-full h-full border-0"
-                                allow="autoplay; encrypted-media; fullscreen"
-                                allowFullScreen
-                              />
+                          <div className="space-y-2 pt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                                ✓ Verified {embed.provider} Stream Preview:
+                              </span>
+                              {isGdrive && (
+                                <span className="text-[10px] font-mono text-emerald-600 font-bold">
+                                  ⚡ Instant Stream Active
+                                </span>
+                              )}
                             </div>
+                            <div className="rounded-xl overflow-hidden bg-black border border-slate-700 shadow-inner h-52 w-full flex items-center justify-center">
+                              {isGdrive ? (
+                                <video
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  src={embed.streamUrl}
+                                  className="w-full h-full object-contain bg-black"
+                                  onError={(e) => {
+                                    console.warn('Direct stream preview error, switching to iframe preview');
+                                    e.currentTarget.style.display = 'none';
+                                    const ifr = document.getElementById('intern_gdrive_iframe_fallback');
+                                    if (ifr) ifr.style.display = 'block';
+                                  }}
+                                />
+                              ) : (
+                                <iframe
+                                  src={embed.embedUrl}
+                                  title={`${embed.provider} Live Preview`}
+                                  className="w-full h-full border-0"
+                                  allow="autoplay; encrypted-media; fullscreen"
+                                  allowFullScreen
+                                />
+                              )}
+                              {isGdrive && (
+                                <iframe
+                                  id="intern_gdrive_iframe_fallback"
+                                  src={embed.embedUrl}
+                                  title={`${embed.provider} Live Preview`}
+                                  className="w-full h-full border-0 hidden"
+                                  allow="autoplay; encrypted-media; fullscreen"
+                                  allowFullScreen
+                                />
+                              )}
+                            </div>
+                            {isGdrive && (
+                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[10px] text-amber-900 flex items-start gap-1.5">
+                                <span className="shrink-0 font-bold">🔒 Sharing Tip:</span>
+                                <div>
+                                  <p className="font-bold text-amber-950">Ensure Public Viewer Access:</p>
+                                  <p className="text-amber-800">In Google Drive, click Share → General Access → change to <strong>"Anyone with the link can view (Viewer)"</strong> so your mentor & admin can view and grade your submission without restricted permission errors.</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
