@@ -9,7 +9,7 @@ import {
   AlertCircle, Bell, Check, Video, Image, Folder, Eye, Download, Play, RefreshCw
 } from 'lucide-react';
 import { playSuccessSound } from '../utils/sound';
-import { saveDeliverableVideo, getDeliverableVideo, saveDeliverableFolder, getDeliverableFolder, getEmbeddableVideoInfo } from '../utils/deliverableStorage';
+import { saveDeliverableVideo, getDeliverableVideo, saveDeliverableFolder, getDeliverableFolder, saveDeliverablePdf, getEmbeddableVideoInfo } from '../utils/deliverableStorage';
 
 function extractYouTubeVideoId(input) {
   if (!input) return null;
@@ -346,6 +346,8 @@ export default function InternDashboard() {
   const [pdfFileData, setPdfFileData] = useState('');
   const [pdfFileSize, setPdfFileSize] = useState('');
   const [pdfFileType, setPdfFileType] = useState('');
+  const [pdfRawFile, setPdfRawFile] = useState(null);
+  const [pdfUploadProgress, setPdfUploadProgress] = useState(null);
 
   const [folderFileName, setFolderFileName] = useState('');
   const [folderFileData, setFolderFileData] = useState('');
@@ -441,6 +443,8 @@ export default function InternDashboard() {
       setPdfFileData('');
       setPdfFileSize('');
       setPdfFileType('');
+      setPdfRawFile(null);
+      setPdfUploadProgress(null);
       setFolderFileName('');
       setFolderFileData('');
       setFolderFileSize('');
@@ -947,9 +951,28 @@ function getAttendanceTimelineAndRate(logs) {
         }
       }
 
-      // 2. Prepare submittedFiles (truncate large base64 strings in JSON to avoid localStorage QuotaExceeded and server 413)
-      const safeVideoData = (videoFileData && !videoFileData.startsWith('blob:') && videoFileData.length < 500000) ? videoFileData : '';
-      const safeFolderData = (folderFileData && folderFileData.length < 1000000) ? folderFileData : '';
+      // 1C. If PDF report is present, upload directly to Google Drive
+      let resolvedPdfUrl = '';
+      if (pdfRawFile) {
+        try {
+          setPdfUploadProgress({ pct: 0, cur: 0, tot: pdfRawFile.size, provider: 'Google Drive' });
+          const pRes = await saveDeliverablePdf(keyId, pdfRawFile, { name: pdfFileName, size: pdfFileSize }, (pct, cur, tot, provider) => {
+            setPdfUploadProgress({ pct, cur, tot, provider: provider || 'Google Drive' });
+          });
+          if (pRes?.isDrive && pRes.file?.webViewLink) {
+            resolvedPdfUrl = pRes.file.webViewLink;
+          }
+          setPdfUploadProgress(null);
+        } catch (pErr) {
+          console.warn('PDF deliverable upload notice:', pErr);
+          setPdfUploadProgress(null);
+        }
+      }
+
+      // 2. Prepare submittedFiles (strictly sanitize large base64 strings to prevent DB quota crashes and 413s)
+      const safeVideoData = (videoFileData && !videoFileData.startsWith('blob:') && videoFileData.length < 200000) ? videoFileData : '';
+      const safeFolderData = (folderFileData && !folderFileData.startsWith('blob:') && folderFileData.length < 200000) ? folderFileData : '';
+      const safePdfData = (pdfFileData && !pdfFileData.startsWith('blob:') && pdfFileData.length < 200000) ? pdfFileData : '';
 
       const submittedFiles = {
         video: (videoFileName || resolvedVideoUrl || videoFileData || videoRawFile) ? {
@@ -960,11 +983,12 @@ function getAttendanceTimelineAndRate(logs) {
           url: resolvedVideoUrl,
           hasFullVideo: true
         } : null,
-        pdf: pdfFileName ? {
-          name: pdfFileName,
+        pdf: (pdfFileName || resolvedPdfUrl) ? {
+          name: pdfFileName || 'Documentation_Report.pdf',
           size: pdfFileSize,
           type: pdfFileType || 'application/pdf',
-          data: pdfFileData
+          data: safePdfData,
+          url: resolvedPdfUrl || ''
         } : null,
         folder: (folderFileName || resolvedFolderUrl || submissionUrl) ? {
           name: folderFileName || 'Project_Folder.zip',
@@ -977,22 +1001,22 @@ function getAttendanceTimelineAndRate(logs) {
       };
 
       const primaryFile = pdfFileName 
-        ? { name: pdfFileName, size: pdfFileSize, type: pdfFileType, data: pdfFileData }
+        ? { name: pdfFileName, size: pdfFileSize, type: pdfFileType, data: safePdfData }
         : folderFileName 
         ? { name: folderFileName, size: folderFileSize, type: folderFileType, data: safeFolderData }
         : videoFileName 
         ? { name: videoFileName, size: videoFileSize, type: videoFileType, data: safeVideoData }
         : imagesList[0] 
         ? { name: imagesList[0].name, size: imagesList[0].size, type: imagesList[0].type, data: imagesList[0].data }
-        : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: uploadedFileData };
+        : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: '' };
 
-      const finalSubmissionUrl = (resolvedFolderUrl || resolvedVideoUrl || submissionUrl || '').trim();
+      const finalSubmissionUrl = (resolvedFolderUrl || resolvedVideoUrl || resolvedPdfUrl || submissionUrl || '').trim();
 
-      // Save file data to localStorage for instant admin inspection & download
+      // Save file metadata to localStorage for instant local access
       try {
         localStorage.setItem(`worksphere_file_${keyId}`, JSON.stringify({
           files: submittedFiles,
-          data: primaryFile.data || '',
+          data: '',
           name: primaryFile.name || '',
           type: primaryFile.type || '',
           size: primaryFile.size || '',
@@ -1014,7 +1038,7 @@ function getAttendanceTimelineAndRate(logs) {
               fileName: primaryFile.name,
               fileSize: primaryFile.size,
               fileType: primaryFile.type,
-              fileData: primaryFile.data,
+              fileData: '',
               submittedFiles,
               videoUrl: resolvedVideoUrl || ''
             };
@@ -1042,46 +1066,61 @@ function getAttendanceTimelineAndRate(logs) {
         fileName: primaryFile.name,
         fileSize: primaryFile.size,
         fileType: primaryFile.type,
-        fileData: primaryFile.data,
+        fileData: '',
         submittedFiles,
         videoUrl: resolvedVideoUrl || ''
       };
 
+      let patchSuccess = false;
       try {
         let patchRes = await fetch('/api/intern-tasks', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(submitPayload)
         });
-        if (!patchRes.ok) {
-          await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
+        if (patchRes.ok) {
+          patchSuccess = true;
+        } else {
+          let rRes = await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitPayload)
           });
+          if (rRes.ok) patchSuccess = true;
         }
       } catch(e) {
         try {
-          await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
+          let rRes = await fetch('https://worksphere-two.vercel.app/api/intern-tasks', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitPayload)
           });
+          if (rRes.ok) patchSuccess = true;
         } catch (err) {}
       }
 
-      const res = await api.submitInternTask(keyId, {
-        submissionUrl: finalSubmissionUrl,
-        notes: submissionNotes,
-        fileName: primaryFile.name,
-        fileSize: primaryFile.size,
-        fileType: primaryFile.type,
-        fileData: primaryFile.data,
-        submittedFiles,
-        videoUrl: resolvedVideoUrl || ''
-      });
+      let res = null;
+      try {
+        res = await api.submitInternTask(keyId, {
+          submissionUrl: finalSubmissionUrl,
+          notes: submissionNotes,
+          fileName: primaryFile.name,
+          fileSize: primaryFile.size,
+          fileType: primaryFile.type,
+          fileData: '',
+          submittedFiles,
+          videoUrl: resolvedVideoUrl || ''
+        });
+        if (res && res.success) patchSuccess = true;
+      } catch (apiErr) {
+        console.warn('Direct backend API submit warning:', apiErr);
+      }
 
-      // Play pleasant audio chime and trigger success right mark modal
+      if (!patchSuccess) {
+        throw new Error('Unable to record submission in cloud database. Please verify your internet connection and try again.');
+      }
+
+      // Play pleasant audio chime and trigger success modal only on confirmed success
       playSuccessSound();
       setSuccessModalData({
         title: isRevision ? "Revised Deliverables Submitted!" : "Deliverable Submitted Successfully!",
@@ -1094,15 +1133,8 @@ function getAttendanceTimelineAndRate(logs) {
       setSelectedTask(null);
       fetchInternData(true);
     } catch (err) {
-      console.error(err);
-      playSuccessSound();
-      setSuccessModalData({
-        title: "Deliverables Submitted!",
-        message: "Your task deliverables have been recorded and submitted for supervisor review."
-      });
-      addToast("✓ Task deliverable & report submitted successfully! Awaiting Admin approval.");
-      setSelectedTask(null);
-      fetchInternData(true);
+      console.error('Task submission error:', err);
+      addToast(`❌ Submission notice: ${err.message || 'Please check your connection and retry.'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -2850,11 +2882,14 @@ function getAttendanceTimelineAndRate(logs) {
                             setPdfFileName(f.name);
                             setPdfFileSize(sizeStr);
                             setPdfFileType('application/pdf');
-                            const reader = new FileReader();
-                            reader.onload = (loadEv) => {
-                              setPdfFileData(loadEv.target.result);
-                            };
-                            reader.readAsDataURL(f);
+                            setPdfRawFile(f);
+                            if (f.size < 5 * 1024 * 1024) {
+                              const reader = new FileReader();
+                              reader.onload = (loadEv) => {
+                                setPdfFileData(loadEv.target.result);
+                              };
+                              reader.readAsDataURL(f);
+                            }
                           }
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2878,6 +2913,7 @@ function getAttendanceTimelineAndRate(logs) {
                               setPdfFileData('');
                               setPdfFileSize('');
                               setPdfFileType('');
+                              setPdfRawFile(null);
                             }}
                             className="text-rose-500 hover:text-rose-700 p-1 font-bold text-xs cursor-pointer"
                           >

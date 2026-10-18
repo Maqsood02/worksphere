@@ -656,6 +656,48 @@ export async function saveDeliverableFolder(taskId, folderSource, metadata = {},
   return true;
 }
 
+export async function saveDeliverablePdf(taskId, pdfSource, metadata = {}, onProgress = null) {
+  if (!pdfSource) return false;
+  const cleanId = String(taskId || 'latest').trim();
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
+
+  if (typeof Blob !== 'undefined' && pdfSource instanceof Blob) {
+    for (const k of aliasKeys) {
+      saveDeliverableAsset(k, 'pdf', pdfSource).catch(() => {});
+    }
+    // Attempt automated direct upload to Google Drive
+    try {
+      const driveFile = await uploadToGoogleDriveDirect(pdfSource, cleanId, 'pdf', metadata, (prog) => {
+        if (typeof onProgress === 'function') {
+          onProgress(prog.pct, prog.loaded, prog.total, 'Google Drive');
+        }
+      });
+      if (driveFile && (driveFile.webViewLink || driveFile.fileId)) {
+        return { success: true, isDrive: true, file: driveFile };
+      }
+    } catch (gErr) {
+      console.warn('Google Drive direct PDF upload notice:', gErr);
+    }
+    return true;
+  }
+
+  for (const k of aliasKeys) {
+    await saveDeliverableAsset(k, 'pdf', pdfSource).catch(() => {});
+  }
+
+  try {
+    const res = await fetch(pdfSource);
+    const blob = await res.blob();
+    const driveFile = await uploadToGoogleDriveDirect(blob, cleanId, 'pdf', metadata, onProgress);
+    if (driveFile && (driveFile.webViewLink || driveFile.fileId)) {
+      return { success: true, isDrive: true, file: driveFile };
+    }
+  } catch (err) {
+    console.warn('PDF sync error:', err);
+  }
+  return true;
+}
+
 export async function getDeliverableFolder(taskId, fileName = '', onProgress = null) {
   const cleanId = String(taskId || '').trim();
   const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), fileName, 'latest'].filter(Boolean);

@@ -37,6 +37,18 @@ export async function getCredentials(db = null) {
     try {
       const setting = await db.collection('app_settings').findOne({ key: 'gdrive_credentials' });
       if (setting) {
+        if (setting.type === 'authorized_user' || (!setting.client_email && setting.refresh_token)) {
+          if (setting.refresh_token && setting.client_id) {
+            cachedCredentials = {
+              type: 'authorized_user',
+              client_id: setting.client_id,
+              client_secret: setting.client_secret,
+              refresh_token: setting.refresh_token,
+              folder_id: setting.folder_id || null
+            };
+            return cachedCredentials;
+          }
+        }
         if (setting.client_email && setting.private_key) {
           cachedCredentials = {
             type: 'service_account',

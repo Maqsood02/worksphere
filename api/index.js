@@ -1682,10 +1682,28 @@ export default async function handler(req, res) {
         if (fileName !== undefined) updateFields.fileName = fileName;
         if (fileSize !== undefined) updateFields.fileSize = fileSize;
         if (fileType !== undefined) updateFields.fileType = fileType;
-        if (fileData !== undefined) updateFields.fileData = fileData;
+        if (fileData !== undefined) {
+          updateFields.fileData = (typeof fileData === 'string' && fileData.length > 200000) ? '' : fileData;
+        }
         if (adminFeedback !== undefined) updateFields.adminFeedback = adminFeedback;
         if (requiredDeliverables !== undefined) updateFields.requiredDeliverables = requiredDeliverables;
-        if (submittedFiles !== undefined) updateFields.submittedFiles = submittedFiles;
+        if (submittedFiles !== undefined) {
+          if (submittedFiles && typeof submittedFiles === 'object') {
+            const cleanFiles = { ...submittedFiles };
+            if (cleanFiles.pdf && typeof cleanFiles.pdf === 'object' && cleanFiles.pdf.data && cleanFiles.pdf.data.length > 200000) {
+              cleanFiles.pdf = { ...cleanFiles.pdf, data: '' };
+            }
+            if (cleanFiles.folder && typeof cleanFiles.folder === 'object' && cleanFiles.folder.data && cleanFiles.folder.data.length > 200000) {
+              cleanFiles.folder = { ...cleanFiles.folder, data: '' };
+            }
+            if (cleanFiles.video && typeof cleanFiles.video === 'object' && cleanFiles.video.data && cleanFiles.video.data.length > 200000) {
+              cleanFiles.video = { ...cleanFiles.video, data: '' };
+            }
+            updateFields.submittedFiles = cleanFiles;
+          } else {
+            updateFields.submittedFiles = submittedFiles;
+          }
+        }
         if (videoUrl !== undefined) updateFields.videoUrl = videoUrl;
         await col.updateOne({ $or: [{ taskId: taskId }, { id: taskId }] }, { $set: updateFields });
         return res.status(200).json({ success: true, message: `Task updated!` });
@@ -1835,6 +1853,18 @@ export default async function handler(req, res) {
                 updateFields.fileName = fileName || fileInfo.name;
                 updateFields.fileSize = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
                 updateFields.fileType = fileInfo.mimeType || 'application/zip';
+              } else if (assetType === 'pdf' || (fileName && fileName.toLowerCase().endsWith('.pdf'))) {
+                updateFields['submittedFiles.pdf.name'] = fileName || fileInfo.name;
+                updateFields['submittedFiles.pdf.url'] = fileInfo.webViewLink;
+                updateFields['submittedFiles.pdf.fileId'] = fileId;
+                updateFields['submittedFiles.pdf.size'] = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
+                updateFields['submittedFiles.pdf.type'] = fileInfo.mimeType || 'application/pdf';
+                updateFields.fileName = fileName || fileInfo.name;
+                updateFields.fileSize = (Number(fileInfo.size || fileSize || 0) / (1024 * 1024)).toFixed(2) + ' MB';
+                updateFields.fileType = fileInfo.mimeType || 'application/pdf';
+                if (!updateFields.submissionUrl) {
+                  updateFields.submissionUrl = fileInfo.webViewLink;
+                }
               }
 
               await db.collection('intern_tasks').updateOne(updateQuery, { $set: updateFields });
