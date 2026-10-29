@@ -442,6 +442,10 @@ export default function AdminDashboard() {
         localStorage.removeItem('worksphere_cached_intern_tasks');
         setAllInternTasks(prev => prev.filter(t => !['TSK-101', 'TSK-102', 'TSK-103', 'TSK-104'].includes((t.taskId || t.id || '').toUpperCase())));
       }
+      const cachedAtt = localStorage.getItem('worksphere_cached_attendance_logs');
+      if (cachedAtt && (cachedAtt.includes('ATT-077') || cachedAtt.includes('ATT-076') || cachedAtt.includes('ATT-075'))) {
+        localStorage.removeItem('worksphere_cached_attendance_logs');
+      }
     } catch (e) {}
 
     // Parallel fetch for lightning-fast concurrent data sync
@@ -470,6 +474,17 @@ export default function AdminDashboard() {
       window.removeEventListener('storage', handleFocusSync);
     };
   }, [user]);
+
+  useEffect(() => {
+    let interval = null;
+    if (activeTab === 'attendance') {
+      fetchAttendanceData();
+      interval = setInterval(fetchAttendanceData, 4000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeTab]);
 
   useEffect(() => {
     let interval = null;
@@ -2358,21 +2373,31 @@ export default function AdminDashboard() {
 
   const getAttendanceDisplayId = (log) => {
     const rawKey = log?.logId || log?.id;
+    // Map strictly to chronological sequence (earliest date = ATT-001, matching the approved timesheets count)
+    if (Array.isArray(allAttendanceLogs) && allAttendanceLogs.length > 0) {
+      const sorted = [...allAttendanceLogs].sort((a, b) => {
+        const da = new Date(a.date || a.createdAt || 0).getTime();
+        const db = new Date(b.date || b.createdAt || 0).getTime();
+        if (da !== db) return da - db;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      const foundIdx = sorted.findIndex(l => 
+        (l.id && l.id === rawKey) || 
+        (l.logId && l.logId === rawKey) || 
+        (l._id && l._id === log?._id) || 
+        (l.date === log?.date && (l.username || '').toLowerCase() === (log?.username || '').toLowerCase())
+      );
+      if (foundIdx >= 0) {
+        return `ATT-${String(foundIdx + 1).padStart(3, '0')}`;
+      }
+    }
     if (rawKey) {
       const match = String(rawKey).match(/^ATT-(\d+)$/i);
       if (match) {
         return `ATT-${String(parseInt(match[1], 10)).padStart(3, '0')}`;
       }
     }
-    // Fallback: Chronological order based on date (earliest date = ATT-001)
-    const sorted = [...allAttendanceLogs].sort((a, b) => {
-      const da = new Date(a.date || a.createdAt || 0);
-      const db = new Date(b.date || b.createdAt || 0);
-      return da - db;
-    });
-    const foundIdx = sorted.findIndex(l => (l.id || l.logId) === rawKey);
-    const num = foundIdx >= 0 ? foundIdx + 1 : 1;
-    return `ATT-${String(num).padStart(3, '0')}`;
+    return 'ATT-001';
   };
 
   const internHoursList = React.useMemo(() => {
@@ -5268,12 +5293,12 @@ export default function AdminDashboard() {
                             <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner h-80 w-full relative flex items-center justify-center">
                               {showNativeStream ? (
                                 <video
-                                  key={embedInfo.streamUrl}
+                                  key={embedInfo.proxyStreamUrl || embedInfo.streamUrl}
                                   controls
                                   playsInline
                                   autoPlay
                                   preload="metadata"
-                                  src={embedInfo.streamUrl}
+                                  src={embedInfo.proxyStreamUrl || embedInfo.streamUrl}
                                   className="w-full h-full object-contain bg-black"
                                   onError={(e) => {
                                     console.warn('Direct stream CDN error, falling back to Google Drive web player:', e);

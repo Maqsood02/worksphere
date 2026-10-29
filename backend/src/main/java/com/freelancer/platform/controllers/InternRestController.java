@@ -310,7 +310,14 @@ public class InternRestController {
             } catch (Exception ignored) {}
         }
 
-        String logId = "ATT-" + (System.currentTimeMillis() % 1000000);
+        long totalCount = 0;
+        try {
+            totalCount = internAttendanceRepository.count();
+        } catch (Exception ignored) {}
+        if (totalCount == 0) {
+            totalCount = attendanceLogs.size();
+        }
+        String logId = String.format("ATT-%03d", totalCount + 1);
         String dateStr = payload.containsKey("date") ? String.valueOf(payload.get("date")) : LocalDate.now().toString();
         String timeStr = payload.containsKey("time") ? String.valueOf(payload.get("time")) : java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).format(java.time.format.DateTimeFormatter.ofPattern("hh:mm:ss a"));
 

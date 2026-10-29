@@ -2,6 +2,7 @@ import { connectToDatabase } from './db.js';
 import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials, getGoogleDriveAuth } from './gdrive.js';
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
+import { Readable } from 'stream';
 
 // Dynamic Nodemailer SMTP Transporter (reads from MongoDB app_settings, env vars, or default)
 let cachedTransporter = null;
@@ -1986,33 +1987,67 @@ export default async function handler(req, res) {
       }
 
       try {
-        const auth = await getGoogleDriveAuth(db);
-        if (!auth) {
-          return res.redirect(302, `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`);
-        }
-        const drive = google.drive({ version: 'v3', auth });
         const range = req.headers.range || '';
         const reqHeaders = range ? { Range: range } : {};
 
-        const driveRes = await drive.files.get(
-          { fileId, alt: 'media' },
-          { responseType: 'stream', headers: reqHeaders }
-        );
+        // 1. Try streaming via Google Drive API with Service Account auth
+        try {
+          const auth = await getGoogleDriveAuth(db);
+          if (auth) {
+            const drive = google.drive({ version: 'v3', auth });
+            const driveRes = await drive.files.get(
+              { fileId, alt: 'media', supportsAllDrives: true },
+              { responseType: 'stream', headers: reqHeaders }
+            );
 
-        res.status(driveRes.status || 200);
-        res.setHeader('Content-Type', driveRes.headers['content-type'] || 'video/mp4');
+            res.status(driveRes.status || 200);
+            res.setHeader('Content-Type', driveRes.headers['content-type'] || 'video/mp4');
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Headers', 'Range, Accept, Content-Type');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
+            if (driveRes.headers['content-range']) {
+              res.setHeader('Content-Range', driveRes.headers['content-range']);
+            }
+            if (driveRes.headers['content-length']) {
+              res.setHeader('Content-Length', driveRes.headers['content-length']);
+            }
+            return driveRes.data.pipe(res);
+          }
+        } catch (apiErr) {
+          console.warn('Google Drive API stream fallback to direct public stream:', apiErr.message);
+        }
+
+        // 2. Fallback: Parse Google Drive virus-scan bypass uuid for files > 100MB
+        const checkRes = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+        const checkText = await checkRes.text();
+        const uuidMatch = checkText.match(/name="uuid"\s+value="([^"]+)"/i);
+        const uuid = uuidMatch ? uuidMatch[1] : '';
+
+        const directUrl = uuid
+          ? `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t&uuid=${uuid}`
+          : `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+
+        const mediaRes = await fetch(directUrl, { headers: reqHeaders });
+
+        res.status(mediaRes.status || 200);
+        res.setHeader('Content-Type', mediaRes.headers.get('content-type') || 'video/mp4');
         res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Headers', 'Range, Accept, Content-Type');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
-        if (driveRes.headers['content-range']) {
-          res.setHeader('Content-Range', driveRes.headers['content-range']);
+        if (mediaRes.headers.get('content-range')) {
+          res.setHeader('Content-Range', mediaRes.headers.get('content-range'));
         }
-        if (driveRes.headers['content-length']) {
-          res.setHeader('Content-Length', driveRes.headers['content-length']);
+        if (mediaRes.headers.get('content-length')) {
+          res.setHeader('Content-Length', mediaRes.headers.get('content-length'));
         }
 
-        return driveRes.data.pipe(res);
+        if (mediaRes.body) {
+          const bodyStream = Readable.fromWeb(mediaRes.body);
+          return bodyStream.pipe(res);
+        }
+        return res.status(200).end();
       } catch (streamErr) {
         console.warn('Google Drive direct proxy stream fallback to CDN:', streamErr.message);
         return res.redirect(302, `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`);
@@ -2575,6 +2610,15 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: 'Attendance log updated!' });
       }
       if (req.method === 'DELETE') {
+        if (query.resetAll === 'true') {
+          const uKey = query.username ? query.username.toLowerCase().trim() : null;
+          if (uKey && uKey !== 'all') {
+            await col.deleteMany({ username: uKey });
+          } else {
+            await col.deleteMany({});
+          }
+          return res.status(200).json({ success: true, message: 'Attendance logs reset to zero!' });
+        }
         const targetId = query.id || query.logId;
         if (targetId) {
           await col.deleteOne({ $or: [{ id: targetId }, { logId: targetId }] });

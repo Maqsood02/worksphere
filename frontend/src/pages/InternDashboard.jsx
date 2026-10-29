@@ -521,21 +521,31 @@ export default function InternDashboard() {
 
   const getAttendanceDisplayId = (log, logsList = []) => {
     const rawKey = log?.logId || log?.id;
+    const listToUse = (Array.isArray(logsList) && logsList.length > 0) ? logsList : (Array.isArray(attendanceLogs) ? attendanceLogs : []);
+    if (listToUse.length > 0) {
+      const sorted = [...listToUse].sort((a, b) => {
+        const da = new Date(a.date || a.createdAt || 0).getTime();
+        const db = new Date(b.date || b.createdAt || 0).getTime();
+        if (da !== db) return da - db;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      const foundIdx = sorted.findIndex(l => 
+        (l.id && l.id === rawKey) || 
+        (l.logId && l.logId === rawKey) || 
+        (l._id && l._id === log?._id) || 
+        (l.date === log?.date && (l.username || '').toLowerCase() === (log?.username || '').toLowerCase())
+      );
+      if (foundIdx >= 0) {
+        return `ATT-${String(foundIdx + 1).padStart(3, '0')}`;
+      }
+    }
     if (rawKey) {
       const match = String(rawKey).match(/^ATT-(\d+)$/i);
       if (match) {
         return `ATT-${String(parseInt(match[1], 10)).padStart(3, '0')}`;
       }
     }
-    // Fallback: Chronological order based on date (earliest date = ATT-001)
-    const sorted = [...(logsList || [])].sort((a, b) => {
-      const da = new Date(a.date || a.createdAt || 0);
-      const db = new Date(b.date || b.createdAt || 0);
-      return da - db;
-    });
-    const foundIdx = sorted.findIndex(l => (l.id || l.logId) === rawKey);
-    const num = foundIdx >= 0 ? foundIdx + 1 : 1;
-    return `ATT-${String(num).padStart(3, '0')}`;
+    return 'ATT-001';
   };
 
   useEffect(() => {
@@ -552,6 +562,16 @@ export default function InternDashboard() {
       }
       return;
     }
+    try {
+      ['intern', 'chinmaykv', 'maqsood'].forEach(u => {
+        const key = `worksphere_attendance_${u}`;
+        const cachedAtt = localStorage.getItem(key);
+        if (cachedAtt && (cachedAtt.includes('ATT-077') || cachedAtt.includes('ATT-076') || cachedAtt.includes('ATT-075'))) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch(e) {}
+
     fetchInternData();
 
     // Live polling every 4 seconds so admin updates reflect in real-time without manual refresh
