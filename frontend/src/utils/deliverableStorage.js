@@ -504,7 +504,7 @@ export async function uploadToGoogleDriveDirect(fileOrBlob, taskId, assetType = 
 export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, onProgress = null) {
   if (!videoSource) return false;
   const cleanId = String(taskId || 'latest').trim();
-  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase()].filter(Boolean);
 
   // A. If videoSource is a File or Blob (Memory-safe for 100MB - 500MB)
   if (typeof Blob !== 'undefined' && videoSource instanceof Blob) {
@@ -557,7 +557,7 @@ export async function saveDeliverableVideo(taskId, videoSource, metadata = {}, o
 
 export async function getDeliverableVideo(taskId, fileName = '', onProgress = null) {
   const cleanId = String(taskId || '').trim();
-  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), fileName, 'latest'].filter(Boolean);
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase()].filter(Boolean);
 
   // 1. Try local IndexedDB first (0ms instantaneous)
   try {
@@ -611,7 +611,7 @@ export async function getDeliverableVideo(taskId, fileName = '', onProgress = nu
 export async function saveDeliverableFolder(taskId, folderSource, metadata = {}, onProgress = null) {
   if (!folderSource) return false;
   const cleanId = String(taskId || 'latest').trim();
-  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase()].filter(Boolean);
 
   if (typeof Blob !== 'undefined' && folderSource instanceof Blob) {
     for (const k of aliasKeys) {
@@ -659,7 +659,7 @@ export async function saveDeliverableFolder(taskId, folderSource, metadata = {},
 export async function saveDeliverablePdf(taskId, pdfSource, metadata = {}, onProgress = null) {
   if (!pdfSource) return false;
   const cleanId = String(taskId || 'latest').trim();
-  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), 'latest', metadata.name].filter(Boolean);
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase()].filter(Boolean);
 
   if (typeof Blob !== 'undefined' && pdfSource instanceof Blob) {
     for (const k of aliasKeys) {
@@ -700,7 +700,7 @@ export async function saveDeliverablePdf(taskId, pdfSource, metadata = {}, onPro
 
 export async function getDeliverableFolder(taskId, fileName = '', onProgress = null) {
   const cleanId = String(taskId || '').trim();
-  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase(), fileName, 'latest'].filter(Boolean);
+  const aliasKeys = [cleanId, cleanId.toUpperCase(), cleanId.toLowerCase()].filter(Boolean);
 
   // 1. Try local IndexedDB first
   try {
@@ -837,3 +837,27 @@ export function getEmbeddableVideoInfo(url) {
 }
 
 
+
+export async function purgeLegacyMixedMediaCache() {
+  try {
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.openCursor();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        const key = String(cursor.key || '');
+        if (key.includes('latest') || key.includes('Chinmay') || key.includes('download.mp4')) {
+          cursor.delete();
+        }
+        cursor.continue();
+      }
+    };
+  } catch(e) {}
+}
+
+if (typeof window !== 'undefined') {
+  setTimeout(() => purgeLegacyMixedMediaCache().catch(() => {}), 1000);
+}

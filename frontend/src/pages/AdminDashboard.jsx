@@ -259,89 +259,98 @@ export default function AdminDashboard() {
   }, []);
 
   // Sync modal video and deliverable requirements when reviewTaskModal opens
+  const activeReviewModalId = reviewTaskModal ? (reviewTaskModal.taskId || reviewTaskModal.id || 'active') : null;
+
   useEffect(() => {
-    if (reviewTaskModal) {
-      setVideoError(false);
-      const keyId = reviewTaskModal.taskId || reviewTaskModal.id;
-      const sub = parseSubmissionDetails(reviewTaskModal);
-      const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
-
-      // On-demand fetch of full task data (including enriched submittedFiles, video, folder, fileData)
-      fetch(`/api/intern-tasks?id=${encodeURIComponent(keyId)}&includeFileData=true`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.task) {
-            setReviewTaskModal(prev => prev && (prev.id === keyId || prev.taskId === keyId) ? { ...prev, ...data.task } : prev);
-          }
-        })
-        .catch(() => {});
-
-      // Reset video player modes
-      setGdrivePlayerMode('stream');
-      setDirectStreamError(false);
-
-      // 1. If an external or cloud video URL is available (not self-hosted or data URI)
-      if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
-        setModalVideoSrc(sub.videoDeliverable.url);
-        setModalVideoBlobUrl(sub.videoDeliverable.url);
-        setVideoError(false);
-        setIsVideoLoading(false);
-      } else if (sub.hasVideo) {
-        setIsVideoLoading(true);
-        setModalVideoSrc('');
-        setModalVideoBlobUrl('');
-        setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
-        const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 12000));
-        Promise.race([
-          getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
-            setVideoBufferProgress({ pct, cur, tot });
-          }),
-          safetyTimeout
-        ]).then(src => {
-          const finalSrc = src;
-          if (finalSrc) {
-            setModalVideoSrc(finalSrc);
-            setModalVideoBlobUrl(finalSrc);
-            setVideoError(false);
-          } else {
-            setModalVideoSrc('');
-            setModalVideoBlobUrl(null);
-          }
-          setIsVideoLoading(false);
-          setVideoBufferProgress(null);
-        }).catch(() => {
-          setModalVideoSrc('');
-          setModalVideoBlobUrl(null);
-          setIsVideoLoading(false);
-          setVideoBufferProgress(null);
-        });
-      } else {
-        // No video submitted for this deliverable
-        setModalVideoSrc('');
-        setModalVideoBlobUrl(null);
-        setIsVideoLoading(false);
-        setVideoError(false);
-        setVideoBufferProgress(null);
-      }
-
-      const taskReqs = reviewTaskModal.requiredDeliverables;
-      if (Array.isArray(taskReqs) && taskReqs.length > 0) {
-        setRevisionDeliverables({
-          video: taskReqs.includes('video'),
-          pdf: taskReqs.includes('pdf'),
-          folder: taskReqs.includes('folder'),
-          images: taskReqs.includes('images') || taskReqs.includes('image')
-        });
-      } else {
-        setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true });
-      }
-    } else {
+    if (!activeReviewModalId) {
       setModalVideoSrc('');
       setModalVideoBlobUrl('');
       setVideoError(false);
       setIsVideoLoading(false);
+      return;
     }
-  }, [reviewTaskModal]);
+
+    setVideoError(false);
+    const keyId = activeReviewModalId;
+    const sub = parseSubmissionDetails(reviewTaskModal);
+    const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
+
+    // On-demand fetch of full task data (including enriched submittedFiles, video, folder, fileData)
+    fetch(`/api/intern-tasks?id=${encodeURIComponent(keyId)}&includeFileData=true`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.task) {
+          setReviewTaskModal(prev => {
+            if (!prev) return null;
+            if (prev.id === keyId || prev.taskId === keyId) {
+              return { ...prev, ...data.task };
+            }
+            return prev;
+          });
+        }
+      })
+      .catch(() => {});
+
+    // Reset video player modes
+    setGdrivePlayerMode('stream');
+    setDirectStreamError(false);
+
+    // 1. If an external or cloud video URL is available (not self-hosted or data URI)
+    if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
+      setModalVideoSrc(sub.videoDeliverable.url);
+      setModalVideoBlobUrl(sub.videoDeliverable.url);
+      setVideoError(false);
+      setIsVideoLoading(false);
+    } else if (sub.hasVideo) {
+      setIsVideoLoading(true);
+      setModalVideoSrc('');
+      setModalVideoBlobUrl('');
+      setVideoBufferProgress({ pct: 0, cur: 0, tot: 1 });
+      const safetyTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 25000));
+      Promise.race([
+        getDeliverableVideo(keyId, vidName, (pct, cur, tot) => {
+          setVideoBufferProgress({ pct, cur, tot });
+        }),
+        safetyTimeout
+      ]).then(src => {
+        const finalSrc = src;
+        if (finalSrc) {
+          setModalVideoSrc(finalSrc);
+          setModalVideoBlobUrl(finalSrc);
+          setVideoError(false);
+        } else {
+          setModalVideoSrc('');
+          setModalVideoBlobUrl(null);
+        }
+        setIsVideoLoading(false);
+        setVideoBufferProgress(null);
+      }).catch(() => {
+        setModalVideoSrc('');
+        setModalVideoBlobUrl(null);
+        setIsVideoLoading(false);
+        setVideoBufferProgress(null);
+      });
+    } else {
+      // No video submitted for this deliverable
+      setModalVideoSrc('');
+      setModalVideoBlobUrl(null);
+      setIsVideoLoading(false);
+      setVideoError(false);
+      setVideoBufferProgress(null);
+    }
+
+    const taskReqs = reviewTaskModal.requiredDeliverables;
+    if (Array.isArray(taskReqs) && taskReqs.length > 0) {
+      setRevisionDeliverables({
+        video: taskReqs.includes('video'),
+        pdf: taskReqs.includes('pdf'),
+        folder: taskReqs.includes('folder'),
+        images: taskReqs.includes('images') || taskReqs.includes('image')
+      });
+    } else {
+      setRevisionDeliverables({ video: true, pdf: true, folder: true, images: true });
+    }
+  }, [activeReviewModalId]);
 
   // Convert modalVideoSrc to native Blob URL for hardware-accelerated, lag-free streaming
   useEffect(() => {
