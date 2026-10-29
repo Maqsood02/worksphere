@@ -266,17 +266,15 @@ export default function AdminDashboard() {
       const sub = parseSubmissionDetails(reviewTaskModal);
       const vidName = sub.videoDeliverable?.name || reviewTaskModal.fileName || 'download.mp4';
 
-      // On-demand fetch of full fileData (PDFs/ZIPs) if not already loaded in lightweight task list
-      if (!reviewTaskModal.fileData && (reviewTaskModal.fileName || reviewTaskModal.fileSize)) {
-        fetch(`/api/intern-tasks?id=${encodeURIComponent(keyId)}&includeFileData=true`)
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (data?.task?.fileData) {
-              setReviewTaskModal(prev => prev && (prev.id === keyId || prev.taskId === keyId) ? { ...prev, fileData: data.task.fileData } : prev);
-            }
-          })
-          .catch(() => {});
-      }
+      // On-demand fetch of full task data (including enriched submittedFiles, video, folder, fileData)
+      fetch(`/api/intern-tasks?id=${encodeURIComponent(keyId)}&includeFileData=true`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.task) {
+            setReviewTaskModal(prev => prev && (prev.id === keyId || prev.taskId === keyId) ? { ...prev, ...data.task } : prev);
+          }
+        })
+        .catch(() => {});
 
       // Reset video player modes
       setGdrivePlayerMode('stream');
@@ -1271,6 +1269,7 @@ export default function AdminDashboard() {
     }
 
     const lowerName = (fileName || '').toLowerCase();
+    const isVideo = lowerName.match(/\.(mp4|webm|mov|mkv|avi|m4v)$/i) || (fileType || '').startsWith('video/');
     const isPdf = lowerName.endsWith('.pdf') || (fileType || '').includes('pdf');
     const isImage = lowerName.match(/\.(png|jpg|jpeg|webp|gif|svg)$/i) || (fileType || '').startsWith('image/');
     const isZip = lowerName.match(/\.(zip|rar|tar\.gz|7z)$/i) || (fileType || '').includes('zip');
@@ -1290,22 +1289,39 @@ export default function AdminDashboard() {
       ? resolvedVideoData
       : (allFiles.video?.data && !allFiles.video.data.startsWith('data:application/octet_stream') ? allFiles.video.data : '');
 
-    const hasVideo = Boolean(validVideoUrl || validVideoData);
+    const hasVideoDeliverable = Boolean(
+      validVideoUrl || 
+      validVideoData || 
+      allFiles.video?.name || 
+      allFiles.video?.hasFullVideo || 
+      (isVideo && fileName) ||
+      task?.videoFileName
+    );
+    const hasVideo = hasVideoDeliverable;
 
     const videoDeliverable = hasVideo ? {
       ...(allFiles.video || {}),
-      name: allFiles.video?.name || (task?.submittedFiles?.video?.name) || 'Walkthrough Demonstration',
+      name: allFiles.video?.name || (isVideo ? fileName : (task?.videoFileName || 'Walkthrough Demonstration.mp4')),
       data: validVideoData,
       url: validVideoUrl,
-      size: allFiles.video?.size || (task?.submittedFiles?.video?.size) || ''
+      size: allFiles.video?.size || (isVideo ? fileSize : '') || task?.videoFileSize || '',
+      hasFullVideo: true
     } : null;
 
+    const hasFolderDeliverable = Boolean(
+      allFiles.folder?.name || 
+      allFiles.folder?.hasFullFolder || 
+      (isZip && fileName) || 
+      task?.folderFileName ||
+      (urlLink && (urlLink.includes('.zip') || urlLink.includes('drive')))
+    );
+
+    const folderDeliverable = allFiles.folder || (isZip ? { name: fileName, size: fileSize, type: fileType, data: fileData, url: urlLink, hasFullFolder: true } : (task?.folderFileName ? { name: task.folderFileName, size: task.folderFileSize || '', type: 'application/zip', hasFullFolder: true } : (urlLink ? { url: urlLink } : null)));
     const pdfDeliverable = allFiles.pdf || (isPdf ? { name: fileName, size: fileSize, type: fileType, data: fileData } : null);
-    const folderDeliverable = allFiles.folder || (isZip ? { name: fileName, size: fileSize, type: fileType, data: fileData, url: urlLink } : (urlLink ? { url: urlLink } : null));
     const imagesDeliverables = Array.isArray(allFiles.images) ? allFiles.images : (isImage ? [{ name: fileName, size: fileSize, type: fileType, data: fileData }] : []);
 
     const hasPdf = Boolean(pdfDeliverable?.data || pdfDeliverable?.name);
-    const hasFolder = Boolean(folderDeliverable?.data || folderDeliverable?.name || folderDeliverable?.url);
+    const hasFolder = Boolean(folderDeliverable?.data || folderDeliverable?.name || folderDeliverable?.url || hasFolderDeliverable);
     const hasImages = Boolean(imagesDeliverables && imagesDeliverables.length > 0);
 
     return {
@@ -1316,6 +1332,7 @@ export default function AdminDashboard() {
       fileType,
       fileData,
       urlLink,
+      isVideo,
       isPdf,
       isImage,
       isZip,
@@ -1354,6 +1371,22 @@ export default function AdminDashboard() {
 
   const handleViewDeliverableFile = (sub, task) => {
     const reportFileName = sub.fileName || 'Intern_Deliverable_File';
+    const keyId = task?.taskId || task?.id;
+
+    // 0. If it's a video file, stream it
+    if (sub.isVideo || reportFileName.match(/\.(mp4|webm|mov|mkv)$/i)) {
+      setIsVideoLoading(true);
+      getDeliverableVideo(keyId, reportFileName).then(src => {
+        setIsVideoLoading(false);
+        if (src) {
+          setModalVideoSrc(src);
+          setModalVideoBlobUrl(src);
+        } else {
+          addToast("Unable to stream video from storage.");
+        }
+      });
+      return;
+    }
 
     // 1. If intern uploaded binary file data as Data URL
     if (sub.fileData && sub.fileData.startsWith('data:')) {
@@ -1378,6 +1411,26 @@ export default function AdminDashboard() {
 
   const handleDownloadDeliverableFile = (sub, task) => {
     const reportFileName = sub.fileName || 'Intern_Deliverable_File';
+    const keyId = task?.taskId || task?.id;
+
+    // 0. If it's a video file, download via getDeliverableVideo
+    if (sub.isVideo || reportFileName.match(/\.(mp4|webm|mov|mkv)$/i)) {
+      addToast(`Retrieving ${reportFileName} from storage...`);
+      getDeliverableVideo(keyId, reportFileName).then(src => {
+        if (src) {
+          const a = document.createElement('a');
+          a.href = src;
+          a.download = reportFileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          addToast(`Downloaded ${reportFileName} successfully!`);
+        } else {
+          addToast("Unable to retrieve video file for download.");
+        }
+      });
+      return;
+    }
     
     // 1. If intern uploaded binary file data as Data URL
     if (sub.fileData && sub.fileData.startsWith('data:')) {
@@ -5677,9 +5730,11 @@ export default function AdminDashboard() {
                         <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 font-black text-xs shadow-xs ${
                           sub.isZip ? 'bg-amber-100 text-amber-800 border-amber-300' :
                           sub.isImage ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                          sub.isVideo ? 'bg-rose-100 text-rose-700 border-rose-200' :
+                          sub.isDoc ? 'bg-blue-100 text-blue-700 border-blue-200' :
                           'bg-rose-100 text-rose-700 border-rose-200'
                         }`}>
-                          {sub.isZip ? 'ZIP' : sub.isImage ? 'IMG' : sub.isDoc ? 'DOC' : 'PDF'}
+                          {sub.isZip ? 'ZIP' : sub.isImage ? 'IMG' : sub.isVideo ? 'VID' : sub.isDoc ? 'DOC' : 'PDF'}
                         </div>
                         <div className="min-w-0">
                           <span className="font-extrabold text-slate-900 text-sm block truncate">

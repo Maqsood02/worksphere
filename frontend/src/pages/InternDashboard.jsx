@@ -974,30 +974,39 @@ function getAttendanceTimelineAndRate(logs) {
       const safeFolderData = (folderFileData && !folderFileData.startsWith('blob:') && folderFileData.length < 200000) ? folderFileData : '';
       const safePdfData = (pdfFileData && !pdfFileData.startsWith('blob:') && pdfFileData.length < 200000) ? pdfFileData : '';
 
+      const prevSubmitted = (selectedTask?.submittedFiles && typeof selectedTask.submittedFiles === 'object') ? selectedTask.submittedFiles : {};
+
+      const videoObj = (videoFileName || resolvedVideoUrl || videoFileData || videoRawFile) ? {
+        name: videoFileName || 'Demo Video.mp4',
+        size: videoFileSize,
+        type: videoFileType || 'video/mp4',
+        data: safeVideoData,
+        url: resolvedVideoUrl,
+        hasFullVideo: true
+      } : (prevSubmitted.video || null);
+
+      const pdfObj = (pdfFileName || resolvedPdfUrl) ? {
+        name: pdfFileName || 'Documentation_Report.pdf',
+        size: pdfFileSize,
+        type: pdfFileType || 'application/pdf',
+        data: safePdfData,
+        url: resolvedPdfUrl || ''
+      } : (prevSubmitted.pdf || null);
+
+      const folderObj = (folderFileName || resolvedFolderUrl || (submissionUrl && (submissionUrl.includes('.zip') || submissionUrl.includes('drive')))) ? {
+        name: folderFileName || 'Project_Folder.zip',
+        size: folderFileSize,
+        type: folderFileType || 'application/zip',
+        data: safeFolderData,
+        url: resolvedFolderUrl || submissionUrl,
+        hasFullFolder: true
+      } : (prevSubmitted.folder || null);
+
       const submittedFiles = {
-        video: (videoFileName || resolvedVideoUrl || videoFileData || videoRawFile) ? {
-          name: videoFileName || 'Demo Video',
-          size: videoFileSize,
-          type: videoFileType || 'video/mp4',
-          data: safeVideoData,
-          url: resolvedVideoUrl,
-          hasFullVideo: true
-        } : null,
-        pdf: (pdfFileName || resolvedPdfUrl) ? {
-          name: pdfFileName || 'Documentation_Report.pdf',
-          size: pdfFileSize,
-          type: pdfFileType || 'application/pdf',
-          data: safePdfData,
-          url: resolvedPdfUrl || ''
-        } : null,
-        folder: (folderFileName || resolvedFolderUrl || submissionUrl) ? {
-          name: folderFileName || 'Project_Folder.zip',
-          size: folderFileSize,
-          type: folderFileType || 'application/zip',
-          data: safeFolderData,
-          url: resolvedFolderUrl || submissionUrl
-        } : null,
-        images: imagesList || []
+        video: videoObj,
+        pdf: pdfObj,
+        folder: folderObj,
+        images: (imagesList && imagesList.length > 0) ? imagesList : (prevSubmitted.images || [])
       };
 
       const primaryFile = pdfFileName 
@@ -1008,7 +1017,7 @@ function getAttendanceTimelineAndRate(logs) {
         ? { name: videoFileName, size: videoFileSize, type: videoFileType, data: safeVideoData }
         : imagesList[0] 
         ? { name: imagesList[0].name, size: imagesList[0].size, type: imagesList[0].type, data: imagesList[0].data }
-        : { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: '' };
+        : (prevSubmitted.pdf || prevSubmitted.folder || prevSubmitted.video || { name: uploadedFileName, size: uploadedFileSize, type: uploadedFileType, data: '' });
 
       const finalSubmissionUrl = (resolvedFolderUrl || resolvedVideoUrl || resolvedPdfUrl || submissionUrl || '').trim();
 
@@ -2559,7 +2568,7 @@ function getAttendanceTimelineAndRate(logs) {
           ? rawReqs
           : (isRevision ? ['video', 'pdf', 'folder', 'images'] : ['pdf', 'folder']);
 
-        const isVideoShown = isRevision && (reqs.includes('video') || showOptionalVideo || videoFileName || videoUrl || videoFileData);
+        const isVideoShown = reqs.includes('video') || showOptionalVideo || videoFileName || videoUrl || videoFileData;
 
         return (
           <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -2846,17 +2855,17 @@ function getAttendanceTimelineAndRate(logs) {
                       })()}
                     </div>
                   </div>
-                ) : isRevision ? (
+                ) : (
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => setShowOptionalVideo(true)}
                       className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
-                      <Video className="w-3.5 h-3.5 text-rose-600" /> + Also Attach Video Demo Walkthrough
+                      <Video className="w-3.5 h-3.5 text-rose-600" /> + Attach Video Demo Walkthrough (MP4 / WebM)
                     </button>
                   </div>
-                ) : null}
+                )}
 
                 {/* 2. PDF REPORT DOCUMENT SECTION (In Normal Mode OR Revision Mode if requested) */}
                 {(!isRevision || (isRevision && reqs.includes('pdf'))) && (

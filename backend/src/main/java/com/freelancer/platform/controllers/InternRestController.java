@@ -255,7 +255,14 @@ public class InternRestController {
                 dt.setStatus("SUBMITTED");
                 if (url != null) dt.setSubmissionUrl(url);
                 if (notes != null) dt.setSubmissionNotes(notes);
-                if (fileData != null && !fileData.isBlank()) dt.setSubmittedFiles(fileData);
+                if (fileName != null && !fileName.isBlank()) dt.setFileName(fileName);
+                if (fileSize != null && !fileSize.isBlank()) dt.setFileSize(fileSize);
+                if (fileType != null && !fileType.isBlank()) dt.setFileType(fileType);
+                String videoUrl = payload.get("videoUrl");
+                if (videoUrl != null && !videoUrl.isBlank()) dt.setVideoUrl(videoUrl);
+                if (fileData != null && !fileData.isBlank() && fileData.length() < 200000) {
+                    dt.setSubmittedFiles(fileData);
+                }
                 internTaskRepository.save(dt);
             }
         } catch (Exception e) {

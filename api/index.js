@@ -68,6 +68,70 @@ export function invalidateMailTransporter() {
   cachedTransporterKey = null;
 }
 
+// Helper: Enrich intern tasks with media deliverables stored in task_media
+export async function enrichTasksWithMedia(tasks, db) {
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0 || !db) return tasks;
+  try {
+    const taskIds = tasks.map(t => t.taskId || t.id).filter(Boolean);
+    if (!taskIds.length) return tasks;
+
+    const mediaSummaries = await db.collection('task_media').aggregate([
+      { $match: { taskId: { $in: taskIds } } },
+      { $sort: { chunkIndex: 1 } },
+      {
+        $group: {
+          _id: { taskId: "$taskId", assetType: "$assetType" },
+          fileName: { $first: "$fileName" },
+          fileSize: { $first: "$fileSize" },
+          totalChunks: { $first: "$totalChunks" },
+          count: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+
+    const mediaMap = {};
+    for (const m of mediaSummaries) {
+      if (m._id?.taskId && m._id?.assetType) {
+        const key = `${m._id.taskId}_${m._id.assetType}`.toLowerCase();
+        mediaMap[key] = m;
+      }
+    }
+
+    for (const task of tasks) {
+      const id = String(task.taskId || task.id || '').toLowerCase();
+      if (!id) continue;
+      if (!task.submittedFiles || typeof task.submittedFiles !== 'object') {
+        task.submittedFiles = {};
+      }
+      const vKey = `${id}_video`;
+      if (mediaMap[vKey] && (!task.submittedFiles.video || !task.submittedFiles.video.name)) {
+        task.submittedFiles.video = {
+          name: mediaMap[vKey].fileName || 'Task Video.mp4',
+          size: mediaMap[vKey].fileSize || '',
+          type: 'video/mp4',
+          data: '',
+          url: task.videoUrl || '',
+          hasFullVideo: true
+        };
+      }
+      const fKey = `${id}_folder`;
+      if (mediaMap[fKey] && (!task.submittedFiles.folder || !task.submittedFiles.folder.name)) {
+        task.submittedFiles.folder = {
+          name: mediaMap[fKey].fileName || 'Project_Folder.zip',
+          size: mediaMap[fKey].fileSize || '',
+          type: 'application/zip',
+          data: '',
+          url: task.submissionUrl || '',
+          hasFullFolder: true
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Error enriching tasks with media:', err);
+  }
+  return tasks;
+}
+
 // Helper: Send Learning Module Email
 async function sendLearningModuleNotification({ toEmail, internName, username, moduleTitle, category, track, description, videoUrl, resourceUrl, db = null }) {
   if (!toEmail || !toEmail.includes('@')) return false;
@@ -1444,11 +1508,12 @@ export default async function handler(req, res) {
 
       // GET /api/admin/interns - Fast parallel retrieval of all interns and active tasks
       if (req.method === 'GET') {
-        const [internUsers, allTasks, serverProfiles] = await Promise.all([
+        let [internUsers, allTasks, serverProfiles] = await Promise.all([
           usersCol.find({ role: { $regex: /intern/i } }).project({ password: 0, rawPassword: 0 }).toArray(),
           tasksCol.find({}, { projection: { fileData: 0 } }).sort({ createdAt: -1 }).toArray(),
           profilesCol.find({}).toArray()
         ]);
+        allTasks = await enrichTasksWithMedia(allTasks, db);
 
         const profileMap = new Map();
         for (const p of serverProfiles) {
@@ -1528,8 +1593,24 @@ export default async function handler(req, res) {
         const submitIdx = parts.indexOf('submit');
         const taskId = (submitIdx > 0 ? parts[submitIdx - 1] : (body.taskId || query.taskId || '')).trim();
         if (taskId) {
+          const existingTask = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
           const updateData = { ...body, status: 'SUBMITTED', updatedAt: new Date() };
           delete updateData._id;
+
+          if (body.submittedFiles && typeof body.submittedFiles === 'object') {
+            const cleanFiles = { ...(existingTask?.submittedFiles || {}), ...body.submittedFiles };
+            if (body.submittedFiles.video === null && existingTask?.submittedFiles?.video) {
+              cleanFiles.video = existingTask.submittedFiles.video;
+            }
+            if (body.submittedFiles.folder === null && existingTask?.submittedFiles?.folder) {
+              cleanFiles.folder = existingTask.submittedFiles.folder;
+            }
+            if (body.submittedFiles.pdf === null && existingTask?.submittedFiles?.pdf) {
+              cleanFiles.pdf = existingTask.submittedFiles.pdf;
+            }
+            updateData.submittedFiles = cleanFiles;
+          }
+
           await col.updateOne(
             { $or: [{ taskId: taskId }, { id: taskId }] },
             { $set: updateData }
@@ -1545,7 +1626,7 @@ export default async function handler(req, res) {
         // If specific task requested, return full document (with fileData if requested or present)
         if (targetId) {
           const cleanId = String(targetId).trim();
-          const task = await col.findOne({
+          let task = await col.findOne({
             $or: [
               { taskId: cleanId },
               { id: cleanId },
@@ -1554,14 +1635,16 @@ export default async function handler(req, res) {
             ]
           });
           if (task) {
-            return res.status(200).json({ success: true, task });
+            const enriched = await enrichTasksWithMedia([task], db);
+            return res.status(200).json({ success: true, task: enriched[0] });
           }
           return res.status(404).json({ success: false, message: 'Task not found' });
         }
 
         // List queries: project { fileData: 0 } unless includeFileData === 'true' for 99.5% bandwidth reduction
         const projection = includeFileData === 'true' ? {} : { fileData: 0 };
-        const allTasks = await col.find({}, { projection }).sort({ createdAt: -1 }).toArray();
+        let allTasks = await col.find({}, { projection }).sort({ createdAt: -1 }).toArray();
+        allTasks = await enrichTasksWithMedia(allTasks, db);
 
         if (!username || username === 'all' || username === 'admin') {
           return res.status(200).json({ success: true, tasks: allTasks });
@@ -1689,7 +1772,17 @@ export default async function handler(req, res) {
         if (requiredDeliverables !== undefined) updateFields.requiredDeliverables = requiredDeliverables;
         if (submittedFiles !== undefined) {
           if (submittedFiles && typeof submittedFiles === 'object') {
-            const cleanFiles = { ...submittedFiles };
+            const existingTask = await col.findOne({ $or: [{ taskId: taskId }, { id: taskId }] });
+            const cleanFiles = { ...(existingTask?.submittedFiles || {}), ...submittedFiles };
+            if (submittedFiles.video === null && existingTask?.submittedFiles?.video) {
+              cleanFiles.video = existingTask.submittedFiles.video;
+            }
+            if (submittedFiles.folder === null && existingTask?.submittedFiles?.folder) {
+              cleanFiles.folder = existingTask.submittedFiles.folder;
+            }
+            if (submittedFiles.pdf === null && existingTask?.submittedFiles?.pdf) {
+              cleanFiles.pdf = existingTask.submittedFiles.pdf;
+            }
             if (cleanFiles.pdf && typeof cleanFiles.pdf === 'object' && cleanFiles.pdf.data && cleanFiles.pdf.data.length > 200000) {
               cleanFiles.pdf = { ...cleanFiles.pdf, data: '' };
             }
@@ -2022,6 +2115,40 @@ export default async function handler(req, res) {
           { $set: { taskId, assetType, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), data, fileName, fileSize, updatedAt: new Date() } },
           { upsert: true }
         );
+
+        // Auto-sync deliverable metadata into intern_tasks so task is immediately linked
+        try {
+          const assetField = assetType === 'video' ? 'video' : 'folder';
+          const assetObj = {
+            name: fileName || (assetType === 'video' ? 'Walkthrough Video.mp4' : 'Project_Folder.zip'),
+            size: fileSize || '',
+            type: assetType === 'video' ? 'video/mp4' : 'application/zip',
+            data: '',
+            url: '',
+            hasFullVideo: assetType === 'video',
+            hasFullFolder: assetType === 'folder',
+            chunkCount: Number(chunkIndex) + 1,
+            totalChunks: Number(totalChunks)
+          };
+          const taskUpdate = {
+            updatedAt: new Date(),
+            [`submittedFiles.${assetField}`]: assetObj
+          };
+          if (assetType === 'video') {
+            taskUpdate.videoFileName = fileName;
+            taskUpdate.videoFileSize = fileSize;
+          } else if (assetType === 'folder') {
+            taskUpdate.folderFileName = fileName;
+            taskUpdate.folderFileSize = fileSize;
+          }
+          await db.collection('intern_tasks').updateOne(
+            { $or: [{ taskId: taskId }, { id: taskId }, { taskId: new RegExp(`^${taskId}$`, 'i') }, { id: new RegExp(`^${taskId}$`, 'i') }] },
+            { $set: taskUpdate }
+          );
+        } catch (syncErr) {
+          console.warn('Sync media to intern_tasks warning:', syncErr);
+        }
+
         return res.status(200).json({ success: true, chunkIndex: Number(chunkIndex), totalChunks: Number(totalChunks), message: `Chunk ${Number(chunkIndex) + 1}/${totalChunks} saved.` });
       }
 

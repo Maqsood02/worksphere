@@ -303,9 +303,9 @@ export async function fetchMediaFromCloud(taskId, assetType = 'video', onProgres
   const totalChunks = Number(manifest.totalChunks || 1);
   const chunkParts = new Array(totalChunks);
 
-  // 2. Fetch chunks with concurrency (3 parallel chunk requests)
+  // 2. Fetch chunks with concurrency (6 parallel chunk requests)
   let downloadedCount = 0;
-  const FETCH_CONCURRENCY = 3;
+  const FETCH_CONCURRENCY = 6;
   for (let i = 0; i < totalChunks; i += FETCH_CONCURRENCY) {
     const batch = [];
     for (let c = i; c < Math.min(i + FETCH_CONCURRENCY, totalChunks); c++) {
