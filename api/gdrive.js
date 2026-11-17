@@ -289,10 +289,11 @@ export async function getGoogleDriveAuth(db = null) {
 
   // Option 1: OAuth 2.0 User (personal Google account with real 15GB storage quota - preferred for uploads)
   if (creds.client_id && creds.client_secret && creds.refresh_token) {
+    const cfg = getOAuthClientConfig();
     const oauth2Client = new google.auth.OAuth2(
       creds.client_id,
       creds.client_secret,
-      OAUTH_REDIRECT_URI
+      cfg?.redirectUri || 'http://127.0.0.1:54321'
     );
     oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
     return oauth2Client;
