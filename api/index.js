@@ -1,5 +1,5 @@
 import { connectToDatabase } from './db.js';
-import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials, getGoogleDriveAuth } from './gdrive.js';
+import { isGoogleDriveConfigured, createResumableUploadUrl, finalizeDriveFile, getCredentials, verifyGoogleDriveCredentials, saveGoogleDriveCredentials, getGoogleDriveAuth, getOAuthAuthorizationUrl, exchangeOAuthCode } from './gdrive.js';
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
 import { Readable } from 'stream';
@@ -1838,6 +1838,184 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
+    // 8A-2C. GOOGLE DRIVE OAUTH RE-AUTHORIZATION: /api/drive-auth
+    // ==========================================
+    if (cleanPath.includes('drive-auth')) {
+      // GET /api/drive-auth?action=url  -> returns the OAuth authorization URL for admin to click
+      // GET /api/drive-auth?code=...    -> OAuth callback: exchanges code for tokens and saves
+      // GET /api/drive-auth?action=status -> returns current connection status
+      const action = query.action || '';
+      const oauthCode = query.code || '';
+
+      if (oauthCode) {
+        // This is the OAuth callback from Google with the authorization code
+        try {
+          const newCreds = await exchangeOAuthCode(oauthCode, db);
+          // Return a friendly HTML page so the user can close the tab
+          res.setHeader('Content-Type', 'text/html');
+          return res.status(200).send(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Google Drive Connected</title>
+<style>body{font-family:system-ui,sans-serif;background:#0b1120;color:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+.box{background:#131c2e;border:1px solid #22c55e;border-radius:16px;padding:40px;text-align:center;max-width:440px;}
+h2{color:#22c55e;font-size:22px;margin:0 0 12px}p{color:#94a3b8;font-size:14px;margin:8px 0}code{background:#0b1120;padding:3px 8px;border-radius:6px;font-size:12px;color:#60a5fa;}
+</style></head><body><div class="box"><h2>✅ Google Drive Connected!</h2>
+<p>WorkSphere is now authorized to upload files directly to your Google Drive.</p>
+<p>You can close this tab and return to the Admin Panel.</p>
+</div></body></html>`);
+        } catch (oauthErr) {
+          res.setHeader('Content-Type', 'text/html');
+          return res.status(400).send(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Authorization Failed</title>
+<style>body{font-family:system-ui,sans-serif;background:#0b1120;color:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+.box{background:#131c2e;border:1px solid #ef4444;border-radius:16px;padding:40px;text-align:center;max-width:440px;}
+h2{color:#ef4444;margin:0 0 12px}p{color:#94a3b8;font-size:14px;}</style></head>
+<body><div class="box"><h2>❌ Authorization Failed</h2><p>${oauthErr.message}</p><p>Please close this tab and try again from the Admin Panel.</p></div></body></html>`);
+        }
+      }
+
+      if (action === 'url') {
+        try {
+          const authUrl = getOAuthAuthorizationUrl();
+          return res.status(200).json({ success: true, authUrl });
+        } catch (e) {
+          return res.status(500).json({ success: false, message: e.message });
+        }
+      }
+
+      // Default: status check
+      const creds = await getCredentials(db);
+      const configured = Boolean(creds && ((creds.client_id && creds.refresh_token) || (creds.client_email && creds.private_key)));
+      const isOAuth = Boolean(creds && creds.client_id && creds.refresh_token);
+      const isServiceAccount = Boolean(creds && creds.client_email && creds.private_key);
+      const authUrl = getOAuthAuthorizationUrl();
+      return res.status(200).json({
+        success: true,
+        configured,
+        isOAuth,
+        isServiceAccount,
+        email: creds?.client_email || null,
+        folder_id: creds?.folder_id || null,
+        authUrl,
+        message: isOAuth
+          ? 'Connected via Google OAuth (personal account with storage quota).'
+          : isServiceAccount
+            ? 'Connected via Service Account (no upload storage quota — reconnect with OAuth).'
+            : 'Not connected. Use the authorization URL to connect Google Drive.'
+      });
+    }
+
+    // ==========================================
+    // 8A-2D. TASK VIDEO STREAM (MongoDB Chunked - HTTP Range): /api/task-video-stream
+    // ==========================================
+    if (cleanPath.includes('task-video-stream')) {
+      const taskId = String(query.taskId || '').trim();
+      const assetType = String(query.assetType || 'video').trim();
+      if (!taskId) {
+        return res.status(400).json({ success: false, message: 'taskId required' });
+      }
+
+      const mediaCol = db.collection('task_media');
+      const CHUNK_BINARY_SIZE = 1310720; // 1.25 MB chunks stored as base64
+
+      // Get metadata (first chunk without data)
+      const firstChunkMeta = await mediaCol.findOne(
+        { taskId, assetType, chunkIndex: 0 },
+        { projection: { totalChunks: 1, fileName: 1, fileSize: 1 } }
+      );
+
+      if (!firstChunkMeta) {
+        return res.status(404).json({ success: false, message: 'Video not found in database' });
+      }
+
+      const totalChunks = Number(firstChunkMeta.totalChunks || 1);
+      const mime = assetType === 'folder' ? 'application/zip' : 'video/mp4';
+
+      // Calculate total size from last chunk
+      const lastChunkDoc = await mediaCol.findOne(
+        { taskId, assetType, chunkIndex: totalChunks - 1 },
+        { projection: { data: 1 } }
+      );
+      if (!lastChunkDoc) {
+        return res.status(500).json({ success: false, message: 'Incomplete video in database' });
+      }
+      let lastB64 = lastChunkDoc.data || '';
+      if (lastB64.includes(',')) lastB64 = lastB64.split(',')[1];
+      const lastChunkSize = Buffer.from(lastB64, 'base64').length;
+      const totalSize = ((totalChunks - 1) * CHUNK_BINARY_SIZE) + lastChunkSize;
+
+      // Parse Range header
+      const rangeHeader = req.headers.range || '';
+      let start = 0;
+      let end = totalSize - 1;
+      let isRangeRequest = false;
+
+      if (rangeHeader) {
+        const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+        if (match) {
+          start = parseInt(match[1], 10);
+          end = match[2] ? parseInt(match[2], 10) : Math.min(start + 2 * 1024 * 1024, totalSize - 1);
+          isRangeRequest = true;
+        }
+      }
+
+      // Clamp
+      start = Math.max(0, Math.min(start, totalSize - 1));
+      end = Math.max(start, Math.min(end, totalSize - 1));
+      const contentLength = end - start + 1;
+
+      // Set headers
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', String(contentLength));
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+
+      if (isRangeRequest) {
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+        res.status(206);
+      } else {
+        res.status(200);
+      }
+
+      if (req.method === 'HEAD') {
+        return res.end();
+      }
+
+      // Stream the relevant chunks
+      const startChunkIdx = Math.floor(start / CHUNK_BINARY_SIZE);
+      const endChunkIdx = Math.floor(end / CHUNK_BINARY_SIZE);
+
+      const chunks = await mediaCol.find(
+        { taskId, assetType, chunkIndex: { $gte: startChunkIdx, $lte: endChunkIdx } },
+        { projection: { data: 1, chunkIndex: 1 } }
+      ).sort({ chunkIndex: 1 }).toArray();
+
+      let bytesWritten = 0;
+      for (const chunk of chunks) {
+        let b64 = chunk.data || '';
+        if (b64.includes(',')) b64 = b64.split(',')[1];
+        const buf = Buffer.from(b64, 'base64');
+
+        const chunkStart = chunk.chunkIndex * CHUNK_BINARY_SIZE;
+        const chunkEnd = chunkStart + buf.length - 1;
+
+        // Calculate the slice of this chunk we need
+        const sliceFrom = Math.max(0, start - chunkStart);
+        const sliceTo = Math.min(buf.length, end - chunkStart + 1);
+
+        if (sliceTo <= sliceFrom) continue;
+
+        const slice = buf.subarray(sliceFrom, sliceTo);
+        res.write(slice);
+        bytesWritten += slice.length;
+
+        if (bytesWritten >= contentLength) break;
+      }
+
+      return res.end();
+    }
+
+    // ==========================================
     // 8A-2A. GOOGLE DRIVE AUTOMATED CLOUD STORAGE: /api/drive-upload
     // ==========================================
     if (cleanPath.includes('drive-upload')) {
@@ -2571,10 +2749,13 @@ export default async function handler(req, res) {
     if (cleanPath.includes('intern-attendance')) {
       const col = db.collection('intern_attendance');
       if (req.method === 'POST') {
-        const uKey = (body.username || '').toLowerCase().trim();
+        const uKey = (body.username || req.headers['x-username'] || '').toLowerCase().trim();
+        if (!uKey) {
+          return res.status(400).json({ success: false, message: 'username is required to log attendance' });
+        }
         const dateStr = body.date || new Date().toISOString().split('T')[0];
         const existing = await col.findOne({
-          username: uKey,
+          username: { $regex: new RegExp(`^${uKey}$`, 'i') },
           date: dateStr
         });
         if (existing) {
@@ -2593,7 +2774,7 @@ export default async function handler(req, res) {
           }
           nextAttId = `ATT-${String(maxNum + 1).padStart(3, '0')}`;
         }
-        const newLog = { ...body, id: nextAttId, logId: nextAttId, createdAt: new Date() };
+        const newLog = { ...body, username: uKey, id: nextAttId, logId: nextAttId, createdAt: new Date() };
         await col.insertOne(newLog);
         return res.status(200).json({ success: true, log: newLog });
       }

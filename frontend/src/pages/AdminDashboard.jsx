@@ -295,13 +295,23 @@ export default function AdminDashboard() {
     setGdrivePlayerMode('stream');
     setDirectStreamError(false);
 
-    // 1. If an external or cloud video URL is available (not self-hosted or data URI)
-    if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
+    // 1. If task has MongoDB-chunked video (no Google Drive URL), use /api/task-video-stream directly
+    const hasChunkedVideo = sub.videoDeliverable?.hasFullVideo && (sub.videoDeliverable?.chunkCount > 0 || sub.videoDeliverable?.totalChunks > 0) && !sub.videoDeliverable?.url;
+    if (hasChunkedVideo) {
+      // Direct HTTP stream URL — plays instantly like a native video, supports seeking
+      const streamUrl = `/api/task-video-stream?taskId=${encodeURIComponent(keyId)}&assetType=video`;
+      setModalVideoSrc(streamUrl);
+      setModalVideoBlobUrl(streamUrl);
+      setVideoError(false);
+      setIsVideoLoading(false);
+    } else if (sub.hasVideo && sub.videoDeliverable?.url && !sub.videoDeliverable.url.startsWith('data:') && (sub.videoDeliverable.url.startsWith('http://') || sub.videoDeliverable.url.startsWith('https://')) && !sub.videoDeliverable.url.includes(window.location.host)) {
+      // 2. External/cloud video URL (Google Drive, etc.)
       setModalVideoSrc(sub.videoDeliverable.url);
       setModalVideoBlobUrl(sub.videoDeliverable.url);
       setVideoError(false);
       setIsVideoLoading(false);
     } else if (sub.hasVideo) {
+      // 3. Fallback: try downloading from MongoDB chunks (legacy path)
       setIsVideoLoading(true);
       setModalVideoSrc('');
       setModalVideoBlobUrl('');
@@ -319,14 +329,17 @@ export default function AdminDashboard() {
           setModalVideoBlobUrl(finalSrc);
           setVideoError(false);
         } else {
-          setModalVideoSrc('');
-          setModalVideoBlobUrl(null);
+          // Last resort: try streaming API
+          const streamUrl = `/api/task-video-stream?taskId=${encodeURIComponent(keyId)}&assetType=video`;
+          setModalVideoSrc(streamUrl);
+          setModalVideoBlobUrl(streamUrl);
         }
         setIsVideoLoading(false);
         setVideoBufferProgress(null);
       }).catch(() => {
-        setModalVideoSrc('');
-        setModalVideoBlobUrl(null);
+        const streamUrl = `/api/task-video-stream?taskId=${encodeURIComponent(keyId)}&assetType=video`;
+        setModalVideoSrc(streamUrl);
+        setModalVideoBlobUrl(streamUrl);
         setIsVideoLoading(false);
         setVideoBufferProgress(null);
       });

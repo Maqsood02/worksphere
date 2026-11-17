@@ -4,23 +4,93 @@ import path from 'path';
 
 let cachedCredentials = null;
 
+// ==========================================
+// OAUTH RE-AUTHORIZATION HELPERS
+// Credentials loaded from local oauth_credentials.json (not hardcoded here)
+// ==========================================
+
+function getOAuthClientConfig() {
+  // Load from env vars first
+  if (process.env.GDRIVE_CLIENT_ID) {
+    return {
+      clientId: process.env.GDRIVE_CLIENT_ID,
+      clientSecret: process.env.GDRIVE_CLIENT_SECRET || '',
+      redirectUri: process.env.GDRIVE_REDIRECT_URI || 'https://worksphere-two.vercel.app/api/drive-auth',
+      folderId: process.env.GDRIVE_FOLDER_ID || ''
+    };
+  }
+  // Load from local oauth_credentials.json
+  const oauthPaths = [
+    path.resolve(process.cwd(), 'oauth_credentials.json'),
+    path.resolve(process.cwd(), 'api/oauth_credentials.json')
+  ];
+  for (const p of oauthPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const json = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (json.client_id) {
+          return {
+            clientId: json.client_id,
+            clientSecret: json.client_secret || '',
+            redirectUri: 'https://worksphere-two.vercel.app/api/drive-auth',
+            folderId: json.folder_id || ''
+          };
+        }
+      } catch (e) {}
+    }
+  }
+  return null;
+}
+
+export function getOAuthAuthorizationUrl() {
+  const cfg = getOAuthClientConfig();
+  if (!cfg) throw new Error('Google OAuth credentials not configured.');
+  const oauth2Client = new google.auth.OAuth2(cfg.clientId, cfg.clientSecret, cfg.redirectUri);
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/drive'],
+  });
+}
+
+export async function exchangeOAuthCode(code, db = null) {
+  const cfg = getOAuthClientConfig();
+  if (!cfg) throw new Error('Google OAuth credentials not configured.');
+  const oauth2Client = new google.auth.OAuth2(cfg.clientId, cfg.clientSecret, cfg.redirectUri);
+  const { tokens } = await oauth2Client.getToken(code);
+  if (!tokens.refresh_token) {
+    throw new Error('No refresh_token returned. Revoke app access in Google account settings and try again.');
+  }
+  const newCreds = {
+    type: 'authorized_user',
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    refresh_token: tokens.refresh_token,
+    folder_id: cfg.folderId
+  };
+  if (db) {
+    await db.collection('app_settings').updateOne(
+      { key: 'gdrive_credentials' },
+      { $set: { key: 'gdrive_credentials', ...newCreds, updatedAt: new Date() } },
+      { upsert: true }
+    );
+  }
+  // Also write to local file for local dev
+  try {
+    fs.writeFileSync(path.resolve(process.cwd(), 'oauth_credentials.json'), JSON.stringify({ ...newCreds, updatedAt: new Date().toISOString() }, null, 2));
+  } catch (e) {}
+  cachedCredentials = null;
+  return newCreds;
+}
+
 // Load credentials from in-memory cache, env vars, MongoDB app_settings, or local JSON files
+// Priority for UPLOADS: OAuth user first (15 GB quota), SA fallback for reads only
 export async function getCredentials(db = null) {
   if (cachedCredentials) {
     return cachedCredentials;
   }
 
-  // 1. Try environment variables (Service Account preferred first)
-  if (process.env.GDRIVE_CLIENT_EMAIL && process.env.GDRIVE_PRIVATE_KEY) {
-    cachedCredentials = {
-      type: 'service_account',
-      client_email: process.env.GDRIVE_CLIENT_EMAIL,
-      private_key: process.env.GDRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      folder_id: process.env.GDRIVE_FOLDER_ID || null
-    };
-    return cachedCredentials;
-  }
-
+  // 1. Try env vars for OAuth user first (user has real storage quota)
   if (process.env.GDRIVE_REFRESH_TOKEN && process.env.GDRIVE_CLIENT_ID) {
     cachedCredentials = {
       type: 'authorized_user',
@@ -32,7 +102,17 @@ export async function getCredentials(db = null) {
     return cachedCredentials;
   }
 
-  // 2. Try MongoDB app_settings (key: 'gdrive_credentials') - Service Account first!
+  if (process.env.GDRIVE_CLIENT_EMAIL && process.env.GDRIVE_PRIVATE_KEY) {
+    cachedCredentials = {
+      type: 'service_account',
+      client_email: process.env.GDRIVE_CLIENT_EMAIL,
+      private_key: process.env.GDRIVE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      folder_id: process.env.GDRIVE_FOLDER_ID || null
+    };
+    return cachedCredentials;
+  }
+
+  // 2. Try MongoDB app_settings - OAuth user preferred over SA for uploads!
   if (db) {
     try {
       const setting = await db.collection('app_settings').findOne({ key: 'gdrive_credentials' });
@@ -74,33 +154,7 @@ export async function getCredentials(db = null) {
     }
   }
 
-  // 3. Try local service_account.json
-  const serviceAccountPaths = [
-    path.resolve(process.cwd(), 'service_account.json'),
-    path.resolve(process.cwd(), 'credentials.json'),
-    path.resolve(process.cwd(), 'api/service_account.json')
-  ];
-  for (const p of serviceAccountPaths) {
-    if (fs.existsSync(p)) {
-      try {
-        const raw = fs.readFileSync(p, 'utf8');
-        const json = JSON.parse(raw);
-        if (json.client_email && json.private_key) {
-          cachedCredentials = {
-            type: 'service_account',
-            client_email: json.client_email,
-            private_key: json.private_key,
-            folder_id: process.env.GDRIVE_FOLDER_ID || json.folder_id || null
-          };
-          return cachedCredentials;
-        }
-      } catch (e) {
-        console.warn('Failed to parse service account JSON at:', p, e.message);
-      }
-    }
-  }
-
-  // 4. Try local oauth_credentials.json (User 15 GB account)
+  // 3. Try local oauth_credentials.json first (User 15 GB quota - preferred for uploads)
   const oauthPaths = [
     path.resolve(process.cwd(), 'oauth_credentials.json'),
     path.resolve(process.cwd(), 'api/oauth_credentials.json')
@@ -122,6 +176,32 @@ export async function getCredentials(db = null) {
         }
       } catch (e) {
         console.warn('Failed to parse oauth_credentials.json at:', p, e.message);
+      }
+    }
+  }
+
+  // 4. Fall back to local service_account.json (read-only for streaming, no storage quota)
+  const serviceAccountPaths = [
+    path.resolve(process.cwd(), 'service_account.json'),
+    path.resolve(process.cwd(), 'credentials.json'),
+    path.resolve(process.cwd(), 'api/service_account.json')
+  ];
+  for (const p of serviceAccountPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const raw = fs.readFileSync(p, 'utf8');
+        const json = JSON.parse(raw);
+        if (json.client_email && json.private_key) {
+          cachedCredentials = {
+            type: 'service_account',
+            client_email: json.client_email,
+            private_key: json.private_key,
+            folder_id: process.env.GDRIVE_FOLDER_ID || json.folder_id || null
+          };
+          return cachedCredentials;
+        }
+      } catch (e) {
+        console.warn('Failed to parse service account JSON at:', p, e.message);
       }
     }
   }
@@ -207,24 +287,24 @@ export async function getGoogleDriveAuth(db = null) {
   const creds = await getCredentials(db);
   if (!creds) return null;
 
-  // Option 1: Service Account JWT (Unattended, permanent)
+  // Option 1: OAuth 2.0 User (personal Google account with real 15GB storage quota - preferred for uploads)
+  if (creds.client_id && creds.client_secret && creds.refresh_token) {
+    const oauth2Client = new google.auth.OAuth2(
+      creds.client_id,
+      creds.client_secret,
+      OAUTH_REDIRECT_URI
+    );
+    oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
+    return oauth2Client;
+  }
+
+  // Option 2: Service Account JWT (no storage quota - use only for reading/streaming)
   if (creds.client_email && creds.private_key) {
     return new google.auth.JWT({
       email: creds.client_email,
       key: creds.private_key.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/drive']
     });
-  }
-
-  // Option 2: OAuth 2.0 User
-  if (creds.client_id && creds.client_secret && creds.refresh_token) {
-    const oauth2Client = new google.auth.OAuth2(
-      creds.client_id,
-      creds.client_secret,
-      'http://127.0.0.1:54321'
-    );
-    oauth2Client.setCredentials({ refresh_token: creds.refresh_token });
-    return oauth2Client;
   }
 
   return null;
